@@ -15,13 +15,13 @@ from datetime import datetime, timedelta
 
 from flask import (
     Flask, render_template, request, redirect, url_for, session,
-    flash, send_from_directory, g,
+    flash, send_from_directory, g, jsonify,
 )
 from werkzeug.utils import secure_filename
 
 import db
 import i18n
-from ai_engine import satellite_screen, compare_before_after
+from ai_engine import satellite_screen, compare_before_after, analyze_severity
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
@@ -87,6 +87,7 @@ def _inject_helpers():
 # ---------------------------------------------------------------------------
 
 def login_required(role=None):
+    allowed = set(role) if isinstance(role, (tuple, set, list)) else ({role} if role else None)
     def deco(fn):
         from functools import wraps
         @wraps(fn)
@@ -94,7 +95,7 @@ def login_required(role=None):
             if g.get("user") is None:
                 flash("Please log in first.", "error")
                 return redirect(url_for("landing"))
-            if role and g.user.role != role:
+            if allowed and g.user.role not in allowed:
                 flash("You don't have access to that page.", "error")
                 return redirect(url_for("landing"))
             return fn(*args, **kwargs)
@@ -251,6 +252,16 @@ def report_problem():
             except Exception:
                 pass
         
+        # Real AI: severity assessment from the uploaded evidence photo.
+        result = analyze_severity(
+            os.path.join(UPLOAD_DIR, photo_filename)
+            if photo_filename and ext in ALLOWED_PHOTO_EXT else None,
+            category,
+        )
+        severity = result["score"]
+        urgency = result["urgency"]
+        severity_note = result["note"]
+
         problem_id = db.create_complaint(
             conn,
             code=code,
@@ -269,9 +280,11 @@ def report_problem():
             is_photo_video=is_photo_video,
             citizen_id=g.user.id,
             status="Submitted",
+            severity=severity,
+            urgency=urgency,
         )
 
-        db.add_log(conn, problem_id, "Submitted", "Complaint registered by citizen.")
+        db.add_log(conn, problem_id, "Submitted", f"Complaint registered by citizen. {severity_note}")
 
         # Automated satellite screening for road/infrastructure complaints.
         if category in db.INFRA_CATEGORIES:
@@ -336,9 +349,11 @@ def officer_accept(complaint_id):
         flash("This case can no longer be accepted here.", "error")
         return redirect(url_for("officer_dashboard"))
 
-    deadline = datetime.utcnow() + timedelta(days=db.RESOLUTION_WINDOW_DAYS)
+    sla_days = db.URGENCY_SLA_DAYS.get(complaint.urgency_key, db.RESOLUTION_WINDOW_DAYS)
+    deadline = datetime.utcnow() + timedelta(days=sla_days)
     db.set_status(conn, complaint_id, "Accepted by Officer",
-                  f"Accepted by {g.user.name}. Resolution due by {deadline:%Y-%m-%d}.",
+                  f"Accepted by {g.user.name}. Resolution due by {deadline:%Y-%m-%d} "
+                  f"(SLA: {sla_days} days for {complaint.urgency_key} urgency).",
                   {"officer_id": g.user.id, "accepted_at": datetime.utcnow().isoformat(),
                    "deadline": deadline.isoformat()})
     return redirect(url_for("officer_complaint", complaint_id=complaint_id))
@@ -418,6 +433,7 @@ def admin_dashboard():
         "open": sum(1 for c in complaints if c.status in open_statuses),
         "resolved": sum(1 for c in complaints if c.status == "Resolved"),
         "overdue": sum(1 for c in complaints if c.is_overdue),
+        "critical": sum(1 for c in complaints if c.urgency == "critical"),
     }
     return render_template("admin_dashboard.html", complaints=complaints,
                            officers=officers, kpis=kpis)
@@ -445,9 +461,11 @@ def admin_assign(complaint_id):
         flash("Invalid assignment.", "error")
         return redirect(url_for("admin_dashboard"))
 
-    deadline = datetime.utcnow() + timedelta(days=db.RESOLUTION_WINDOW_DAYS)
+    sla_days = db.URGENCY_SLA_DAYS.get(complaint.urgency_key, db.RESOLUTION_WINDOW_DAYS)
+    deadline = datetime.utcnow() + timedelta(days=sla_days)
     db.set_status(conn, complaint_id, "Accepted by Officer",
-                  f"Assigned to officer by admin. Resolution due by {deadline:%Y-%m-%d}.",
+                  f"Assigned to officer by admin. Resolution due by {deadline:%Y-%m-%d} "
+                  f"(SLA: {sla_days} days for {complaint.urgency_key} urgency).",
                   {"officer_id": int(officer_id), "accepted_at": datetime.utcnow().isoformat(),
                    "deadline": deadline.isoformat()})
     return redirect(url_for("admin_complaint", complaint_id=complaint_id))
@@ -473,6 +491,40 @@ def admin_create_officer():
     db.create_user(conn, name, email, phone, password, "officer")
     flash(f"Officer account created for {name}.", "success")
     return redirect(url_for("admin_dashboard"))
+
+
+# ---------------------------------------------------------------------------
+# map view (geo tracking of every complaint)
+# ---------------------------------------------------------------------------
+
+@app.route("/admin/map")
+@app.route("/officer/map")
+@login_required(role=("admin", "officer"))
+def complaints_map():
+    return render_template("map.html")
+
+
+@app.route("/api/map-data")
+@login_required(role=("admin", "officer"))
+def api_map_data():
+    conn = db.get_db()
+    rows = conn.execute(
+        "SELECT id, code, title, category, district, status, urgency, severity, "
+        "latitude, longitude, created_at FROM complaints "
+        "WHERE latitude IS NOT NULL AND longitude IS NOT NULL "
+        "ORDER BY created_at DESC"
+    ).fetchall()
+    return jsonify([
+        {
+            "id": r["id"], "code": r["code"], "title": r["title"],
+            "category": r["category"], "district": r["district"],
+            "status": r["status"], "urgency": r["urgency"] or "normal",
+            "severity": r["severity"],
+            "lat": r["latitude"], "lng": r["longitude"],
+            "created_at": r["created_at"] or "",
+        }
+        for r in rows
+    ])
 
 
 # ---------------------------------------------------------------------------

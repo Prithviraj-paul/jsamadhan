@@ -34,6 +34,15 @@ DISTRICTS = [
 
 RESOLUTION_WINDOW_DAYS = 5
 
+# SLAs (in days) keyed by AI-assessed urgency level.
+URGENCY_SLA_DAYS = {
+    "critical": 3,
+    "high": 7,
+    "normal": 14,
+    "low": 30,
+}
+URGENCY_ORDER = {"critical": 0, "high": 1, "normal": 2, "low": 3, None: 4}
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,6 +79,8 @@ CREATE TABLE IF NOT EXISTS complaints (
     status TEXT NOT NULL DEFAULT 'Submitted',
     ai_confidence INTEGER,
     ai_note TEXT,
+    severity INTEGER,
+    urgency TEXT,
     accepted_at TEXT,
     deadline TEXT,
     resolution_filename TEXT,
@@ -120,6 +131,7 @@ def init_db():
         ("image_latitude", "REAL"), ("image_longitude", "REAL"),
         ("location_address", "TEXT"), ("location_city", "TEXT"),
         ("location_state", "TEXT"), ("pincode", "TEXT"),
+        ("severity", "INTEGER"), ("urgency", "TEXT"),
     ):
         if column not in complaint_columns:
             conn.execute(f"ALTER TABLE complaints ADD COLUMN {column} {column_type}")
@@ -168,6 +180,7 @@ def hydrate_complaint(conn, row, with_relations=True):
     ns.is_infra = d["category"] in INFRA_CATEGORIES
     ns.is_overdue = bool(ns.deadline) and ns.status == "Accepted by Officer" and _now() > ns.deadline
     ns.days_left = (ns.deadline - _now()).days if ns.deadline else None
+    ns.urgency_key = ns.urgency or "normal"
 
     if with_relations:
         ns.citizen = hydrate_user(get_user_by_id(conn, d["citizen_id"]))
@@ -277,7 +290,8 @@ def list_queue(conn):
 def list_my_cases(conn, officer_id):
     rows = conn.execute(
         "SELECT * FROM complaints WHERE officer_id=? AND status IN ('Accepted by Officer','Reopened') "
-        "ORDER BY deadline ASC", (officer_id,)
+        "ORDER BY CASE WHEN urgency='critical' THEN 0 WHEN urgency='high' THEN 1 "
+        "WHEN urgency='normal' THEN 2 ELSE 3 END, deadline ASC", (officer_id,)
     ).fetchall()
     return [hydrate_complaint(conn, r, with_relations=True) for r in rows]
 

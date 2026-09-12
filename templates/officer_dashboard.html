@@ -12,7 +12,7 @@
 {% for c in queue %}
 <a class="complaint-card" href="{{ url_for('officer_complaint', complaint_id=c.id) }}" style="display:flex;">
   <div>
-    <div class="id">#{{ c.code }} · {{ c.created_at.strftime('%d %b %Y') }} · <span style="color:var(--amber);">{{ t('waiting') }} {{ c.days_left if c.days_left else '' }}</span></div>
+    <div class="id">#{{ c.code }} · {{ c.created_at.strftime('%d %b %Y') }} · {{ m.urgency_badge(c) }} {{ m.severity_meter(c) }}</div>
     <h3>{{ c.title }}</h3>
     <div class="meta">{{ dist_label(c.district) }} · {{ cat_label(c.category) }}</div>
   </div>
@@ -26,7 +26,7 @@
 {% for c in my_cases %}
 <a class="complaint-card" href="{{ url_for('officer_complaint', complaint_id=c.id) }}" style="display:flex;">
   <div>
-    <div class="id">#{{ c.code }} · {{ t('due') }} {{ c.deadline.strftime('%d %b %Y') if c.deadline else '—' }}</div>
+    <div class="id">#{{ c.code }} · {{ m.urgency_badge(c) }} {{ m.severity_meter(c) }} · {{ t('due') }} {{ c.deadline.strftime('%d %b %Y') if c.deadline else '—' }}</div>
     <h3>{{ c.title }}</h3>
     <div class="meta">{{ dist_label(c.district) }} · {{ cat_label(c.category) }}</div>
   </div>

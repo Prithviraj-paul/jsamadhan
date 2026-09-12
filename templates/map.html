@@ -1,0 +1,99 @@
+{% extends "app_base.html" %}
+{% set active = 'map' %}
+{% block title %}{{ t('map_title') }} — {{ t('app_name') }}{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+{% endblock %}
+{% block content %}
+
+<div class="topbar">
+  <h1>{{ t('map_title') }}</h1>
+</div>
+<p class="hint" style="margin:0 0 16px;">{{ t('map_subtitle') }}</p>
+
+<div class="card" style="padding:0; overflow:hidden;">
+  <div id="complaint-map" style="height:520px; background:#e8efe9;"></div>
+</div>
+
+<div style="display:flex; gap:28px; flex-wrap:wrap; margin-top:16px;">
+  <div class="card" style="margin:0;">
+    <strong style="font-size:.82rem; color:var(--ink-soft);">{{ t('map_legend_status') }}</strong>
+    <ul class="map-legend">
+      <li><span class="dot" style="background:#d9534f;"></span> Open / Pending</li>
+      <li><span class="dot" style="background:#f0ad4e;"></span> Accepted / Reopened</li>
+      <li><span class="dot" style="background:#28a745;"></span> Resolved</li>
+      <li><span class="dot" style="background:#777;"></span> Rejected</li>
+    </ul>
+  </div>
+  <div class="card" style="margin:0;">
+    <strong style="font-size:.82rem; color:var(--ink-soft);">{{ t('map_legend_urgency') }}</strong>
+    <ul class="map-legend">
+      <li><span class="dot" style="background:#a40e0e;"></span> Critical (AI score 75+)</li>
+      <li><span class="dot" style="background:#f6a90b;"></span> High (50–74)</li>
+      <li><span class="dot" style="background:#5cbe4c;"></span> Normal (25–49)</li>
+      <li><span class="dot" style="background:#35689c;"></span> Low (&lt; 25)</li>
+    </ul>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var apiUrl = {{ url_for('api_map_data')|tojson }};
+  var lang = {{ current_lang_code|default('en')|tojson }};
+
+  function statusColor(status) {
+    if (status === 'Resolved') return '#28a745';
+    if (status === 'Accepted by Officer' || status === 'Reopened') return '#f0ad4e';
+    if (status === 'Rejected') return '#777';
+    return '#d9534f';
+  }
+  function urgencyColor(u) {
+    if (u === 'critical') return '#a40e0e';
+    if (u === 'high') return '#f6a90b';
+    if (u === 'normal') return '#5cbe4c';
+    return '#35689c';
+  }
+  var L = window.L;
+  if (!L) { document.getElementById('complaint-map').textContent = 'Leaflet failed to load.'; return; }
+
+  var map = L.map('complaint-map').setView([23.5, 85.5], 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  fetch(apiUrl).then(function (r) { return r.json(); }).then(function (data) {
+    if (!data.length) {
+      var el = document.createElement('div');
+      el.className = 'map-empty';
+      el.textContent = lang === 'hi' ? '\u0915\u094b\u0908 \u0928\u093f\u0930\u094d\u0926\u0947\u0936\u093e\u0902\u0915 \u0935\u093e\u0932\u0940 \u0936\u093f\u0915\u093e\u092f\u0924 \u0928\u0939\u0940\u0902\u0964' : 'No geotagged complaints yet.';
+      document.getElementById('complaint-map').appendChild(el);
+      return;
+    }
+    var bounds = [];
+    data.forEach(function (c) {
+      var statusCol = statusColor(c.status);
+      var urg = urgencyColor(c.urgency);
+      var marker = L.circleMarker([c.lat, c.lng], {
+        radius: 9,
+        color: urg,
+        weight: 2.5,
+        fillColor: statusCol,
+        fillOpacity: 0.85
+      }).addTo(map);
+      marker.bindPopup(
+        '<strong>#' + c.code + '</strong> — ' + (c.title || '') + '<br>' +
+        'District: ' + c.district + '<br>' +
+        'Status: ' + c.status + '<br>' +
+        'Urgency: ' + c.urgency + (c.severity != null ? ' (AI ' + c.severity + '/100)' : '') +
+        '&nbsp;&nbsp;<a href="/track/' + encodeURIComponent(c.code) + '">track &rarr;</a>'
+      );
+      bounds.push([c.lat, c.lng]);
+    });
+    if (bounds.length > 1) map.fitBounds(bounds, { padding: [30, 30] });
+  }).catch(function (e) { console.error(e); });
+})();
+</script>
+{% endblock %}

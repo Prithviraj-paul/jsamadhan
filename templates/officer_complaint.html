@@ -42,6 +42,26 @@
   {% endif %}
 </div>
 
+<!-- AI Analysis -->
+<div class="card ai-meta-grid" style="margin-top:20px;">
+  <div class="ai-meta-item">
+    <div class="l">{{ t('urgency_label') }}</div>
+    <div>{{ m.urgency_badge(complaint) }}</div>
+  </div>
+  <div class="ai-meta-item">
+    <div class="l">{{ t('severity_label') }}</div>
+    <div>{{ m.severity_meter(complaint) }}</div>
+  </div>
+  <div class="ai-meta-item">
+    <div class="l">{{ t('sla_label') }}</div>
+    <div class="v">{{ complaint.deadline.strftime('%d %b %Y') if complaint.deadline else '—' }}</div>
+  </div>
+  <div class="ai-meta-item">
+    <div class="l">{{ t('th_district') }}</div>
+    <div class="v">{{ dist_label(complaint.district) }}</div>
+  </div>
+</div>
+
 <!-- Take action -->
 <div class="card" style="margin-top:20px;">
   <h2 style="font-size:1rem; margin-top:0;">{{ t('take_action') }}</h2>

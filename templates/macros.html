@@ -1,3 +1,26 @@
+{% macro urgency_badge(c) -%}
+{% set u = c.urgency_key %}
+{% if u == 'critical' %}
+  <span class="badge badge-overdue">{{ t('urgency_critical') }}</span>
+{% elif u == 'high' %}
+  <span class="badge badge-reopened">{{ t('urgency_high') }}</span>
+{% elif u == 'normal' %}
+  <span class="badge badge-pending">{{ t('urgency_normal') }}</span>
+{% else %}
+  <span class="badge badge-accepted">{{ t('urgency_low') }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro severity_meter(c) -%}
+{% if c.severity is not none %}
+<span class="sev-meter" title="{{ t('severity_title') }}">
+  <span class="sev-meter-fill {% if c.severity >= 75 %}sev-crit{% elif c.severity >= 50 %}sev-high{% elif c.severity >= 25 %}sev-mid{% else %}sev-low{% endif %}"
+        style="width:{{ c.severity }}%"></span>
+  <span class="sev-meter-num">{{ c.severity }}/100</span>
+</span>
+{% endif %}
+{%- endmacro %}
+
 {% macro status_badge(c) -%}
 {% if c.status == "Resolved" %}
   <span class="badge badge-resolved">{{ t('status_resolved') }}</span>

@@ -49,7 +49,7 @@ p{ margin:0 0 1em 0; max-width:62ch; }
 .govt-brand{ display:flex; align-items:center; gap:10px; }
 .govt-mark{ display:grid; place-items:center; width:42px; height:42px; border:2px solid var(--amber); border-radius:50%; color:var(--amber); font-family:var(--font-head); font-size:1.05rem; font-weight:700; }
 .govt-brand .brand{ display:flex; flex-direction:column; }
-.govt-brand .brand strong{ font-family:var(--font-head); font-size:1.15rem; letter-spacing:.02em; }
+.govt-brand .brand strong{ font-family:var(--font-head); font-size:1.15rem; letter-spacing:.02em; display:inline-block; min-width:20ch; white-space:nowrap; }
 .govt-brand .brand span{ font-size:.72rem; color:#C9D8CD; }
 
 .appbar{ display:flex; align-items:center; justify-content:space-between; padding:16px 32px; background:var(--forest-deep); color:#fff; }
@@ -115,6 +115,28 @@ p{ margin:0 0 1em 0; max-width:62ch; }
 .badge-reopened{ background:var(--red-light); color:var(--red); }
 .badge-rejected{ background:#E9E5DA; color:var(--ink-faint); }
 .badge-overdue{ background:var(--red); color:#fff; }
+
+/* severity meter */
+.sev-meter{ display:inline-flex; align-items:center; gap:6px; background:#EDE9DE; border-radius:999px; height:16px; width:96px; padding:2px 6px 2px 2px; vertical-align:middle; }
+.sev-meter-fill{ height:100%; border-radius:999px; min-width:3px; }
+.sev-low{ background:#35689C; }
+.sev-mid{ background:#5CBE4C; }
+.sev-high{ background:#F6A90B; }
+.sev-crit{ background:#A40E0E; }
+.sev-meter-num{ font-size:.66rem; font-weight:700; color:var(--ink-soft); white-space:nowrap; }
+
+/* AI meta strip on detail pages */
+.ai-meta-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; }
+.ai-meta-item .l{ font-size:.72rem; color:var(--ink-faint); font-weight:600; letter-spacing:.03em; text-transform:uppercase; margin-bottom:6px; }
+.ai-meta-item .v{ font-size:.9rem; color:var(--ink); font-weight:600; }
+
+/* map page */
+.map-legend{ list-style:none; margin:10px 0 0; padding:0; font-size:.82rem; color:var(--ink-soft); }
+.map-legend li{ display:flex; align-items:center; gap:8px; margin:4px 0; }
+.map-legend .dot{ width:11px; height:11px; border-radius:50%; display:inline-block; flex:none; }
+.map-empty{ position:absolute; inset:0; display:grid; place-items:center; color:var(--ink-faint); font-size:.9rem; z-index:999; pointer-events:none; }
+
+@media (max-width:760px){ .ai-meta-grid{ grid-template-columns:repeat(2, 1fr); } }
 
 /* ---------- forms ---------- */
 label{ display:block; font-size:.82rem; font-weight:600; color:var(--forest-deep); margin:16px 0 6px; }
@@ -245,6 +267,7 @@ tr.row-link:hover{ background:#FBF9F3; cursor:pointer; }
 .hero-copy h1{
   font-family:var(--font-display, Georgia, serif);
   font-size:2.45rem; line-height:1.16; color:#fff; margin:0 0 14px;
+  min-height:3.5em;
 }
 .hero-copy h1 .accent{ color:#F0C27A; }
 .hero-lead{

@@ -11,8 +11,10 @@
       <a class="{{ 'active' if active=='report' }}" href="{{ url_for('report_problem') }}">{{ t('nav_report') }}</a>
     {% elif current_user.role == 'officer' %}
       <a class="{{ 'active' if active=='dashboard' }}" href="{{ url_for('officer_dashboard') }}">{{ t('nav_queue') }}</a>
+      <a class="{{ 'active' if active=='map' }}" href="{{ url_for('complaints_map') }}">{{ t('nav_map') }}</a>
     {% elif current_user.role == 'admin' %}
       <a class="{{ 'active' if active=='dashboard' }}" href="{{ url_for('admin_dashboard') }}">{{ t('nav_overview') }}</a>
+      <a class="{{ 'active' if active=='map' }}" href="{{ url_for('complaints_map') }}">{{ t('nav_map') }}</a>
     {% endif %}
     {% include "lang_switcher.html" %}
     <a href="{{ url_for('logout') }}">{{ t('nav_logout') }}</a>

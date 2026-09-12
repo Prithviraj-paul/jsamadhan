@@ -6,6 +6,7 @@
 
 <div class="topbar">
   <h1>{{ t('admin_overview') }}</h1>
+  <a class="btn btn-forest" href="{{ url_for('complaints_map') }}" style="text-decoration:none;">{{ t('nav_map') }}</a>
 </div>
 
 {% set all = complaints %}
@@ -14,7 +15,7 @@
   <div class="kpi"><div class="n">{{ kpis.total }}</div><div class="l">{{ t('total_complaints') }}</div></div>
   <div class="kpi"><div class="n">{{ kpis.open }}</div><div class="l">{{ t('open') }}</div></div>
   <div class="kpi"><div class="n">{{ kpis.resolved }}</div><div class="l">{{ t('resolved') }}</div></div>
-  <div class="kpi"><div class="n">{{ kpis.overdue }}</div><div class="l">{{ t('overdue') }}</div></div>
+  <div class="kpi"><div class="n" style="color:var(--danger);">{{ kpis.critical }}</div><div class="l">{{ t('urgency_critical') }}</div></div>
 </div>
 
 <h2 style="font-size:1.02rem;">{{ t('all_complaints') }}</h2>
@@ -27,6 +28,7 @@
       <th>{{ t('th_title') }}</th>
       <th>{{ t('th_district') }}</th>
       <th>{{ t('th_category') }}</th>
+      <th>{{ t('urgency_label') }}</th>
       <th>{{ t('th_officer') }}</th>
       <th>{{ t('th_status') }}</th>
     </tr>
@@ -38,6 +40,7 @@
       <td>{{ c.title }}</td>
       <td>{{ dist_label(c.district) }}</td>
       <td>{{ cat_label(c.category) }}</td>
+      <td>{{ m.urgency_badge(c) }} {{ m.severity_meter(c) }}</td>
       <td>{{ c.officer.name if c.officer else '—' }}</td>
       <td>{{ m.status_badge(c) }}</td>
     </tr>
