@@ -1,9 +1,11 @@
 $ErrorActionPreference = "SilentlyContinue"
 $proj = "C:\Users\PRITHVIRAJ\Documents\Default Project\jsamadhan"
-$cf = "C:\Users\PRITHVIRAJ\AppData\Local\Cloudflared\cloudflared.exe"
+$ng = "C:\Users\PRITHVIRAJ\ngrok\ngrok.exe"
+$domain = "majority-bolt-rentable.ngrok-free.dev"
 $outlog = Join-Path $proj "tunnel_out.log"
 $errlog = Join-Path $proj "tunnel_err.log"
 $urlfile = Join-Path $proj "public_url.txt"
+$permanent = "https://" + $domain
 
 # make sure the site is up first
 Start-Sleep -Seconds 10
@@ -17,30 +19,32 @@ if (-not $up) {
     Start-Sleep -Seconds 10
 }
 
-# stop any previous cloudflared from this script so we get a fresh URL
-Get-Process cloudflared -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+# stop any previous tunnel agent so only one owns the domain
+Get-Process ngrok, cloudflared -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
-# start the quick tunnel
+# start the permanent ngrok tunnel to the fixed dev domain
 Remove-Item $outlog, $errlog -ErrorAction SilentlyContinue
-$p = Start-Process -FilePath $cf -ArgumentList "tunnel", "--url", "http://127.0.0.1:5000" `
-    -RedirectStandardOutput $outlog -RedirectStandardError $errlog -WindowStyle Hidden -PassThru
+try {
+    $p = Start-Process -FilePath $ng -ArgumentList "http", "--url=$domain", "http://127.0.0.1:5000" `
+        -RedirectStandardOutput $outlog -RedirectStandardError $errlog -WindowStyle Hidden -PassThru -ErrorAction Stop
+    if ($null -eq $p) { throw "Start-Process returned no process object" }
+} catch {
+    Set-Content -Path $urlfile -Value ("tunnel start FAILED - " + $_.Exception.Message)
+    exit 1
+}
 
-# wait for the public url to appear (cloudflared can print it to either log)
-$url = $null
-for ($i = 0; $i -lt 30; $i++) {
-    Start-Sleep -Seconds 2
-    foreach ($log in @($outlog, $errlog)) {
-        if (Test-Path $log) {
-            $m = Select-String -Path $log -Pattern "https://[a-z0-9-]+\.trycloudflare\.com" -AllMatches
-            if ($m) { $url = $m.Matches[0].Value; break }
-        }
-    }
-    if ($url) { break }
+# wait until the public endpoint answers (browser-ua hits ngrok's interstitial; that still 200s)
+$reachable = $false
+for ($i = 0; $i -lt 20; $i++) {
+    Start-Sleep -Seconds 3
+    try { if ((Invoke-WebRequest -Uri $permanent -UseBasicParsing -TimeoutSec 6).StatusCode -eq 200) { $reachable = $true; break } } catch {}
     if ($p.HasExited) { break }
 }
-if ($url) {
-    Set-Content -Path $urlfile -Value $url
+if ($reachable) {
+    Set-Content -Path $urlfile -Value $permanent
+} elseif ($p.HasExited) {
+    Set-Content -Path $urlfile -Value ("tunnel exited rc=" + $p.ExitCode + " - see " + $errlog)
 } else {
-    Set-Content -Path $urlfile -Value ("tunnel failed - see " + $errlog)
+    Set-Content -Path $urlfile -Value $permanent
 }
