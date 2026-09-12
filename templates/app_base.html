@@ -7,7 +7,7 @@
   </div>
   <nav>
     {% if current_user.role == 'citizen' %}
-      <a class="{{ 'active' if active=='dashboard' }}" href="{{ url_for('citizen_dashboard') }}">{{ t('nav_my_complaints') }}</a>
+      <a class="{{ 'active' if active in ('dashboard','complaints') }}" href="{{ url_for('my_complaints') }}">{{ t('nav_my_complaints') }}</a>
       <a class="{{ 'active' if active=='report' }}" href="{{ url_for('report_problem') }}">{{ t('nav_report') }}</a>
     {% elif current_user.role == 'officer' %}
       <a class="{{ 'active' if active=='dashboard' }}" href="{{ url_for('officer_dashboard') }}">{{ t('nav_queue') }}</a>
@@ -16,6 +16,7 @@
       <a class="{{ 'active' if active=='dashboard' }}" href="{{ url_for('admin_dashboard') }}">{{ t('nav_overview') }}</a>
       <a class="{{ 'active' if active=='map' }}" href="{{ url_for('complaints_map') }}">{{ t('nav_map') }}</a>
     {% endif %}
+    <a class="{{ 'active' if active=='account' }}" href="{{ url_for('account') }}">{{ t('nav_account') }}</a>
     {% include "lang_switcher.html" %}
     <a href="{{ url_for('logout') }}">{{ t('nav_logout') }}</a>
   </nav>

@@ -51,6 +51,9 @@ CREATE TABLE IF NOT EXISTS users (
     phone TEXT NOT NULL,
     role TEXT NOT NULL,
     password_hash TEXT NOT NULL,
+    alternate_phone TEXT,
+    home_address TEXT,
+    profile_photo TEXT,
     created_at TEXT NOT NULL
 );
 
@@ -79,6 +82,7 @@ CREATE TABLE IF NOT EXISTS complaints (
     status TEXT NOT NULL DEFAULT 'Submitted',
     ai_confidence INTEGER,
     ai_note TEXT,
+    ai_detail TEXT,
     severity INTEGER,
     urgency TEXT,
     accepted_at TEXT,
@@ -132,9 +136,16 @@ def init_db():
         ("location_address", "TEXT"), ("location_city", "TEXT"),
         ("location_state", "TEXT"), ("pincode", "TEXT"),
         ("severity", "INTEGER"), ("urgency", "TEXT"),
+        ("ai_detail", "TEXT"),
     ):
         if column not in complaint_columns:
             conn.execute(f"ALTER TABLE complaints ADD COLUMN {column} {column_type}")
+    user_columns = {row[1] for row in conn.execute("PRAGMA table_info(users)")}
+    for column, column_type in (
+        ("alternate_phone", "TEXT"), ("home_address", "TEXT"), ("profile_photo", "TEXT"),
+    ):
+        if column not in user_columns:
+            conn.execute(f"ALTER TABLE users ADD COLUMN {column} {column_type}")
     conn.commit()
     conn.close()
 
@@ -181,6 +192,14 @@ def hydrate_complaint(conn, row, with_relations=True):
     ns.is_overdue = bool(ns.deadline) and ns.status == "Accepted by Officer" and _now() > ns.deadline
     ns.days_left = (ns.deadline - _now()).days if ns.deadline else None
     ns.urgency_key = ns.urgency or "normal"
+
+    ns.ai_data = None
+    if d.get("ai_detail"):
+        try:
+            import json
+            ns.ai_data = json.loads(d["ai_detail"])
+        except (TypeError, ValueError):
+            ns.ai_data = None
 
     if with_relations:
         ns.citizen = hydrate_user(get_user_by_id(conn, d["citizen_id"]))
@@ -231,6 +250,24 @@ def count_users(conn, role):
     return conn.execute("SELECT COUNT(*) c FROM users WHERE role=?", (role,)).fetchone()["c"]
 
 
+def update_user_account(conn, user_id, name, email, phone, alternate_phone, home_address):
+    conn.execute(
+        "UPDATE users SET name=?, email=?, phone=?, alternate_phone=?, home_address=? WHERE id=?",
+        (name, email, phone, alternate_phone, home_address, user_id),
+    )
+    conn.commit()
+
+
+def set_profile_photo(conn, user_id, filename):
+    conn.execute("UPDATE users SET profile_photo=? WHERE id=?", (filename, user_id))
+    conn.commit()
+
+
+def clear_profile_photo(conn, user_id):
+    conn.execute("UPDATE users SET profile_photo=NULL WHERE id=?", (user_id,))
+    conn.commit()
+
+
 # ---------------------------------------------------------------------------
 # complaints
 # ---------------------------------------------------------------------------
@@ -278,6 +315,16 @@ def list_by_citizen(conn, citizen_id):
     rows = conn.execute("SELECT * FROM complaints WHERE citizen_id=? ORDER BY created_at DESC",
                          (citizen_id,)).fetchall()
     return [hydrate_complaint(conn, r, with_relations=True) for r in rows]
+
+
+def list_recent_resolved(conn, limit=6):
+    """Latest resolved complaints for the public gallery. Caller must not
+    render reporter identity — anonymity is enforced in the template."""
+    rows = conn.execute(
+        "SELECT * FROM complaints WHERE status='Resolved' ORDER BY resolved_at DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    return [hydrate_complaint(conn, r, with_relations=False) for r in rows]
 
 
 def list_queue(conn):

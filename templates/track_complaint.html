@@ -16,6 +16,17 @@
 <div class="page">
   {{ m.status_banner(complaint) }}
 
+  {% if complaint.ai_data %}
+  <div class="banner {% if complaint.ai_data.get('verified') %}banner-ai{% else %}banner-warn{% endif %}" style="margin-bottom:16px;">
+    🤖 {{ t('ai_photo_verify') }}: {{ complaint.ai_data.confidence }}/100
+    {% if complaint.ai_data.get('verified') %}
+    — <strong>{{ t('ai_auto_verified') }}</strong>
+    {% else %}
+    — <strong>{{ t('ai_manual_review') }}</strong>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <div class="topbar">
     <div>
       <div class="crumb">#{{ complaint.code }}</div>

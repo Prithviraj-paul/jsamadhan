@@ -78,6 +78,15 @@
     <div class="l">{{ t('sla_label') }}</div>
     <div class="v">{{ complaint.deadline.strftime('%d %b %Y') if complaint.deadline else '—' }}</div>
   </div>
+  {% if complaint.ai_data %}
+  <div class="ai-meta-item">
+    <div class="l">{{ t('ai_photo_verify') }}</div>
+    <div class="v">
+      {{ complaint.ai_data.confidence }}/100
+      {% if complaint.ai_data.verified %}<span class="badge badge-aiverified">{{ t('ai_auto_verified') }}</span>{% else %}<span class="badge badge-pending">{{ t('ai_manual_review') }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
   <div class="ai-meta-item">
     <div class="l">{{ t('th_district') }}</div>
     <div class="v">{{ dist_label(complaint.district) }}</div>

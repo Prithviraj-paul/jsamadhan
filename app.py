@@ -10,7 +10,10 @@ screen that is honesty-labelled in its own module).
 Run:  python app.py    (Flask dev server on http://127.0.0.1:5000)
 """
 
+import hashlib
+import json
 import os
+import uuid
 from datetime import datetime, timedelta
 
 from flask import (
@@ -18,22 +21,80 @@ from flask import (
     flash, send_from_directory, g, jsonify,
 )
 from werkzeug.utils import secure_filename
+from PIL import Image as PILImage
+from PIL.ExifTags import TAGS
 
 import db
 import i18n
-from ai_engine import satellite_screen, compare_before_after, analyze_severity
+from ai_engine import (
+    satellite_screen, compare_before_after, analyze_severity,
+    verify_image_against_problem,
+)
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+PROFILE_DIR = os.path.join(BASE_DIR, "static", "profile")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(PROFILE_DIR, exist_ok=True)
 
 ALLOWED_PHOTO_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 ALLOWED_VIDEO_EXT = {".mp4", ".mov"}
 ALLOWED_EXT = ALLOWED_PHOTO_EXT | ALLOWED_VIDEO_EXT
+PROFILE_EXT = {"png", "jpg", "jpeg", "webp", "gif"}
 
 app = Flask(__name__)
 app.secret_key = "jsamadhan-demo-secret-key"  # rotate in production
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB
+
+
+# ---------------------------------------------------------------------------
+# profile photo helpers
+# ---------------------------------------------------------------------------
+
+def save_profile_photo(file_storage):
+    """Validate + resize an uploaded profile photo to a small square PNG."""
+    if not file_storage or not file_storage.filename:
+        return None
+    ext = file_storage.filename.rsplit(".", 1)[-1].lower() if "." in file_storage.filename else ""
+    if ext not in PROFILE_EXT:
+        raise ValueError("Unsupported photo type. Please upload an image (JPG, PNG, WEBP or GIF).")
+    try:
+        file_storage.stream.seek(0)
+        with PILImage.open(file_storage.stream) as image:
+            image.thumbnail((256, 256))
+            if image.mode in ("RGBA", "LA", "P"):
+                image = image.convert("RGBA")
+            else:
+                image = image.convert("RGB")
+            filename = f"{uuid.uuid4().hex}.png"
+            image.save(os.path.join(PROFILE_DIR, filename), "PNG")
+    except Exception:
+        raise ValueError("The photo could not be read. Please choose a valid image.") from ValueError
+    finally:
+        file_storage.stream.seek(0)
+    return filename
+
+
+def _remove_profile_file(filename):
+    if not filename:
+        return
+    try:
+        os.remove(os.path.join(PROFILE_DIR, filename))
+    except OSError:
+        pass
+
+
+def profile_photo_url(user):
+    """Uploaded profile photo, or a Gravatar derived from the user's email."""
+    photo = getattr(user, "profile_photo", None)
+    if photo:
+        return url_for("static", filename="profile/" + photo)
+    email = (getattr(user, "email", "") or "").strip().lower()
+    if not email:
+        return None
+    digest = hashlib.md5(email.encode("utf-8")).hexdigest()
+    return f"https://www.gravatar.com/avatar/{digest}?d=identicon&s=128"
+
 
 # i18n helpers must be Jinja *globals* so macros imported without
 # "with context" can still call t()/cat_label()/dist_label().
@@ -41,6 +102,7 @@ app.jinja_env.globals.update({
     "t": i18n.t,
     "cat_label": i18n.cat_label,
     "dist_label": i18n.dist_label,
+    "profile_photo_url": profile_photo_url,
 })
 
 # ---------------------------------------------------------------------------
@@ -127,9 +189,10 @@ def landing():
                           "('Submitted','Pending Officer Review','AI Verified',"
                           "'Accepted by Officer','Reopened')").fetchone()["c"]
     resolved = conn.execute("SELECT COUNT(*) c FROM complaints WHERE status='Resolved'").fetchone()["c"]
+    resolved_cases = db.list_recent_resolved(conn)
     return render_template("landing.html", stats={
         "total": total, "open": open_, "resolved": resolved,
-    })
+    }, resolved_cases=resolved_cases)
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -198,6 +261,65 @@ def citizen_dashboard():
     return render_template("citizen_dashboard.html", complaints=complaints)
 
 
+@app.route("/citizen/complaints")
+@login_required(role="citizen")
+def my_complaints():
+    conn = db.get_db()
+    complaints = db.list_by_citizen(conn, g.user.id)
+    return render_template("my_complaints.html", complaints=complaints)
+
+
+@app.route("/account", methods=["GET", "POST"])
+@login_required()
+def account():
+    conn = db.get_db()
+    user = g.user
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        phone = request.form.get("phone", "").strip()
+        alternate_phone = request.form.get("alternate_phone", "").strip()
+        home_address = request.form.get("home_address", "").strip()
+
+        errors = []
+        if not (name and email and phone):
+            errors.append("Please fill in your name, email and phone number.")
+        existing = db.get_user_by_email(conn, email)
+        if existing and existing["id"] != user.id:
+            errors.append("That email is already used by another account.")
+
+        action = request.form.get("action", "")
+        photo = request.files.get("profile_photo")
+        new_photo = None
+        if photo and photo.filename:
+            try:
+                new_photo = save_profile_photo(photo)
+            except ValueError as error:
+                errors.append(str(error))
+
+        if not errors:
+            db.update_user_account(conn, user.id, name, email, phone,
+                                   alternate_phone, home_address)
+            if action == "remove_photo":
+                _remove_profile_file(user.profile_photo)
+                db.clear_profile_photo(conn, user.id)
+            elif new_photo:
+                _remove_profile_file(user.profile_photo)
+                db.set_profile_photo(conn, user.id, new_photo)
+
+        for message in errors:
+            flash(message, "error")
+        if not errors:
+            flash(i18n.t("photo_removed") if action == "remove_photo"
+                  else i18n.t("account_updated"), "success")
+
+        user = db.hydrate_user(db.get_user_by_id(conn, user.id))
+        g.user = user
+
+    return render_template("account.html", user=user)
+
+
 @app.route("/citizen/report", methods=["GET", "POST"])
 @login_required(role="citizen")
 def report_problem():
@@ -235,8 +357,6 @@ def report_problem():
         image_lat = image_lon = None
         if ext and ext in ALLOWED_PHOTO_EXT:
             try:
-                from PIL import Image as PILImage
-                from PIL.ExifTags import TAGS
                 exif = PILImage.open(os.path.join(UPLOAD_DIR, photo_filename))._getexif()
                 if exif:
                     md = {}
@@ -262,6 +382,21 @@ def report_problem():
         urgency = result["urgency"]
         severity_note = result["note"]
 
+        # Real AI: cross-check the photo against the reported problem.
+        verify = None
+        if photo_filename and ext in ALLOWED_PHOTO_EXT:
+            verify = verify_image_against_problem(
+                os.path.join(UPLOAD_DIR, photo_filename),
+                title, description, category,
+            )
+        ai_detail = None
+        if verify:
+            ai_detail = json.dumps({k: verify[k] for k in
+                                    ("confidence", "verified", "note", "signals",
+                                     "warnings", "category", "threshold")},
+                                   ensure_ascii=False)
+        ai_confidence = verify["confidence"] if verify else None
+
         problem_id = db.create_complaint(
             conn,
             code=code,
@@ -282,20 +417,35 @@ def report_problem():
             status="Submitted",
             severity=severity,
             urgency=urgency,
+            ai_confidence=ai_confidence,
+            ai_note=(verify["note"] if verify else None),
+            ai_detail=ai_detail,
         )
 
         db.add_log(conn, problem_id, "Submitted", f"Complaint registered by citizen. {severity_note}")
 
-        # Automated satellite screening for road/infrastructure complaints.
+        # Automated screening. For photos the REAL photo-vs-problem check runs;
+        # for road/infrastructure complaints a satellite pass adds a second signal.
+        photo_verified = bool(verify and verify.get("verified"))
         if category in db.INFRA_CATEGORIES:
-            conf, note = satellite_screen(code, category, description)
-            new_status = "AI Verified" if conf >= 65 else "Pending Officer Review"
-            db.set_status(conn, problem_id, new_status,
-                          f"Automated satellite screening (confidence {conf}%). {note}",
-                          {"ai_confidence": conf, "ai_note": note})
+            sat_conf, sat_note = satellite_screen(code, category, description)
+            note = (f"Automated satellite screening (confidence {sat_conf}%). {sat_note}")
+            if photo_verified:
+                new_status = "AI Verified"
+                note = f"{verify['note']} {note}"
+            elif sat_conf >= 65:
+                new_status = "AI Verified"
+            else:
+                new_status = "Pending Officer Review"
+            db.set_status(conn, problem_id, new_status, note)
         else:
-            db.set_status(conn, problem_id, "Pending Officer Review",
-                          "Awaiting manual verification by an officer.")
+            new_status = "AI Verified" if photo_verified else "Pending Officer Review"
+            if photo_verified:
+                db.set_status(conn, problem_id, new_status, verify["note"])
+            else:
+                db.set_status(conn, problem_id, new_status,
+                              (verify["note"] if verify else
+                               "Awaiting manual verification by an officer."))
 
         return redirect(url_for("track_complaint", code=code))
 

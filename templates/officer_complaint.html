@@ -56,11 +56,31 @@
     <div class="l">{{ t('sla_label') }}</div>
     <div class="v">{{ complaint.deadline.strftime('%d %b %Y') if complaint.deadline else '—' }}</div>
   </div>
+  {% if complaint.ai_data %}
+  <div class="ai-meta-item">
+    <div class="l">{{ t('ai_photo_verify') }}</div>
+    <div class="v">
+      {{ complaint.ai_data.confidence }}/100
+      {% if complaint.ai_data.verified %}<span class="badge badge-aiverified">{{ t('ai_auto_verified') }}</span>{% else %}<span class="badge badge-pending">{{ t('ai_manual_review') }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
   <div class="ai-meta-item">
     <div class="l">{{ t('th_district') }}</div>
     <div class="v">{{ dist_label(complaint.district) }}</div>
   </div>
 </div>
+
+{% if complaint.ai_data and complaint.ai_data.get('signals') %}
+<div class="card" style="margin-top:20px;">
+  <h2 style="font-size:1rem; margin-top:0;">{{ t('ai_photo_verify') }} — {{ t('ai_signals_label') }}</h2>
+  <ul style="margin:0; padding-left:18px; font-size:.86rem; color:var(--ink-soft);">
+    {% for s in complaint.ai_data['signals'] %}
+    <li style="margin-bottom:6px;">{{ s }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
 
 <!-- Take action -->
 <div class="card" style="margin-top:20px;">
