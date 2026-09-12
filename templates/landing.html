@@ -16,7 +16,7 @@
   <div class="hero-inner">
     <div class="hero-copy">
       <span class="hero-kicker">{{ t('hero_kicker') }}</span>
-      <h1>{{ t('hero_title') }}<span class="accent">.</span></h1>
+      <h1 class="erase-title hero-h1-animated" data-erase-title data-title-en="Report it. Track it. See it fixed.." data-title-hi="Shikayat karein. Track karein. Theek hote hue dekhein."></h1>
       <p class="hero-lead">{{ t('hero_body') }}</p>
       <div class="hero-cta">
         <a class="btn-report-hero" href="{{ url_for('register') }}">{{ t('nav_register') }} ›</a>
@@ -35,42 +35,42 @@
     <p class="section-sub">{{ t('sec_problems_sub') }}</p>
     <div class="problem-grid">
       <a class="problem-card" href="{{ url_for('register') }}">
-        <img class="thumb" src="{{ url_for('static', filename='img/problems/road.svg') }}" alt="{{ t('problem_road') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/road.jpg') }}" alt="{{ t('problem_road') }}">
         <div class="body">
           <h3>{{ t('problem_road') }}</h3>
           <p>{{ t('problem_road_desc') }}</p>
         </div>
       </a>
       <a class="problem-card" href="{{ url_for('register') }}">
-        <img class="thumb" src="{{ url_for('static', filename='img/problems/water.svg') }}" alt="{{ t('problem_water') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/water.jpg') }}" alt="{{ t('problem_water') }}">
         <div class="body">
           <h3>{{ t('problem_water') }}</h3>
           <p>{{ t('problem_water_desc') }}</p>
         </div>
       </a>
       <a class="problem-card" href="{{ url_for('register') }}">
-        <img class="thumb" src="{{ url_for('static', filename='img/problems/electric.svg') }}" alt="{{ t('problem_electricity') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/electric.jpg') }}" alt="{{ t('problem_electricity') }}">
         <div class="body">
           <h3>{{ t('problem_electricity') }}</h3>
           <p>{{ t('problem_electricity_desc') }}</p>
         </div>
       </a>
       <a class="problem-card" href="{{ url_for('register') }}">
-        <img class="thumb" src="{{ url_for('static', filename='img/problems/sanitation.svg') }}" alt="{{ t('problem_sanitation') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/sanitation.jpg') }}" alt="{{ t('problem_sanitation') }}">
         <div class="body">
           <h3>{{ t('problem_sanitation') }}</h3>
           <p>{{ t('problem_sanitation_desc') }}</p>
         </div>
       </a>
       <a class="problem-card" href="{{ url_for('register') }}">
-        <img class="thumb" src="{{ url_for('static', filename='img/problems/health.svg') }}" alt="{{ t('problem_health') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/health.jpg') }}" alt="{{ t('problem_health') }}">
         <div class="body">
           <h3>{{ t('problem_health') }}</h3>
           <p>{{ t('problem_health_desc') }}</p>
         </div>
       </a>
       <a class="problem-card" href="{{ url_for('register') }}">
-        <img class="thumb" src="{{ url_for('static', filename='img/problems/education.svg') }}" alt="{{ t('problem_education') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/education.jpg') }}" alt="{{ t('problem_education') }}">
         <div class="body">
           <h3>{{ t('problem_education') }}</h3>
           <p>{{ t('problem_education_desc') }}</p>
@@ -113,5 +113,8 @@
   </div>
 </div>
 
-<footer class="footer">{{ t('footer_note') }}</footer>
+<footer class="footer">
+  <span>{{ t('footer_note') }}</span>
+  <span class="credits">Problem photos: Wikimedia Commons (CC BY / CC BY-SA).</span>
+</footer>
 {% endblock %}

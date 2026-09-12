@@ -207,6 +207,7 @@ tr.row-link:hover{ background:#FBF9F3; cursor:pointer; }
 .demo-creds code{ background:#EFEAD9; padding:1px 5px; border-radius:4px; }
 
 .footer{ padding:30px 48px; text-align:center; color:var(--ink-faint); font-size:.8rem; border-top:1px solid var(--line); }
+.footer .credits{ display:block; margin-top:6px; font-size:.72rem; color:var(--ink-faint); opacity:.8; }
 
 /* ---------- language switcher ---------- */
 .lang-switch select{
