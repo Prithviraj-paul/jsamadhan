@@ -8,3 +8,6 @@ uploads/
 venv/
 .env
 *.pid
+tunnel_out.log
+tunnel_err.log
+public_url.txt
