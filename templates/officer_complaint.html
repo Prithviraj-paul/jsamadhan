@@ -1,0 +1,104 @@
+{% extends "app_base.html" %}
+{% set active = 'dashboard' %}
+{% import "macros.html" as m %}
+{% block title %}#{{ complaint.code }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('officer_dashboard') }}">{{ t('nav_queue') }}</a> / #{{ complaint.code }}</div>
+
+{{ m.status_banner(complaint) }}
+
+<div class="topbar">
+  <div>
+    <div class="crumb">#{{ complaint.code }} · {{ complaint.created_at.strftime('%d %b %Y') }}</div>
+    <h1>{{ complaint.title }}</h1>
+    <div class="meta" style="font-size:.86rem; color:var(--ink-soft);">
+      {{ dist_label(complaint.district) }} · {{ cat_label(complaint.category) }}
+      {% if complaint.location_text %} · {{ complaint.location_text }}{% endif %}
+    </div>
+  </div>
+  {{ m.status_badge(complaint) }}
+</div>
+
+{% if complaint.photo_filename %}
+<div class="evidence-box" style="margin-bottom:20px;">
+  {% if complaint.is_photo_video %}
+  <video controls muted preload="metadata" style="max-height:320px;"><source src="{{ url_for('uploaded_file', filename=complaint.photo_filename) }}" type="video/mp4"></video>
+  {% else %}
+  <img src="{{ url_for('uploaded_file', filename=complaint.photo_filename) }}" alt="Evidence">
+  {% endif %}
+  <div class="cap">{{ t('evidence_before') }}</div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2 style="font-size:1rem; margin-top:0;">{{ t('problem_section') }}</h2>
+  <p style="font-size:.9rem;">{{ complaint.description }}</p>
+  <p style="font-size:.82rem; color:var(--ink-soft);">
+    {{ t('reported_by_section') }}: {{ complaint.citizen.name }} · {{ complaint.citizen.email }}
+  </p>
+  {% if complaint.ai_note %}
+  <div class="banner banner-ai" style="margin-bottom:0;">🤖 {{ complaint.ai_note }}</div>
+  {% endif %}
+</div>
+
+<!-- Take action -->
+<div class="card" style="margin-top:20px;">
+  <h2 style="font-size:1rem; margin-top:0;">{{ t('take_action') }}</h2>
+
+  {% if complaint.status in ('Pending Officer Review', 'AI Verified') %}
+  <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+    <form method="POST" action="{{ url_for('officer_accept', complaint_id=complaint.id) }}">
+      <button type="submit" class="btn btn-forest">{{ t('btn_verify_accept') }}</button>
+    </form>
+    <form method="POST" action="{{ url_for('officer_reject', complaint_id=complaint.id) }}">
+      <label for="reason">{{ t('rejection_reason_label') }}</label>
+      <input type="text" id="reason" name="reason" placeholder="{{ t('rejection_reason_ph') }}">
+      <button type="submit" class="btn btn-red" style="margin-top:8px;">{{ t('btn_reject') }}</button>
+    </form>
+  </div>
+
+  {% elif complaint.status in ('Accepted by Officer', 'Reopened') and complaint.officer_id == user.id %}
+  <p class="hint">{{ t('upload_resolution_hint', deadline=complaint.deadline.strftime('%d %b %Y') if complaint.deadline else '?') }}</p>
+  <form method="POST" action="{{ url_for('officer_resolve', complaint_id=complaint.id) }}" enctype="multipart/form-data" style="margin-top:10px;">
+    <div class="file-drop">
+      <div class="big">📷</div>
+      <div class="evidence-controls" data-evidence-controls>
+        <button type="button" class="btn btn-sm btn-ghost" data-evidence-trigger="resolution_input">{{ t('evidence_upload_after') }}</button>
+        <input type="file" id="resolution_input" name="resolution" data-evidence-input accept="image/*" style="display:none;">
+        <button type="button" class="btn btn-sm evidence-clear" data-clear-evidence hidden>✕ Clear</button>
+      </div>
+      <div class="evidence-selected" data-evidence-name></div>
+    </div>
+    <div class="hint">{{ t('evidence_after_hint') }}</div>
+    <button type="submit" class="btn btn-teal" style="margin-top:14px;">{{ t('btn_submit_resolution') }}</button>
+  </form>
+
+  {% elif complaint.status == 'Resolved' %}
+  <div class="banner banner-ok" style="margin-bottom:0;">
+    {{ t('case_resolved_on', date=complaint.resolved_at.strftime('%d %b %Y') if complaint.resolved_at else '?') }}
+    {% if complaint.resolution_confidence is not none %} · {{ t('change_score') }} {{ complaint.resolution_confidence }}/100{% endif %}
+  </div>
+
+  {% elif complaint.status == 'Rejected' %}
+  <div class="banner banner-warn" style="margin-bottom:0;">{{ t('case_rejected') }}</div>
+  {% endif %}
+</div>
+
+<!-- Timeline -->
+{% if complaint.logs %}
+<div style="margin-top:20px;">
+  <h2 style="font-size:1rem;">{{ t('progress_timeline') }}</h2>
+  <ul class="timeline">
+    {% for log in complaint.logs|reverse %}
+    <li>
+      <div class="t-status">{{ log.status }}</div>
+      {% if log.note %}<div class="t-note">{{ log.note }}</div>{% endif %}
+      <div class="t-time">{{ log.timestamp.strftime('%d %b %Y, %H:%M UTC') }}</div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% endblock %}

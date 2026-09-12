@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}#{{ complaint.code }} — {{ t('app_name') }}{% endblock %}
+{% block body %}
+<header class="topnav">
+  <a class="govt-brand" href="{{ url_for('landing') }}">
+    <span class="govt-mark" aria-hidden="true">झा</span>
+    <span class="brand"><strong>{{ t('app_name')|upper }}</strong><span>{{ t('govt_of_jharkhand') }}</span></span>
+  </a>
+  <nav>
+    {% include "lang_switcher.html" %}
+    <a href="{{ url_for('landing') }}">{{ t('nav_back_home') }}</a>
+  </nav>
+</header>
+
+<div class="page">
+  {{ m.status_banner(complaint) }}
+
+  <div class="topbar">
+    <div>
+      <div class="crumb">#{{ complaint.code }}</div>
+      <h1>{{ complaint.title }}</h1>
+    </div>
+    {{ m.status_badge(complaint) }}
+  </div>
+
+  <!-- Evidence pair -->
+  {% if complaint.photo_filename or complaint.resolution_filename %}
+  <div class="evidence-pair" style="margin-bottom:20px;">
+    {% if complaint.photo_filename %}
+    <div class="evidence-box">
+      {% if complaint.is_photo_video %}
+      <video controls muted preload="metadata"><source src="{{ url_for('uploaded_file', filename=complaint.photo_filename) }}" type="video/mp4"></video>
+      {% else %}
+      <img src="{{ url_for('uploaded_file', filename=complaint.photo_filename) }}" alt="Evidence">
+      {% endif %}
+      <div class="cap">{{ t('evidence_before') }}</div>
+    </div>
+    {% endif %}
+    {% if complaint.resolution_filename %}
+    <div class="evidence-box">
+      <img src="{{ url_for('uploaded_file', filename=complaint.resolution_filename) }}" alt="Resolution">
+      <div class="cap">{{ t('evidence_after_officer') }}</div>
+    </div>
+    {% else %}
+    <div class="evidence-box" style="display:grid; place-items:center; min-height:180px; color:var(--ink-faint); font-size:.88rem;">
+      {{ t('evidence_after_pending') }}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- AI resolution check -->
+  {% if complaint.resolution_confidence is not none %}
+  <div class="banner banner-ai" style="margin-bottom:16px;">
+    {{ t('ai_resolution_check') }}: {{ t('change_score') }} {{ complaint.resolution_confidence }}/100
+    {% if complaint.resolution_confidence is not none %}
+      — {{ complaint.resolution_note }}
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h2 style="font-size:1rem; margin-top:0;">{{ t('problem_section') }}</h2>
+      <p style="font-size:.9rem;">{{ complaint.description }}</p>
+      <div class="meta" style="font-size:.82rem; color:var(--ink-soft);">
+        {{ dist_label(complaint.district) }} · {{ cat_label(complaint.category) }}
+        {% if complaint.location_text %} · {{ complaint.location_text }}{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <h2 style="font-size:1rem; margin-top:0;">{{ t('reported_by_section') }}</h2>
+      <p style="font-size:.9rem;">{{ complaint.citizen.name }}<br>{{ complaint.citizen.email }}</p>
+      {% if complaint.officer %}
+      <p style="font-size:.82rem; color:var(--ink-soft);">Assigned to: {{ complaint.officer.name }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  {% if complaint.logs %}
+  <div style="margin-top:20px;">
+    <h2 style="font-size:1rem;">{{ t('progress_timeline') }}</h2>
+    <ul class="timeline">
+      {% for log in complaint.logs|reverse %}
+      <li>
+        <div class="t-status">{{ log.status }}</div>
+        {% if log.note %}<div class="t-note">{{ log.note }}</div>{% endif %}
+        <div class="t-time">{{ log.timestamp.strftime('%d %b %Y, %H:%M UTC') }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+
+<footer class="footer">{{ t('footer_note') }}</footer>
+{% endblock %}

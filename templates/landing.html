@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{{ t('app_name') }}{% endblock %}
+{% block body %}
+<header class="topnav">
+  <a class="govt-brand" href="{{ url_for('landing') }}" aria-label="Government of Jharkhand">
+    <span class="govt-mark" aria-hidden="true">झा</span>
+    <span class="brand"><strong class="erase-title" data-erase-title data-title-en="Jharkhand Samadhan" data-title-hi="झारखंड समाधान">Jharkhand Samadhan</strong><span>{{ t('govt_of_jharkhand') }}</span></span>
+  </a>
+  <nav>
+    {% include "lang_switcher.html" %}
+    <a class="login-icon" href="{{ url_for('login') }}" aria-label="{{ t('btn_login') }}" title="{{ t('btn_login') }}">⇥</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <span class="hero-kicker">{{ t('hero_kicker') }}</span>
+      <h1>{{ t('hero_title') }}<span class="accent">.</span></h1>
+      <p class="hero-lead">{{ t('hero_body') }}</p>
+      <div class="hero-cta">
+        <a class="btn-report-hero" href="{{ url_for('register') }}">{{ t('nav_register') }} ›</a>
+        <a class="btn-hero-guest" href="{{ url_for('login') }}">{{ t('btn_login') }}</a>
+      </div>
+    </div>
+    <div class="hero-art">
+      <img src="{{ url_for('static', filename='img/problems/hero-village.svg') }}" alt="{{ t('hero_title') }}">
+    </div>
+  </div>
+</section>
+
+<div class="page">
+  <section class="section">
+    <div class="section-title"><h2>{{ t('sec_problems_title') }}</h2></div>
+    <p class="section-sub">{{ t('sec_problems_sub') }}</p>
+    <div class="problem-grid">
+      <a class="problem-card" href="{{ url_for('register') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/road.svg') }}" alt="{{ t('problem_road') }}">
+        <div class="body">
+          <h3>{{ t('problem_road') }}</h3>
+          <p>{{ t('problem_road_desc') }}</p>
+        </div>
+      </a>
+      <a class="problem-card" href="{{ url_for('register') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/water.svg') }}" alt="{{ t('problem_water') }}">
+        <div class="body">
+          <h3>{{ t('problem_water') }}</h3>
+          <p>{{ t('problem_water_desc') }}</p>
+        </div>
+      </a>
+      <a class="problem-card" href="{{ url_for('register') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/electric.svg') }}" alt="{{ t('problem_electricity') }}">
+        <div class="body">
+          <h3>{{ t('problem_electricity') }}</h3>
+          <p>{{ t('problem_electricity_desc') }}</p>
+        </div>
+      </a>
+      <a class="problem-card" href="{{ url_for('register') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/sanitation.svg') }}" alt="{{ t('problem_sanitation') }}">
+        <div class="body">
+          <h3>{{ t('problem_sanitation') }}</h3>
+          <p>{{ t('problem_sanitation_desc') }}</p>
+        </div>
+      </a>
+      <a class="problem-card" href="{{ url_for('register') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/health.svg') }}" alt="{{ t('problem_health') }}">
+        <div class="body">
+          <h3>{{ t('problem_health') }}</h3>
+          <p>{{ t('problem_health_desc') }}</p>
+        </div>
+      </a>
+      <a class="problem-card" href="{{ url_for('register') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/education.svg') }}" alt="{{ t('problem_education') }}">
+        <div class="body">
+          <h3>{{ t('problem_education') }}</h3>
+          <p>{{ t('problem_education_desc') }}</p>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <section class="section how-banner">
+    <div class="section-title"><h2>{{ t('sec_how_title') }}</h2><small>{{ t('sec_how_sub') }}</small></div>
+    <div class="steps">
+      <div class="step">
+        <div class="num">1</div>
+        <h3>{{ t('how_1') }}</h3>
+        <p>{{ t('how_1_desc') }}</p>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <h3>{{ t('how_2') }}</h3>
+        <p>{{ t('how_2_desc') }}</p>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <h3>{{ t('how_3') }}</h3>
+        <p>{{ t('how_3_desc') }}</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid grid-3" style="margin:26px 0 36px;">
+    <div class="kpi"><div class="n">{{ stats.total }}</div><div class="l">{{ t('stat_reported') }}</div></div>
+    <div class="kpi"><div class="n">{{ stats.open }}</div><div class="l">{{ t('stat_open') }}</div></div>
+    <div class="kpi"><div class="n">{{ stats.resolved }}</div><div class="l">{{ t('stat_resolved') }}</div></div>
+  </div>
+
+  <div class="demo-creds">
+    <strong>{{ t('demo_logins') }}</strong> — Admin: <code>admin@jsamadhan.gov / admin123</code> ·
+    Officer: <code>officer1@jsamadhan.gov / officer123</code> ·
+    Citizen: <code>citizen@example.com / citizen123</code> ({{ t('or_register') }})
+  </div>
+</div>
+
+<footer class="footer">{{ t('footer_note') }}</footer>
+{% endblock %}

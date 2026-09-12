@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="A garbage pile with flies in a public space">
+  <rect width="400" height="300" fill="#F3EEE1"/>
+  <rect y="196" width="400" height="104" fill="#E2DCCC"/>
+
+  <ellipse cx="190" cy="220" rx="110" ry="26" fill="#C9C4B2"/>
+
+  <path d="M120 212 q-14 -26 4 -40 q18 -14 36 2 q-8 16 2 30 Z" fill="#3F4A38"/>
+  <path d="M172 200 q6 -22 28 -22 q20 0 22 20 q-12 8 -12 26 Z" fill="#2F6E4E"/>
+  <path d="M222 214 q18 -16 38 -6 q10 12 -2 24 q-18 -2 -30 8 Z" fill="#274B57"/>
+  <path d="M150 226 q20 8 40 2 q14 -4 28 2 q-8 14 -30 16 q-18 2 -30 -4 Z" fill="#4B5542"/>
+
+  <path d="M240 236 q0 22 14 34 q-18 4 -26 -12 q-4 -12 6 -24 Z" fill="#8E9891"/>
+  <path d="M96 232 q-2 14 8 22 q-14 2 -18 -10 q0 -10 8 -14 Z" fill="#5C6258"/>
+
+  <path d="M118 212 q-6 -10 -18 -12" stroke="#C4832A" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M110 214 l-6 -4 M122 206 l-4 -7" stroke="#B0642C" stroke-width="3" stroke-linecap="round"/>
+
+  <g fill="#A83A2C">
+    <circle cx="112" cy="176" r="4"/>
+    <circle cx="252" cy="188" r="3.5"/>
+    <circle cx="208" cy="172" r="3"/>
+  </g>
+  <g stroke="#A83A2C" stroke-width="2" fill="none" stroke-linecap="round">
+    <path d="M108 172 q8 -7 16 2"/>
+    <path d="M248 184 q9 -8 18 2"/>
+    <path d="M205 168 q8 -7 16 2"/>
+  </g>
+</svg>

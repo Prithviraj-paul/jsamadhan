@@ -1,0 +1,107 @@
+{% extends "app_base.html" %}
+{% set active = 'dashboard' %}
+{% import "macros.html" as m %}
+{% block title %}#{{ complaint.code }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('admin_dashboard') }}">{{ t('nav_overview') }}</a> / #{{ complaint.code }}</div>
+
+{{ m.status_banner(complaint) }}
+
+<div class="topbar">
+  <div>
+    <div class="crumb">#{{ complaint.code }} · {{ complaint.created_at.strftime('%d %b %Y') }}</div>
+    <h1>{{ complaint.title }}</h1>
+    <div class="meta" style="font-size:.86rem; color:var(--ink-soft);">
+      {{ dist_label(complaint.district) }} · {{ cat_label(complaint.category) }}
+      {% if complaint.location_text %} · {{ complaint.location_text }}{% endif %}
+    </div>
+  </div>
+  {{ m.status_badge(complaint) }}
+</div>
+
+{% if complaint.photo_filename %}
+<div class="evidence-box" style="margin-bottom:20px;">
+  {% if complaint.is_photo_video %}
+  <video controls muted preload="metadata" style="max-height:320px;"><source src="{{ url_for('uploaded_file', filename=complaint.photo_filename) }}" type="video/mp4"></video>
+  {% else %}
+  <img src="{{ url_for('uploaded_file', filename=complaint.photo_filename) }}" alt="Evidence">
+  {% endif %}
+  <div class="cap">{{ t('evidence_before') }}</div>
+</div>
+{% endif %}
+
+<div class="grid grid-2">
+  <div class="card">
+    <h2 style="font-size:1rem; margin-top:0;">{{ t('problem_section') }}</h2>
+    <p style="font-size:.9rem;">{{ complaint.description }}</p>
+    <p style="font-size:.82rem; color:var(--ink-soft);">
+      {{ t('reported_by_section') }}: {{ complaint.citizen.name }} · {{ complaint.citizen.email }}
+    </p>
+    {% if complaint.ai_note %}
+    <div class="banner banner-ai" style="margin-bottom:0;">🤖 {{ complaint.ai_note }}</div>
+    {% endif %}
+  </div>
+
+  <!-- Assignment -->
+  <div class="card">
+    <h2 style="font-size:1rem; margin-top:0;">{{ t('assignment') }}</h2>
+    <p style="font-size:.82rem; color:var(--ink-soft);">
+      {{ t('currently') }}:
+      {% if complaint.officer %}<strong>{{ complaint.officer.name }}</strong>
+        {% if complaint.deadline %} · {{ t('due_label') }} {{ complaint.deadline.strftime('%d %b %Y') }}{% endif %}
+      {% else %}<strong>{{ t('unassigned') }}</strong>{% endif %}
+    </p>
+    <form method="POST" action="{{ url_for('admin_assign', complaint_id=complaint.id) }}" style="margin-top:8px;">
+      <label for="officer_id">{{ t('assign_reassign') }}</label>
+      <select id="officer_id" name="officer_id" required>
+        {% for o in officers %}
+        <option value="{{ o.id }}" {{ 'selected' if complaint.officer_id == o.id }}>{{ o.name }} &lt;{{ o.email }}&gt;</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-forest" style="margin-top:14px;">{{ t('btn_assign') }}</button>
+    </form>
+  </div>
+</div>
+
+<!-- Resolution evidence + AI check -->
+{% if complaint.resolution_filename %}
+<div class="card" style="margin-top:20px;">
+  <h2 style="font-size:1rem; margin-top:0;">{{ t('evidence_section') }}</h2>
+  <div class="evidence-pair">
+    {% if complaint.photo_filename %}
+    <div class="evidence-box">
+      <img src="{{ url_for('uploaded_file', filename=complaint.photo_filename) }}" alt="Before">
+      <div class="cap">{{ t('evidence_before') }}</div>
+    </div>
+    {% endif %}
+    <div class="evidence-box">
+      <img src="{{ url_for('uploaded_file', filename=complaint.resolution_filename) }}" alt="After">
+      <div class="cap">{{ t('evidence_after_officer') }}</div>
+    </div>
+  </div>
+  {% if complaint.resolution_confidence is not none %}
+  <div class="banner banner-ai" style="margin-top:16px; margin-bottom:0;">
+    {{ t('ai_resolution_check') }}: {{ t('change_score') }} {{ complaint.resolution_confidence }}/100
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Timeline -->
+{% if complaint.logs %}
+<div style="margin-top:20px;">
+  <h2 style="font-size:1rem;">{{ t('timeline') }}</h2>
+  <ul class="timeline">
+    {% for log in complaint.logs|reverse %}
+    <li>
+      <div class="t-status">{{ log.status }}</div>
+      {% if log.note %}<div class="t-note">{{ log.note }}</div>{% endif %}
+      <div class="t-time">{{ log.timestamp.strftime('%d %b %Y, %H:%M UTC') }}</div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+jsamadhan.db
+server_error.log
+uploads/
+.venv/
+venv/
+.env
+*.pid

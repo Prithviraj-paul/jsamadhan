@@ -1,0 +1,41 @@
+{% macro status_badge(c) -%}
+{% if c.status == "Resolved" %}
+  <span class="badge badge-resolved">{{ t('status_resolved') }}</span>
+{% elif c.status == "Accepted by Officer" and c.is_overdue %}
+  <span class="badge badge-overdue">{{ t('status_overdue') }}</span>
+{% elif c.status == "Accepted by Officer" %}
+  <span class="badge badge-accepted">{{ t('status_accepted') }}</span>
+{% elif c.status == "Reopened" %}
+  <span class="badge badge-reopened">{{ t('status_reopened') }}</span>
+{% elif c.status == "Rejected" %}
+  <span class="badge badge-rejected">{{ t('status_rejected') }}</span>
+{% elif c.status == "AI Verified" %}
+  <span class="badge badge-aiverified">{{ t('status_ai_verified') }}</span>
+{% elif c.status == "Pending Officer Review" %}
+  <span class="badge badge-pending">{{ t('status_pending_officer') }}</span>
+{% else %}
+  <span class="badge badge-submitted">{{ t('status_submitted') }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro status_banner(c) -%}
+{% if c.status == "Submitted" %}
+  <div class="banner banner-warn">{{ t('banner_pending_officer') }}</div>
+{% elif c.status == "Pending Officer Review" %}
+  <div class="banner banner-warn">{{ t('banner_pending_officer') }}</div>
+{% elif c.status == "AI Verified" %}
+  <div class="banner banner-ai">{{ t('banner_ai_verified', conf=c.ai_confidence or '?') }}</div>
+{% elif c.status == "Accepted by Officer" %}
+  {% if c.is_overdue %}
+    <div class="banner banner-danger">{{ t('banner_overdue', deadline=c.deadline.strftime('%d %b %Y') if c.deadline else '?') }}</div>
+  {% else %}
+    <div class="banner banner-ok">{{ t('banner_accepted', officer=c.officer.name if c.officer else '—', deadline=c.deadline.strftime('%d %b %Y') if c.deadline else '?', days=c.days_left or '?') }}</div>
+  {% endif %}
+{% elif c.status == "Reopened" %}
+  <div class="banner banner-danger">{{ t('banner_reopened') }}</div>
+{% elif c.status == "Resolved" %}
+  <div class="banner banner-ok">{{ t('banner_resolved', date=c.resolved_at.strftime('%d %b %Y') if c.resolved_at else '?') }}</div>
+{% elif c.status == "Rejected" %}
+  <div class="banner banner-warn">{{ t('banner_rejected') }}</div>
+{% endif %}
+{%- endmacro %}

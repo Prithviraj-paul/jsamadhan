@@ -1,0 +1,53 @@
+{% extends "app_base.html" %}
+{% set active = 'dashboard' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('officer_queue_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="topbar">
+  <h1>{{ t('officer_queue_title') }}</h1>
+</div>
+
+<h2 style="font-size:1.02rem;">{{ t('needs_review') }}</h2>
+{% for c in queue %}
+<a class="complaint-card" href="{{ url_for('officer_complaint', complaint_id=c.id) }}" style="display:flex;">
+  <div>
+    <div class="id">#{{ c.code }} · {{ c.created_at.strftime('%d %b %Y') }} · <span style="color:var(--amber);">{{ t('waiting') }} {{ c.days_left if c.days_left else '' }}</span></div>
+    <h3>{{ c.title }}</h3>
+    <div class="meta">{{ dist_label(c.district) }} · {{ cat_label(c.category) }}</div>
+  </div>
+  <div>{{ m.status_badge(c) }}</div>
+</a>
+{% else %}
+<div class="card" style="margin-bottom:26px;">{{ t('nothing_waiting') }}</div>
+{% endfor %}
+
+<h2 style="font-size:1.02rem; margin-top:26px;">{{ t('my_active_cases') }}</h2>
+{% for c in my_cases %}
+<a class="complaint-card" href="{{ url_for('officer_complaint', complaint_id=c.id) }}" style="display:flex;">
+  <div>
+    <div class="id">#{{ c.code }} · {{ t('due') }} {{ c.deadline.strftime('%d %b %Y') if c.deadline else '—' }}</div>
+    <h3>{{ c.title }}</h3>
+    <div class="meta">{{ dist_label(c.district) }} · {{ cat_label(c.category) }}</div>
+  </div>
+  <div>{{ m.status_badge(c) }}</div>
+</a>
+{% else %}
+<div class="card" style="margin-bottom:26px;">{{ t('no_active_cases') }}</div>
+{% endfor %}
+
+<h2 style="font-size:1.02rem; margin-top:26px;">{{ t('recently_resolved') }}</h2>
+{% for c in resolved %}
+<a class="complaint-card" href="{{ url_for('officer_complaint', complaint_id=c.id) }}" style="display:flex;">
+  <div>
+    <div class="id">#{{ c.code }} · {{ c.resolved_at.strftime('%d %b %Y') if c.resolved_at else '' }}</div>
+    <h3>{{ c.title }}</h3>
+    <div class="meta">{{ dist_label(c.district) }} · {{ cat_label(c.category) }}</div>
+  </div>
+  <div>{{ m.status_badge(c) }}</div>
+</a>
+{% else %}
+<div class="card">{{ t('no_resolved_yet') }}</div>
+{% endfor %}
+
+{% endblock %}

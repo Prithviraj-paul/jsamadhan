@@ -1,0 +1,92 @@
+{% extends "app_base.html" %}
+{% set active = 'report' %}
+{% block title %}{{ t('report_heading') }} — {{ t('app_name') }}{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+{% endblock %}
+{% block content %}
+
+<h1>{{ t('report_heading') }}</h1>
+
+<div class="card" style="margin-top:18px;">
+  <div style="margin-bottom:14px;">
+    <strong style="font-size:.82rem; color:var(--ink-soft);">{{ t('reported_by') }}</strong>
+    <div class="readonly-field" style="margin-top:4px;">{{ user.name }} &lt;{{ user.email }}&gt;</div>
+    <div class="hint">{{ t('autofill_note') }}</div>
+  </div>
+
+  <form method="POST" enctype="multipart/form-data" style="margin-top:22px;">
+    <label for="title">{{ t('problem_title') }}</label>
+    <input type="text" id="title" name="title" required placeholder="{{ t('problem_title_ph') }}">
+
+    <label for="description">{{ t('describe_problem') }}</label>
+    <textarea id="description" name="description" required placeholder="{{ t('describe_problem_ph') }}"></textarea>
+
+    <div class="field-row">
+      <div>
+        <label for="category">{{ t('category') }}</label>
+        <select id="category" name="category">
+          {% for cat in CATEGORIES %}
+          <option value="{{ cat }}">{{ cat_label(cat) }}</option>
+          {% endfor %}
+        </select>
+        <div class="hint">{{ t('category_hint') }}</div>
+      </div>
+      <div>
+        <label for="district">{{ t('district') }}</label>
+        <select id="district" name="district">
+          {% for dist in DISTRICTS %}
+          <option value="{{ dist }}">{{ dist_label(dist) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <label for="location_text">{{ t('location_details') }}</label>
+    <input type="text" id="location_text" name="location" placeholder="{{ t('location_ph') }}">
+
+    <!-- Hidden GPS fields — populated by location picker -->
+    <input type="hidden" name="lat" data-latitude value="">
+    <input type="hidden" name="lng" data-longitude value="">
+
+    <div data-location-picker>
+      <div class="location-picker">
+        <div class="location-picker-head">
+          <strong style="font-size:.88rem;">Location (optional)</strong>
+          <span data-location-status class="hint" style="margin-top:0;"></span>
+        </div>
+        <div class="location-search">
+          <input type="text" data-location-search placeholder="Search address or landmark in Jharkhand..." style="font-size:.86rem;">
+          <button type="button" class="btn btn-sm btn-ghost" data-search-location>Search</button>
+          <button type="button" class="btn btn-sm btn-forest" data-use-location>📍 Use my location</button>
+        </div>
+        <div data-location-suggestions class="location-suggestions" hidden></div>
+        <div data-location-map class="location-map"></div>
+        <div class="hint">Click anywhere on the map or use the buttons above to set coordinates. Reverse geocoding fills district details automatically.</div>
+      </div>
+      <input type="hidden" data-location-address>
+      <input type="hidden" data-location-city>
+      <input type="hidden" data-location-state>
+      <input type="hidden" data-location-pincode>
+    </div>
+
+    <label>{{ t('evidence_label') }}</label>
+    <div class="file-drop" style="margin-top:6px;">
+      <div class="big">📎</div>
+      <div class="evidence-controls" data-evidence-controls>
+        <button type="button" class="btn btn-sm btn-ghost" data-evidence-trigger="evidence_input">{{ t('evidence_click') }}</button>
+        <input type="file" id="evidence_input" name="evidence" data-evidence-input accept="image/*,video/*" style="display:none;">
+        <button type="button" class="btn btn-sm evidence-clear" data-clear-evidence hidden>✕ Clear</button>
+      </div>
+      <div class="evidence-selected" data-evidence-name></div>
+    </div>
+    <div class="hint">{{ t('evidence_hint') }}</div>
+
+    <div style="margin-top:22px;">
+      <button type="submit" class="btn btn-primary btn-block">{{ t('btn_submit_problem') }}</button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}
