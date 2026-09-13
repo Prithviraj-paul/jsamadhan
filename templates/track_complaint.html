@@ -16,6 +16,22 @@
 <div class="page">
   {{ m.status_banner(complaint) }}
 
+  {% if complaint.is_escalated or complaint.notified or complaint.action_due_at %}
+  <div class="banner banner-accountable" style="margin-bottom:16px;">
+    <strong>📲 {{ t('promise_banner') }}</strong>
+    <ul style="margin:6px 0 0 0; padding-left:18px;">
+      {% if complaint.is_escalated %}
+      <li>{{ t('escalated_note') }}</li>
+      {% elif complaint.action_due_at %}
+        <li>{% if complaint.notified %}✅ {{ t('notified_24h') }}{% else %}⏳ {{ t('notify_pending') }}{% endif %}</li>
+        <li>📅 {{ t('action_due', date=complaint.action_due_at.strftime('%d %b %Y')) }}
+          {% if complaint.action_overdue %} — <strong>{{ t('action_overdue') }}</strong> ({{ t('escalation_soon') }}){% endif %}
+        </li>
+      {% endif %}
+    </ul>
+  </div>
+  {% endif %}
+
   {% if complaint.ai_data %}
   <div class="banner {% if complaint.ai_data.get('verified') %}banner-ai{% else %}banner-warn{% endif %}" style="margin-bottom:16px;">
     🤖 {{ t('ai_photo_verify') }}: {{ complaint.ai_data.confidence }}/100

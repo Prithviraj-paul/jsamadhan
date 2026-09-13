@@ -59,6 +59,14 @@ def main():
         with open("server_error.log", "w") as f:
             traceback.print_exc(file=f)
 
+    # Background worker: 24h notification + 3-day action deadlines + auto-escalation.
+    try:
+        import notifications
+        notifications.start_worker()
+    except Exception:
+        with open("server_error.log", "w") as f:
+            traceback.print_exc(file=f)
+
     ip = lan_ip()
     print("Jharkhand Samadhan server running.")
     print("  On this computer: http://127.0.0.1:%d" % PORT)

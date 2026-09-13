@@ -32,6 +32,8 @@
   <span class="badge badge-reopened">{{ t('status_reopened') }}</span>
 {% elif c.status == "Rejected" %}
   <span class="badge badge-rejected">{{ t('status_rejected') }}</span>
+{% elif c.status == "Escalated" %}
+  <span class="badge badge-escalated">{{ t('status_escalated') }}</span>
 {% elif c.status == "AI Verified" %}
   <span class="badge badge-aiverified">{{ t('status_ai_verified') }}</span>
 {% elif c.status == "Pending Officer Review" %}
@@ -60,5 +62,7 @@
   <div class="banner banner-ok">{{ t('banner_resolved', date=c.resolved_at.strftime('%d %b %Y') if c.resolved_at else '?') }}</div>
 {% elif c.status == "Rejected" %}
   <div class="banner banner-warn">{{ t('banner_rejected') }}</div>
+{% elif c.status == "Escalated" %}
+  <div class="banner banner-danger">{{ t('banner_escalated') }}</div>
 {% endif %}
 {%- endmacro %}

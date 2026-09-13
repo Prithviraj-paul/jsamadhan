@@ -15,8 +15,31 @@
   <div class="kpi"><div class="n">{{ kpis.total }}</div><div class="l">{{ t('total_complaints') }}</div></div>
   <div class="kpi"><div class="n">{{ kpis.open }}</div><div class="l">{{ t('open') }}</div></div>
   <div class="kpi"><div class="n">{{ kpis.resolved }}</div><div class="l">{{ t('resolved') }}</div></div>
-  <div class="kpi"><div class="n" style="color:var(--danger);">{{ kpis.critical }}</div><div class="l">{{ t('urgency_critical') }}</div></div>
+  <div class="kpi"><div class="n" style="color:var(--danger);">{{ kpis.escalated }}</div><div class="l">{{ t('kpi_escalated') }}</div></div>
 </div>
+
+{% if escalated %}
+<div class="card" style="border:1.5px solid var(--danger); margin-bottom:18px;">
+  <h2 style="font-size:1rem; margin-top:0; color:var(--danger);">{{ t('admin_escalated_heading') }} ({{ escalated|length }})</h2>
+  <p style="font-size:.85rem;">{{ t('escalated_note') }}</p>
+  <div class="table-scroll" style="margin-top:6px;">
+  <table>
+    <thead><tr><th>#</th><th>{{ t('th_title') }}</th><th>{{ t('th_district') }}</th><th>{{ t('th_category') }}</th><th>Escalated on</th></tr></thead>
+    <tbody>
+      {% for c in escalated %}
+      <tr class="row-link" onclick="location.href='{{ url_for('admin_complaint', complaint_id=c.id) }}'">
+        <td>{{ c.code }}</td>
+        <td>{{ c.title }}</td>
+        <td>{{ dist_label(c.district) }}</td>
+        <td>{{ cat_label(c.category) }}</td>
+        <td>{{ c.escalated_at.strftime('%d %b %Y') if c.escalated_at else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
 
 <h2 style="font-size:1.02rem;">{{ t('all_complaints') }}</h2>
 {% if complaints %}

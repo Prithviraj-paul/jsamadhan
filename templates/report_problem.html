@@ -23,6 +23,32 @@
     <label for="description">{{ t('describe_problem') }}</label>
     <textarea id="description" name="description" required placeholder="{{ t('describe_problem_ph') }}"></textarea>
 
+    <div class="ai-assist">
+      <div class="ai-assist-head">{{ t('ai_assist_heading') }}</div>
+      <div class="hint">{{ t('ai_assist_hint') }}</div>
+      <div class="ai-assist-controls">
+        <button type="button" class="btn btn-sm btn-forest" data-voice-toggle>{{ t('btn_speak') }}</button>
+        <select data-voice-lang aria-label="{{ t('voice_lang') }}">
+          <option value="hi-IN">हिन्दी</option>
+          <option value="en-IN">English</option>
+          <option value="bn-IN">বাংলা</option>
+          <option value="or-IN">ଓଡ଼ିଆ</option>
+          <option value="mr-IN">मराठी</option>
+          <option value="ta-IN">தமிழ்</option>
+          <option value="te-IN">తెలుగు</option>
+          <option value="kn-IN">ಕನ್ನಡ</option>
+          <option value="ml-IN">മലയാളം</option>
+          <option value="gu-IN">ગુજરાતી</option>
+          <option value="pa-IN">ਪੰਜਾਬੀ</option>
+          <option value="ur-IN">اردو</option>
+        </select>
+        <button type="button" class="btn btn-sm btn-ghost" data-ocr-toggle>{{ t('ocr_btn') }}</button>
+        <input type="file" data-ocr-input accept="image/*" capture="environment" style="display:none;">
+      </div>
+      <div data-voice-status class="hint"></div>
+      <div data-ocr-status class="hint"></div>
+    </div>
+
     <div class="field-row">
       <div>
         <label for="category">{{ t('category') }}</label>
@@ -88,5 +114,99 @@
     </div>
   </form>
 </div>
+
+<script>
+(function () {
+  var desc = document.getElementById('description');
+  var voiceStatus = document.querySelector('[data-voice-status]');
+  var ocrStatus = document.querySelector('[data-ocr-status]');
+  var langSel = document.querySelector('[data-voice-lang]');
+  var voiceBtn = document.querySelector('[data-voice-toggle]');
+  var ocrBtn = document.querySelector('[data-ocr-toggle]');
+  var ocrInput = document.querySelector('[data-ocr-input]');
+
+  var CANON = { 'hi-IN': 'hi', 'en-IN': 'en', 'bn-IN': 'bn', 'or-IN': 'or',
+                'mr-IN': 'mr', 'ta-IN': 'ta', 'te-IN': 'te', 'kn-IN': 'kn',
+                'ml-IN': 'ml', 'gu-IN': 'gu', 'pa-IN': 'pa', 'ur-IN': 'ur',
+                'en': 'en', 'hi': 'hi' };
+
+  function appendToDesc(text) {
+    text = (text || '').replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    desc.value = desc.value ? desc.value.trimEnd() + ' ' + text : text;
+    desc.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function setSiteLang(browserCode) {
+    var code = CANON[browserCode] || 'en';
+    if (!code) return;
+    var body = new URLSearchParams({ lang: code });
+    fetch('/set_lang', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
+      .catch(function () {});
+  }
+
+  /* ---------- Voice to text (Web Speech API) ---------- */
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var recognizing = false;
+  if (!SR) {
+    voiceStatus.textContent = "{{ t('speak_unsupported') }}";
+    voiceBtn.disabled = true;
+  } else {
+    var rec = new SR();
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.lang = langSel.value;
+    langSel.addEventListener('change', function () { rec.lang = langSel.value; });
+
+    rec.onstart = function () { recognizing = true; voiceStatus.textContent = "{{ t('speak_start') }}"; voiceBtn.classList.add('btn-red'); };
+    rec.onerror = function (e) { recognizing = false; voiceStatus.textContent = "{{ t('speak_error') }}"; voiceBtn.classList.remove('btn-red'); };
+    rec.onend = function () { recognizing = false; voiceBtn.classList.remove('btn-red'); if (!rec._finished) voiceStatus.textContent = "{{ t('speak_error') }}"; };
+    rec.onresult = function (event) {
+      var final = '';
+      for (var i = event.resultIndex; i < event.results.length; i++) {
+        var it = event.results[i];
+        if (it.isFinal) { final += it[0].transcript + ' '; rec._finished = true; }
+      }
+      if (final) { appendToDesc(final); voiceStatus.textContent = "{{ t('speak_final_done') }}"; setSiteLang(rec.lang); }
+    };
+
+    voiceBtn.addEventListener('click', function () {
+      if (recognizing) { rec.stop(); recognizing = false; return; }
+      rec._finished = false;
+      try { rec.lang = langSel.value; rec.start(); }
+      catch (e) { voiceStatus.textContent = "{{ t('speak_error') }}"; }
+    });
+  }
+
+  /* ---------- Image to text (Tesseract.js OCR) ---------- */
+  ocrBtn.addEventListener('click', function () { ocrInput.click(); });
+  ocrInput.addEventListener('change', function () {
+    var file = ocrInput.files[0];
+    if (!file) return;
+    ocrStatus.textContent = "{{ t('ocr_started') }}";
+    function run(tesseract) {
+      tesseract.recognize(file, 'eng+hin', { logger: function () {} })
+        .then(function (res) {
+          var text = (res && res.data && res.data.text) || '';
+          if (text.replace(/[^\p{L}\p{N}]/gu, '').length < 2) {
+            ocrStatus.textContent = "{{ t('ocr_error') }}";
+          } else {
+            appendToDesc(text);
+            ocrStatus.textContent = "{{ t('ocr_done') }}";
+          }
+        })
+        .catch(function () { ocrStatus.textContent = "{{ t('ocr_error') }}"; });
+    }
+    if (window.Tesseract) { run(window.Tesseract); }
+    else {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.onload = function () { if (window.Tesseract) run(window.Tesseract); else ocrStatus.textContent = "{{ t('ocr_loading_error') }}"; };
+      s.onerror = function () { ocrStatus.textContent = "{{ t('ocr_loading_error') }}"; };
+      document.head.appendChild(s);
+    }
+  });
+})();
+</script>
 
 {% endblock %}

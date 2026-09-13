@@ -56,6 +56,17 @@
     <div class="l">{{ t('sla_label') }}</div>
     <div class="v">{{ complaint.deadline.strftime('%d %b %Y') if complaint.deadline else '—' }}</div>
   </div>
+  <div class="ai-meta-item">
+    <div class="l">{{ t('action_due_label') }}</div>
+    <div class="v">
+      {{ complaint.action_due_at.strftime('%d %b %Y') if complaint.action_due_at else '—' }}
+      {% if complaint.action_overdue %}<span class="badge badge-overdue">{{ t('deadline_overdue_badge') }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="ai-meta-item">
+    <div class="l">{{ t('notified_label') }}</div>
+    <div class="v">{% if complaint.notified %}✅ {{ t('notified_24h') }}{% else %}⏳ {{ t('notify_pending') }}{% endif %}</div>
+  </div>
   {% if complaint.ai_data %}
   <div class="ai-meta-item">
     <div class="l">{{ t('ai_photo_verify') }}</div>
@@ -119,6 +130,9 @@
     {{ t('case_resolved_on', date=complaint.resolved_at.strftime('%d %b %Y') if complaint.resolved_at else '?') }}
     {% if complaint.resolution_confidence is not none %} · {{ t('change_score') }} {{ complaint.resolution_confidence }}/100{% endif %}
   </div>
+
+  {% elif complaint.status == 'Escalated' %}
+  <div class="banner banner-danger" style="margin-bottom:0;">{{ t('banner_escalated') }}</div>
 
   {% elif complaint.status == 'Rejected' %}
   <div class="banner banner-warn" style="margin-bottom:0;">{{ t('case_rejected') }}</div>

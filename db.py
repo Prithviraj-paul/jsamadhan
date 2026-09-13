@@ -91,6 +91,9 @@ CREATE TABLE IF NOT EXISTS complaints (
     resolution_confidence REAL,
     resolution_note TEXT,
     resolved_at TEXT,
+    notify_sent_at TEXT,
+    action_due_at TEXT,
+    escalated_at TEXT,
     created_at TEXT NOT NULL,
     FOREIGN KEY(citizen_id) REFERENCES users(id),
     FOREIGN KEY(officer_id) REFERENCES users(id)
@@ -137,6 +140,7 @@ def init_db():
         ("location_state", "TEXT"), ("pincode", "TEXT"),
         ("severity", "INTEGER"), ("urgency", "TEXT"),
         ("ai_detail", "TEXT"),
+        ("notify_sent_at", "TEXT"), ("action_due_at", "TEXT"), ("escalated_at", "TEXT"),
     ):
         if column not in complaint_columns:
             conn.execute(f"ALTER TABLE complaints ADD COLUMN {column} {column_type}")
@@ -187,6 +191,12 @@ def hydrate_complaint(conn, row, with_relations=True):
     ns.accepted_at = _parse_dt(d.get("accepted_at"))
     ns.deadline = _parse_dt(d.get("deadline"))
     ns.resolved_at = _parse_dt(d.get("resolved_at"))
+    ns.notify_sent_at = _parse_dt(d.get("notify_sent_at"))
+    ns.action_due_at = _parse_dt(d.get("action_due_at"))
+    ns.escalated_at = _parse_dt(d.get("escalated_at"))
+    ns.notified = bool(ns.notify_sent_at)
+    ns.is_escalated = ns.status == "Escalated"
+    ns.action_overdue = bool(ns.action_due_at) and ns.status not in ("Resolved","Rejected","Escalated") and _now() > ns.action_due_at
     ns.is_photo_video = bool(d.get("is_photo_video"))
     ns.is_infra = d["category"] in INFRA_CATEGORIES
     ns.is_overdue = bool(ns.deadline) and ns.status == "Accepted by Officer" and _now() > ns.deadline
@@ -354,3 +364,50 @@ def list_resolved_by(conn, officer_id, limit=10):
 def list_all_complaints(conn):
     rows = conn.execute("SELECT * FROM complaints ORDER BY created_at DESC").fetchall()
     return [hydrate_complaint(conn, r, with_relations=True) for r in rows]
+
+
+def list_escalated(conn):
+    rows = conn.execute(
+        "SELECT * FROM complaints WHERE status='Escalated' ORDER BY escalated_at DESC"
+    ).fetchall()
+    return [hydrate_complaint(conn, r, with_relations=True) for r in rows]
+
+
+OPEN_STATUS_CODES = ("Submitted", "AI Verified", "Pending Officer Review",
+                     "Accepted by Officer", "Reopened")
+
+
+def list_due_notifications(conn, before_ts):
+    rows = conn.execute(
+        "SELECT * FROM complaints WHERE status NOT IN ('Resolved','Rejected','Escalated') "
+        "AND notify_sent_at IS NULL AND created_at <= ? ORDER BY created_at ASC",
+        (before_ts,),
+    ).fetchall()
+    return rows
+
+
+def list_overdue_actions(conn, before_ts):
+    rows = conn.execute(
+        f"SELECT * FROM complaints WHERE status IN {_sql_in(OPEN_STATUS_CODES)} "
+        "AND action_due_at IS NOT NULL AND action_due_at < ? ORDER BY action_due_at ASC",
+        (*OPEN_STATUS_CODES, before_ts),
+    ).fetchall()
+    return rows
+
+
+def mark_notified(conn, complaint_id, timestamp):
+    conn.execute("UPDATE complaints SET notify_sent_at=? WHERE id=?", (timestamp, complaint_id))
+    add_log(conn, complaint_id, "Notification",
+            "Citizen notified within 24 hours (demo SMS/call).")
+    conn.commit()
+
+
+def escalate_complaint(conn, complaint_id, note):
+    conn.execute("UPDATE complaints SET status='Escalated', escalated_at=? WHERE id=?",
+                 (_now().isoformat(), complaint_id))
+    add_log(conn, complaint_id, "Escalated", note)
+    conn.commit()
+
+
+def _sql_in(items):
+    return "(" + ",".join("?" * len(items)) + ")"

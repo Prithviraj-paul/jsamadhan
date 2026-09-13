@@ -187,7 +187,7 @@ def landing():
     total = conn.execute("SELECT COUNT(*) c FROM complaints").fetchone()["c"]
     open_ = conn.execute("SELECT COUNT(*) c FROM complaints WHERE status IN "
                           "('Submitted','Pending Officer Review','AI Verified',"
-                          "'Accepted by Officer','Reopened')").fetchone()["c"]
+                          "'Accepted by Officer','Reopened','Escalated')").fetchone()["c"]
     resolved = conn.execute("SELECT COUNT(*) c FROM complaints WHERE status='Resolved'").fetchone()["c"]
     resolved_cases = db.list_recent_resolved(conn)
     return render_template("landing.html", stats={
@@ -420,9 +420,12 @@ def report_problem():
             ai_confidence=ai_confidence,
             ai_note=(verify["note"] if verify else None),
             ai_detail=ai_detail,
+            action_due_at=(datetime.utcnow() + timedelta(days=3)).isoformat(),
         )
 
         db.add_log(conn, problem_id, "Submitted", f"Complaint registered by citizen. {severity_note}")
+        db.add_log(conn, problem_id, "Committed",
+                   "Citizen will be notified within 24 hours. Officials will take action within 2\u20133 days, else the complaint is escalated to higher authority.")
 
         # Automated screening. For photos the REAL photo-vs-problem check runs;
         # for road/infrastructure complaints a satellite pass adds a second signal.
@@ -577,16 +580,18 @@ def admin_dashboard():
     complaints = db.list_all_complaints(conn)
     officers = db.list_officers(conn)
     open_statuses = ("Submitted", "Pending Officer Review", "AI Verified",
-                     "Accepted by Officer", "Reopened")
+                     "Accepted by Officer", "Reopened", "Escalated")
     kpis = {
         "total": len(complaints),
         "open": sum(1 for c in complaints if c.status in open_statuses),
         "resolved": sum(1 for c in complaints if c.status == "Resolved"),
         "overdue": sum(1 for c in complaints if c.is_overdue),
+        "escalated": sum(1 for c in complaints if c.is_escalated),
         "critical": sum(1 for c in complaints if c.urgency == "critical"),
     }
+    escalated = db.list_escalated(conn)
     return render_template("admin_dashboard.html", complaints=complaints,
-                           officers=officers, kpis=kpis)
+                           officers=officers, kpis=kpis, escalated=escalated)
 
 
 @app.route("/admin/complaint/<int:complaint_id>")

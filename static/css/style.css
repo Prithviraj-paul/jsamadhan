@@ -115,6 +115,7 @@ p{ margin:0 0 1em 0; max-width:62ch; }
 .badge-reopened{ background:var(--red-light); color:var(--red); }
 .badge-rejected{ background:#E9E5DA; color:var(--ink-faint); }
 .badge-overdue{ background:var(--red); color:#fff; }
+.badge-escalated{ background:var(--red-light); color:var(--red); border:1px solid var(--red); font-weight:700; }
 
 /* severity meter */
 .sev-meter{ display:inline-flex; align-items:center; gap:6px; background:#EDE9DE; border-radius:999px; height:16px; width:96px; padding:2px 6px 2px 2px; vertical-align:middle; }
@@ -186,6 +187,13 @@ tr.row-link:hover{ background:#FBF9F3; cursor:pointer; }
 .banner-warn{ background:var(--amber-light); color:#8A5A11; }
 .banner-danger{ background:var(--red-light); color:var(--red); }
 .banner-ok{ background:var(--sal-light); color:var(--sal); }
+.banner-accountable{ background:var(--blue-light); color:var(--blue); }
+
+/* AI assist (voice-to-text + OCR) on the report form */
+.ai-assist{ margin:12px 0 4px; padding:12px 14px; background:#F7F3EA; border:1px dashed #CFC09A; border-radius:12px; }
+.ai-assist-head{ font-size:.86rem; font-weight:700; color:var(--forest-deep); }
+.ai-assist-controls{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+.ai-assist select{ width:auto; margin-bottom:0; }
 
 .demo-notice{
   display:flex; align-items:center; justify-content:center; gap:10px;

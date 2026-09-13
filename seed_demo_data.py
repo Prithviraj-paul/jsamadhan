@@ -203,6 +203,8 @@ def main():
                          if verified else None),
                 ai_detail=ai_detail,
                 created_at=created.isoformat(),
+                action_due_at=(created + timedelta(days=3)).isoformat(),
+                notify_sent_at=(created + timedelta(days=1)).isoformat(),
             )
             _move(conn, cid, "Submitted", "Complaint registered by citizen. AI severity estimate generated.", created)
 
@@ -245,7 +247,61 @@ def main():
                 _move(conn, cid, "Rejected", "After verification the reported site was found unchanged.",
                       created + timedelta(days=3))
 
-        print(f"Seeded {len(DEMO)} demo complaints with map pins and photos."
+        # --- accountability demo pass ------------------------------------
+        # Notification is already "sent within 24 hours" for every seed (the
+        # checked-in photos are older than 24h), while action deadlines are
+        # pushed into the future so the live checker never auto-escalates the
+        # static demo queue. Real submissions during the demo run the FULL
+        # 24h-notify + 3-day + auto-escalate cycle.
+        future = now + timedelta(days=1)
+        conn.execute(
+            "UPDATE complaints SET action_due_at=? WHERE status IN "
+            "('Submitted','AI Verified','Pending Officer Review','Accepted by Officer','Reopened') "
+            "AND action_due_at < ?",
+            (future.isoformat(), now.isoformat()))
+        conn.commit()
+
+        # One real escalated case so the higher-authority queue has content.
+        esc_created = now - timedelta(days=8)
+        esc_lat, esc_lng = CITY_PINS["Dhanbad"]
+        esc_lat += rnd.uniform(-0.015, 0.015)
+        esc_lng += rnd.uniform(-0.015, 0.015)
+        cid = db.create_complaint(
+            conn,
+            code=db.new_complaint_code(conn),
+            title="Traffic signal dark at Bansidih crossing for over a week",
+            description="Signal has not worked for 8 days; daily peak-hour jams and near-misses. "
+                        "Officials missed the promised action deadline.",
+            category="Roads & Infrastructure", district="Dhanbad",
+            location_text="Dhanbad (demo data)",
+            latitude=round(esc_lat, 5), longitude=round(esc_lng, 5),
+            citizen_id=citizen_id, status="Escalated",
+            severity=66, urgency="high",
+            ai_confidence=62,
+            ai_note="Satellite pass shows congestion anomaly at the junction.",
+            created_at=esc_created.isoformat(),
+            action_due_at=(esc_created + timedelta(days=3)).isoformat(),
+            notify_sent_at=(esc_created + timedelta(days=1)).isoformat(),
+            escalated_at=(esc_created + timedelta(days=5)).isoformat(),
+        )
+        _move(conn, cid, "Submitted",
+              "Complaint registered by citizen. AI severity estimate generated.", esc_created)
+        _move(conn, cid, "Committed",
+              "Citizen will be notified within 24 hours. Officials will take action within 2\u20133 days.",
+              esc_created + timedelta(hours=1))
+        _move(conn, cid, "Notification",
+              "Citizen notified within 24 hours (demo SMS/call).", esc_created + timedelta(days=1))
+        esc_deadline = esc_created + timedelta(days=7)
+        _move(conn, cid, "Accepted by Officer",
+              "Accepted by officer. Resolution due by " + esc_deadline.strftime("%Y-%m-%d") + ".",
+              esc_created + timedelta(days=2),
+              {"officer_id": officer1, "accepted_at": (esc_created + timedelta(days=2)).isoformat(),
+               "deadline": esc_deadline.isoformat()})
+        _move(conn, cid, "Escalated",
+              "Action was not completed within the promised 2\u20133 days. Complaint escalated "
+              "to higher authority for immediate disposal.", esc_created + timedelta(days=5))
+
+        print(f"Seeded {len(DEMO) + 1} demo complaints with map pins and photos."
               "\n  Open /admin/map (or /officer/map) to see the Live Map.")
         print("  The public landing page now shows 2 resolved cases with real before/after photos.")
 
