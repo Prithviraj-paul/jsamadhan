@@ -51,13 +51,22 @@ def main():
         print("Startup failed — see server_error.log")
         sys.exit(1)
 
-    # Ensure schema + demo accounts exist even on a fresh clone / wiped DB.
+    # Ensure schema exists even on a fresh clone / wiped DB. Demo accounts
+    # auto-seed only when SEED_DEMO_USERS is not "0", so a network-exposed
+    # server can be started with zero users and a normal signup flow.
     try:
         app.db.init_db()
-        app.seed_demo_users()
     except Exception:
         with open("server_error.log", "w") as f:
             traceback.print_exc(file=f)
+
+    seed_demo = os.environ.get("SEED_DEMO_USERS", "1") == "1"
+    if seed_demo:
+        try:
+            app.seed_demo_users()
+        except Exception:
+            with open("server_error.log", "w") as f:
+                traceback.print_exc(file=f)
 
     # Background worker: 24h notification + 3-day action deadlines + auto-escalation.
     try:
@@ -72,6 +81,11 @@ def main():
     print("  On this computer: http://127.0.0.1:%d" % PORT)
     if ip:
         print("  On other devices (same Wi-Fi/network): http://%s:%d" % (ip, PORT))
+
+    if ip and seed_demo:
+        print("Warning: demo accounts (admin123/officer123/citizen123) are enabled and this server is "
+              "reachable on your network — disable SEED_DEMO_USERS or rotate these passwords before "
+              "sharing the link publicly.")
 
     try:
         app.app.run(host=HOST, port=PORT, debug=False, use_reloader=False)

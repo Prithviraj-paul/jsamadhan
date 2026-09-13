@@ -47,6 +47,22 @@ app.secret_key = "jsamadhan-demo-secret-key"  # rotate in production
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB
 
 
+def _photo_passes_content_check(path):
+    """Reject files whose extension lies — Pillow must really decode them."""
+    try:
+        with PILImage.open(path) as img:
+            img.verify()
+        return True
+    except Exception:
+        return False
+
+
+@app.errorhandler(413)
+def _upload_too_large(_error):
+    flash("File is too large — the maximum upload size is 50 MB. Please upload a smaller photo.", "error")
+    return redirect(request.referrer or url_for("landing"))
+
+
 # ---------------------------------------------------------------------------
 # profile photo helpers
 # ---------------------------------------------------------------------------
@@ -347,6 +363,11 @@ def report_problem():
             photo_filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{safe}"
             photo.save(os.path.join(UPLOAD_DIR, photo_filename))
             is_photo_video = 1 if ext in ALLOWED_VIDEO_EXT else 0
+            if not is_photo_video and not _photo_passes_content_check(os.path.join(UPLOAD_DIR, photo_filename)):
+                os.remove(os.path.join(UPLOAD_DIR, photo_filename))
+                photo_filename = None
+                flash("The photo could not be read. Please upload a valid image file (JPG, PNG or WEBP).", "error")
+                return redirect(url_for("report_problem"))
 
         conn = db.get_db()
         code = db.new_complaint_code(conn)
@@ -415,9 +436,9 @@ def report_problem():
             is_photo_video=is_photo_video,
             citizen_id=g.user.id,
             status="Submitted",
-            severity=severity,
+            severity=int(severity),
             urgency=urgency,
-            ai_confidence=ai_confidence,
+            ai_confidence=int(ai_confidence) if ai_confidence is not None else None,
             ai_note=(verify["note"] if verify else None),
             ai_detail=ai_detail,
             action_due_at=(datetime.utcnow() + timedelta(days=3)).isoformat(),
@@ -547,6 +568,10 @@ def officer_resolve(complaint_id):
     safe = secure_filename(photo.filename)
     resolution_filename = f"res_{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{safe}"
     photo.save(os.path.join(UPLOAD_DIR, resolution_filename))
+    if not _photo_passes_content_check(os.path.join(UPLOAD_DIR, resolution_filename)):
+        os.remove(os.path.join(UPLOAD_DIR, resolution_filename))
+        flash("The resolution photo could not be read. Please upload a valid image file.", "error")
+        return redirect(url_for("officer_complaint", complaint_id=complaint_id))
 
     # Real AI: compare before/after photos.
     before_path = os.path.join(UPLOAD_DIR, complaint.photo_filename) if complaint.photo_filename else None
