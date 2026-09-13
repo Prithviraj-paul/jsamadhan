@@ -13,6 +13,10 @@
 </header>
 
 <div class="page page-narrow">
+  <div class="demo-notice" role="alert">
+    <span>🥼</span>
+    <span>{{ t('demo_notice') }}</span>
+  </div>
   <div class="section-title"><h2>{{ t('login_title') }}</h2></div>
   {% if role is none %}
   <p>{{ t('login_choose_role') }}</p>

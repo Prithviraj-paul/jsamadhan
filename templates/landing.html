@@ -13,6 +13,11 @@
   </nav>
 </header>
 
+<div class="demo-notice" role="alert">
+  <span>🥼</span>
+  <span>{{ t('demo_notice') }}</span>
+</div>
+
 <section class="hero">
   <div class="hero-inner">
     <div class="hero-copy">
@@ -144,7 +149,8 @@
   {% endif %}
 
   <div class="demo-creds">
-    <strong>{{ t('demo_logins') }}</strong> — Admin: <code>admin@jsamadhan.gov / admin123</code> ·
+    <strong>{{ t('demo_logins') }}</strong> {{ t('demo_accounts_note') }}<br>
+    Admin: <code>admin@jsamadhan.gov / admin123</code> ·
     Officer: <code>officer1@jsamadhan.gov / officer123</code> ·
     Citizen: <code>citizen@example.com / citizen123</code> ({{ t('or_register') }})
   </div>
@@ -152,6 +158,7 @@
 
 <footer class="footer">
   <span>{{ t('footer_note') }}</span>
+  <span class="credits">{{ t('privacy_note') }}</span>
   <span class="credits">Problem photos: Wikimedia Commons (CC BY / CC BY-SA).</span>
 </footer>
 {% endblock %}
