@@ -1,0 +1,71 @@
+{% extends "app_base.html" %}
+{% set active = 'teams' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('p4_team_list_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="topbar">
+  <div>
+    <h1>{{ t('p4_team_list_title') }}</h1>
+    <p class="hint" style="margin:0; max-width:64ch;">{{ t('p4_team_list_sub') }}</p>
+  </div>
+  {% if g.user.role == 'university' %}
+  <a class="btn btn-forest" href="{{ url_for('university_challenges') }}">{{ t('uni_challenges_all') }} →</a>
+  {% endif %}
+</div>
+
+<div class="card" style="margin-top:18px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:1rem;">{{ t('p4_teams') }}</h2>
+    </div>
+  </div>
+  {% if teams %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('p4_team_name') }}</th>
+          <th>{{ t('p4_challenge') }}</th>
+          <th>{{ t('p4_team_status') }}</th>
+          <th>{{ t('p4_team_members') }}</th>
+          <th>{{ t('p4_proposals') }}</th>
+          <th>{{ t('p4_projects') }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tm in teams %}
+        <tr>
+          <td>
+            <strong style="color:var(--forest);">{{ tm.name }}</strong>
+            {% if tm.description %}<div style="font-size:.78rem; color:var(--ink-soft); max-width:230px;">{{ tm.description[:120] }}</div>{% endif %}
+          </td>
+          <td>
+            <span style="font-weight:600; color:var(--forest);">{{ tm.challenge.code }}</span>
+            <div style="font-size:.78rem; color:var(--ink-soft); max-width:230px;">{{ tm.challenge.title }}</div>
+          </td>
+          <td>{{ m.team_status_badge(tm) }}</td>
+          <td>{{ tm.member_count }}</td>
+          <td>
+            {% if tm.proposals %}
+              {% for p in tm.proposals[:3] %}<div class="hint">{{ p.title[:40] }} · {{ m.proposal_status_badge(p) }}</div>{% endfor %}
+            {% else %}<span class="hint">{{ t('not_assigned') }}</span>{% endif %}
+          </td>
+          <td>
+            {% if tm.projects %}
+              {% for p in tm.projects %}<div class="hint"><a href="{{ url_for('project_details', project_id=p.id) }}" style="color:var(--forest);">{{ p.title[:40] }}</a></div>{% endfor %}
+            {% else %}<span class="hint">{{ t('not_assigned') }}</span>{% endif %}
+          </td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('team_details', team_id=tm.id) }}">{{ t('action_open') }} →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('p4_no_teams') }}</p>
+  {% endif %}
+</div>
+
+{% endblock %}

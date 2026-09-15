@@ -1,0 +1,82 @@
+{% extends "app_base.html" %}
+{% set active = 'expertise' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('uni_expertise') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('university_dashboard') }}">{{ t('uni_dashboard_title') }}</a> / {{ t('uni_expertise') }}</div>
+
+<div class="topbar">
+  <div>
+    <h1>{{ t('uni_expertise') }}</h1>
+    <p class="hint" style="margin:0; max-width:64ch;">{{ t('uni_expertise_sub') }}</p>
+  </div>
+</div>
+
+<div class="card">
+  <form method="POST" action="{{ url_for('university_expertise') }}">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('uni_expertise_add') }}</h2>
+    <div class="grid grid-2">
+      <div>
+        <label for="department">{{ t('uni_field_department') }}</label>
+        <input type="text" id="department" name="department" required>
+
+        <label for="expertise">{{ t('uni_field_expertise') }}</label>
+        <input type="text" id="expertise" name="expertise" required>
+
+        <label for="research_area">{{ t('uni_field_research') }}</label>
+        <input type="text" id="research_area" name="research_area">
+      </div>
+      <div>
+        <label for="keywords">{{ t('uni_field_keywords') }}</label>
+        <input type="text" id="keywords" name="keywords" placeholder="{{ t('uni_field_keywords_ph') }}">
+
+        <label for="lab_capabilities">{{ t('uni_field_lab') }}</label>
+        <input type="text" id="lab_capabilities" name="lab_capabilities">
+
+        <label for="description">{{ t('uni_field_expertise_desc') }}</label>
+        <textarea id="description" name="description" rows="3"></textarea>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-forest" style="margin-top:12px;">{{ t('uni_expertise_save') }}</button>
+  </form>
+</div>
+
+<div class="card" style="margin-top:22px;">
+  <h2 style="font-size:1rem; margin-top:0;">{{ t('uni_expertise_list') }}</h2>
+  {% if expertise %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('uni_field_department') }}</th>
+          <th>{{ t('uni_field_expertise') }}</th>
+          <th>{{ t('uni_field_research') }}</th>
+          <th>{{ t('uni_field_keywords') }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in expertise %}
+        <tr>
+          <td style="font-weight:600; color:var(--forest);">{{ e.department }}</td>
+          <td>{{ e.expertise }}</td>
+          <td style="font-size:.8rem; color:var(--ink-soft);">{{ e.research_area or '—' }}</td>
+          <td style="font-size:.78rem; color:var(--ink-soft); max-width:240px;">{{ e.keywords or '—' }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('university_expertise_delete', expertise_id=e.id) }}">
+              <button class="btn btn-sm btn-ghost">{{ t('uni_field_delete') }}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('uni_expertise_empty') }}</p>
+  {% endif %}
+  <div class="hint" style="margin-top:10px;">{{ t('uni_expertise_hint') }}</div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,336 @@
+{% extends "app_base.html" %}
+{% set active = 'command-center' if current_user.role == 'admin' else 'dashboard' %}
+{% import "macros.html" as m %}
+{% block title %}{{ challenge.code }} — {{ t('cmd_center') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('officer_dashboard') }}">{{ t('cmd_center') }}</a> / {{ challenge.code }}</div>
+
+<div class="topbar">
+  <div>
+    <div class="crumb">{{ challenge.code }} · {{ challenge.created_at.strftime('%d %b %Y') if challenge.created_at else '' }}</div>
+    <h1>{{ challenge.title }}</h1>
+    <p style="margin:6px 0 0; max-width:75ch; font-size:.92rem;">{{ challenge.description }}</p>
+    <div class="meta" style="font-size:.84rem; color:var(--ink-soft); margin-top:8px;">
+      {{ dist_label(challenge.district) }} · {{ cat_label(challenge.category) }}
+      {% if challenge.subcategory %} · {{ challenge.subcategory }}{% endif %}
+      · {{ t('citizen_reports_count', count=challenge.report_count) }}
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    {{ m.priority_badge(challenge.priority_key) }}
+    {{ m.challenge_status_badge(challenge) }}
+    <a class="btn btn-sm btn-ghost" href="{{ url_for('challenge_edit', challenge_id=challenge.id) }}">{{ t('p4_edit') }}</a>
+  </div>
+</div>
+
+{% if challenge.validation_status == 'NEEDS_VALIDATION' %}
+<div class="card" style="margin-top:16px; border-color:var(--sal);">
+  <h2 style="font-size:.95rem; margin-top:0;">{{ t('kpi_needs_validation') }}</h2>
+  <p class="hint" style="margin:2px 0 10px;">{{ t('ch_needs_validation_hint') }}</p>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+    <form method="POST" action="{{ url_for('challenge_validate', challenge_id=challenge.id) }}">
+      <button type="submit" class="btn btn-forest">{{ t('ch_validate') }}</button>
+    </form>
+    <form method="POST" action="{{ url_for('challenge_reject', challenge_id=challenge.id) }}">
+      <label for="reason" style="display:block;">{{ t('ch_reject_reason_label') }}</label>
+      <input type="text" id="reason" name="reason" placeholder="{{ t('ch_reject_reason_ph') }}" style="min-width:240px;">
+      <button type="submit" class="btn btn-red">{{ t('ch_reject') }}</button>
+    </form>
+  </div>
+</div>
+{% elif challenge.validation_status == 'VALIDATED' %}
+<div class="banner banner-ok" style="margin-top:16px; margin-bottom:0;">
+  {{ t('ch_validated_banner') }}
+  {% if challenge.validator %} · {{ t('val_validated_by') }}: {{ challenge.validator.name }}{% endif %}
+</div>
+{% elif challenge.validation_status == 'REJECTED' %}
+<div class="banner banner-warn" style="margin-top:16px; margin-bottom:0;">
+  {{ t('val_rejection_reason') }}: {{ challenge.rejection_reason or '—' }}
+</div>
+{% endif %}
+
+<!-- Related citizen reports -->
+<div class="card" style="margin-top:16px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:.95rem; margin:0;">{{ t('ch_related_reports') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('ch_related_reports_hint') }}</p>
+    </div>
+    <span class="hint" style="margin:0;">{{ t('citizen_reports_count', count=challenge.reports|length) }}</span>
+  </div>
+  {% if challenge.reports %}
+  <div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>{{ t('th_id') }}</th>
+        <th>{{ t('th_title') }}</th>
+        <th>{{ t('th_district') }}</th>
+        <th>{{ t('th_category') }}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        {% for c in challenge.reports %}
+        <tr>
+          <td>{{ c.code }}</td>
+          <td style="max-width:300px;">{{ c.title }}</td>
+          <td>{{ dist_label(c.district) }}</td>
+          <td>{{ cat_label(c.category) }}</td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('officer_complaint', complaint_id=c.id) }}">{{ t('action_open') }} →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('no_reports_linked') }}</p>
+  {% endif %}
+</div>
+
+<!-- Possible additional reports (AI flagged) -->
+<div class="card" style="margin-top:16px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:.95rem; margin:0;">{{ t('dup_possible_title') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('dup_possible_sub') }}</p>
+    </div>
+  </div>
+  {% if possible_reports %}
+  {% for item in possible_reports %}
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:8px 0; border-top:1px solid var(--line);">
+    <div>
+      <a href="{{ url_for('officer_complaint', complaint_id=item.complaint.id) }}" style="font-weight:600; color:var(--forest);">{{ item.complaint.code }}</a>
+      <span>{{ item.complaint.title }}</span>
+      <div class="hint" style="margin:2px 0 0;">{{ dist_label(item.complaint.district) }} · {{ t('dup_conf_ai') }} <span class="conf-pill conf-{{ item.level }}">{{ item.confidence|int }}%</span></div>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <form method="POST" action="{{ url_for('challenge_link', challenge_id=challenge.id) }}">
+        <input type="hidden" name="complaint_ids" value="{{ item.complaint.id }}">
+        <input type="hidden" name="match_id" value="{{ item.id }}">
+        <button class="btn btn-sm btn-forest">{{ t('btn_link_reports') }}</button>
+      </form>
+      <form method="POST" action="{{ url_for('review_duplicate', match_id=item.id) }}">
+        <button class="btn btn-sm btn-ghost" name="not-related" value="1">{{ t('ch_possible_not_related') }}</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('dup_possible_none') }}</p>
+  {% endif %}
+</div>
+
+<!-- Link more unlinked reports -->
+<div class="card" style="margin-top:16px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:.95rem; margin:0;">{{ t('ch_link_more') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('ch_link_hint') }}</p>
+    </div>
+  </div>
+  {% if unlinked %}
+  <form method="POST" action="{{ url_for('challenge_link', challenge_id=challenge.id) }}">
+    <div class="table-scroll" style="max-height:320px; overflow:auto;">
+      <table>
+        <thead><tr>
+          <th></th>
+          <th>{{ t('th_id') }}</th>
+          <th>{{ t('th_title') }}</th>
+          <th>{{ t('th_district') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for c in unlinked %}
+          <tr>
+            <td><input type="checkbox" name="complaint_ids" value="{{ c.id }}"></td>
+            <td>{{ c.code }}</td>
+            <td style="max-width:300px;">{{ c.title }}</td>
+            <td>{{ dist_label(c.district) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <label class="hint" style="display:flex; gap:8px; align-items:flex-start; margin:10px 0; max-width:70ch;">
+      <input type="checkbox" name="confirm_relink" value="1">
+      <span>{{ t('ch_relink_confirm') }}<br><span style="color:var(--ink-soft);">{{ t('ch_relink_warning_hint') }}</span></span>
+    </label>
+    <button type="submit" class="btn btn-sm btn-forest">{{ t('btn_link_reports') }}</button>
+  </form>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('no_unlinked_reports') }}</p>
+  {% endif %}
+</div>
+
+<!-- University matching -->
+<div class="card" style="margin-top:16px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:.95rem; margin:0;">{{ t('uni_match_section') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('uni_match_section_sub') }}</p>
+    </div>
+    {% if challenge.validation_status == 'VALIDATED' %}
+    <form method="POST" action="{{ url_for('challenge_run_matching', challenge_id=challenge.id) }}">
+      <button class="btn btn-sm btn-forest">{{ t('uni_run_matching') }}</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if uni_summary and (uni_summary.accepted or uni_summary.invited or uni_summary.declined) %}
+  <div class="hint" style="margin-bottom:10px;">
+    {% if uni_summary.accepted %}<div><strong style="color:var(--forest);">{{ t('uni_kpi_accepted') }}:</strong> {{ uni_summary.accepted|join(', ') }}</div>{% endif %}
+    {% if uni_summary.invited %}<div><strong>{{ t('uni_match_invited') }}:</strong> {{ uni_summary.invited|join(', ') }}</div>{% endif %}
+    {% if uni_summary.declined %}<div><strong>{{ t('uni_match_declined') }}:</strong> {{ uni_summary.declined|join(', ') }}</div>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if uni_matches %}
+  <div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>{{ t('th_university') }}</th>
+        <th>{{ t('ai_match_score') }}</th>
+        <th>{{ t('uni_th_level') }}</th>
+        <th>{{ t('th_status') }}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        {% for mt in uni_matches %}
+        <tr>
+          <td>{{ mt.university.short_name or mt.university.name }}</td>
+          <td><span class="conf-pill conf-{{ mt.match_level }}">{{ mt.score|int }}%</span></td>
+          <td>{{ m.match_level_badge(mt.match_level) }}</td>
+          <td>{{ m.uni_match_status_badge(mt) }}</td>
+          <td style="white-space:nowrap;">
+            {% if mt.status == 'RECOMMENDED' %}
+            <form method="POST" action="{{ url_for('uni_match_invite', match_id=mt.id) }}" style="display:inline;">
+              <button class="btn btn-sm btn-forest">{{ t('uni_invite') }}</button>
+            </form>
+            {% endif %}
+            {% if mt.status in ('RECOMMENDED', 'INVITED') %}
+            <form method="POST" action="{{ url_for('uni_match_remove', match_id=mt.id) }}" style="display:inline;">
+              <button class="btn btn-sm btn-ghost">{{ t('uni_remove') }}</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('uni_no_matches_yet') }}</p>
+  {% endif %}
+</div>
+
+<!-- Solution development (Phase 4: teams / proposals / projects) -->
+<div class="card" style="margin-top:18px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:1rem;">{{ t('p4_sol_dev') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('p4_sol_dev_sub') }}</p>
+    </div>
+  </div>
+
+  {% set tlist = lifecycle.teams if lifecycle else [] %}
+  {% if tlist %}
+  <h3 style="font-size:.9rem; margin:6px 0;">{{ t('p4_teams') }}</h3>
+  <div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>{{ t('p4_team') }}</th>
+        <th>{{ t('th_university') }}</th>
+        <th>{{ t('p4_team_status') }}</th>
+        <th>{{ t('p4_team_members') }}</th>
+        <th>{{ t('p4_proposals_lc') }}</th>
+        <th>{{ t('p4_projects_lc') }}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        {% for tm in tlist %}
+        <tr>
+          <td><strong style="color:var(--forest);">{{ tm.name }}</strong></td>
+          <td>{{ tm.university.short_name or tm.university.name }}</td>
+          <td>{{ m.team_status_badge(tm) }}</td>
+          <td>{{ tm.members|length }}</td>
+          <td>{{ tm.proposals|length }}</td>
+          <td>{{ tm.projects|length }}</td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('team_details', team_id=tm.id) }}">{{ t('p4_view') }} →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:6px 0;">{{ t('p4_no_teams') }}</p>
+  {% endif %}
+
+  {% set plist = lifecycle.proposals if lifecycle else [] %}
+  {% if plist %}
+  <h3 style="font-size:.9rem; margin:16px 0 6px;">{{ t('p4_proposals') }}</h3>
+  <div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>{{ t('p4_prop_title') }}</th>
+        <th>{{ t('p4_institution') }}</th>
+        <th>{{ t('p4_team') }}</th>
+        <th>{{ t('p4_prop_status') }}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        {% for p in plist %}
+        <tr>
+          <td>{{ p.title }}</td>
+          <td>{{ p.university.short_name or p.university.name }}</td>
+          <td>{{ p.team.name }}</td>
+          <td>{{ m.proposal_status_badge(p) }}</td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('proposal_detail', proposal_id=p.id) }}">{{ t('p4_view') }} →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% set projlist = lifecycle.projects if lifecycle else [] %}
+  {% if projlist %}
+  <h3 style="font-size:.9rem; margin:16px 0 6px;">{{ t('p4_projects') }}</h3>
+  <div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>{{ t('p4_project_title') }}</th>
+        <th>{{ t('p4_institution') }}</th>
+        <th>{{ t('p4_project_status') }}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        {% for proj in projlist %}
+        <tr>
+          <td>{{ proj.title }}</td>
+          <td>{{ proj.university.short_name or proj.university.name }}</td>
+          <td>{{ m.project_status_badge(proj) }}</td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('project_details', project_id=proj.id) }}">{{ t('p4_view') }} →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Challenge activity log -->
+{% if challenge.logs %}
+<div class="card" style="margin-top:18px;">
+  <h2 style="font-size:.95rem; margin-top:0;">{{ t('progress_timeline') }}</h2>
+  <ul class="action-list">
+    {% for lg in challenge.logs|reverse %}
+    <li class="action-item" style="cursor:default;">
+      <span class="action-dot"></span>
+      <span><strong>{{ lg.status }}</strong> — {{ lg.note }}</span>
+      <span class="action-count">{{ lg.timestamp.strftime('%d %b %Y') if lg.timestamp else '' }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% endblock %}

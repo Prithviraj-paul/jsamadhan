@@ -10,11 +10,21 @@
       <a class="{{ 'active' if active in ('dashboard','complaints') }}" href="{{ url_for('my_complaints') }}">{{ t('nav_my_complaints') }}</a>
       <a class="{{ 'active' if active=='report' }}" href="{{ url_for('report_problem') }}">{{ t('nav_report') }}</a>
     {% elif current_user.role == 'officer' %}
-      <a class="{{ 'active' if active=='dashboard' }}" href="{{ url_for('officer_dashboard') }}">{{ t('nav_queue') }}</a>
+      <a class="{{ 'active' if active=='dashboard' }}" href="{{ url_for('officer_dashboard') }}">{{ t('nav_command_center') }}</a>
       <a class="{{ 'active' if active=='map' }}" href="{{ url_for('complaints_map') }}">{{ t('nav_map') }}</a>
     {% elif current_user.role == 'admin' %}
-      <a class="{{ 'active' if active=='dashboard' }}" href="{{ url_for('admin_dashboard') }}">{{ t('nav_overview') }}</a>
+      <a class="{{ 'active' if active=='overview' }}" href="{{ url_for('admin_dashboard') }}">{{ t('nav_overview') }}</a>
+      <a class="{{ 'active' if active=='command-center' }}" href="{{ url_for('admin_command_center') }}">{{ t('nav_command_center') }}</a>
       <a class="{{ 'active' if active=='map' }}" href="{{ url_for('complaints_map') }}">{{ t('nav_map') }}</a>
+    {% elif current_user.role == 'university' %}
+      <a class="{{ 'active' if active=='dashboard' }}" href="{{ url_for('university_dashboard') }}">{{ t('nav_uni_dashboard') }}</a>
+      <a class="{{ 'active' if active=='expertise' }}" href="{{ url_for('university_expertise') }}">{{ t('nav_uni_expertise') }}</a>
+      <a class="{{ 'active' if active=='challenges' }}" href="{{ url_for('university_challenges') }}">{{ t('nav_uni_challenges') }}</a>
+      <a class="{{ 'active' if active=='teams' }}" href="{{ url_for('university_teams') }}">{{ t('nav_uni_teams') }}</a>
+    {% elif current_user.role == 'faculty' or current_user.role == 'student' %}
+      <a class="{{ 'active' if active=='dashboard' }}" href="{{ url_for('faculty_dashboard' if current_user.role=='faculty' else 'student_dashboard') }}">{{ t('nav_' + current_user.role + '_dashboard') }}</a>
+      <a class="{{ 'active' if active=='challenges' }}" href="{{ url_for('university_challenges') }}">{{ t('nav_uni_challenges') }}</a>
+      <a class="{{ 'active' if active=='teams' }}" href="{{ url_for('university_teams') }}">{{ t('nav_uni_teams') }}</a>
     {% endif %}
     <a class="{{ 'active' if active=='account' }}" href="{{ url_for('account') }}">{{ t('nav_account') }}</a>
     {% include "lang_switcher.html" %}

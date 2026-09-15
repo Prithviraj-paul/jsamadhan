@@ -1,12 +1,15 @@
 {% extends "app_base.html" %}
-{% set active = 'dashboard' %}
+{% set active = 'overview' %}
 {% import "macros.html" as m %}
 {% block title %}{{ t('admin_overview') }} — {{ t('app_name') }}{% endblock %}
 {% block content %}
 
 <div class="topbar">
   <h1>{{ t('admin_overview') }}</h1>
-  <a class="btn btn-forest" href="{{ url_for('complaints_map') }}" style="text-decoration:none;">{{ t('nav_map') }}</a>
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <a class="btn btn-forest" href="{{ url_for('admin_command_center') }}">{{ t('nav_command_center') }}</a>
+    <a class="btn btn-ghost" href="{{ url_for('complaints_map') }}">{{ t('nav_map') }}</a>
+  </div>
 </div>
 
 {% set all = complaints %}

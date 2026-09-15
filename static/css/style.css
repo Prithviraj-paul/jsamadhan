@@ -455,3 +455,68 @@ tr.row-link:hover{ background:#FBF9F3; cursor:pointer; }
   font-size:2.4rem; font-weight:600; color:var(--forest);
 }
 .btn-file input{ display:none; }
+
+/* ---------- Government Command Center ---------- */
+.kpi-grid-inline{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+.kpi-hot{ border-color:var(--amber); background:var(--amber-light); }
+.kpi-hot .n{ color:var(--amber); }
+@media (max-width:860px){ .kpi-grid-inline{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:560px){ .kpi-grid-inline{ grid-template-columns:1fr; } }
+
+.cc-section-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+
+.action-list{ list-style:none; margin:0; padding:0; }
+.action-list li{ border-top:1px solid var(--line); }
+.action-list li:first-child{ border-top:0; }
+.action-item{ display:flex; align-items:center; gap:10px; padding:11px 4px; font-size:.9rem; color:var(--ink-soft); }
+.action-item:hover{ color:var(--forest); }
+.action-item .action-count{ margin-left:auto; background:var(--sal-light); color:var(--sal); font-weight:700; border-radius:999px; min-width:26px; text-align:center; padding:2px 8px; font-size:.8rem; }
+.action-item.action-live .action-count{ background:var(--red); color:#fff; }
+.action-dot{ width:10px; height:10px; border-radius:50%; background:#D8D3C4; flex:none; }
+.action-dot.dot-live{ background:var(--red); box-shadow:0 0 0 3px var(--red-light); }
+.action-list li.future{ opacity:.55; padding:11px 4px; display:flex; align-items:center; gap:10px; font-size:.9rem; color:var(--ink-faint); }
+.action-list li.future .action-count{ background:#EFEAD9; color:var(--ink-faint); }
+
+.cc-link-list{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; max-height:340px; overflow-y:auto; }
+.cc-link-opt{ display:flex; flex-direction:column; gap:2px; border:1px solid var(--line); border-radius:var(--radius-s); padding:9px 11px; background:#FBFAF5; cursor:pointer; font-size:.82rem; }
+.cc-link-opt:hover{ border-color:var(--sal); }
+.cc-link-opt input{ width:auto; }
+@media (max-width:600px){ .cc-link-list{ grid-template-columns:1fr; } }
+
+.ai-recommend{ display:block; }
+
+/* challenge pins on the shared map */
+.challenge-pin-wrap{ background:transparent; border:0; }
+.challenge-pin{
+  width:24px; height:24px; border-radius:50%;
+  background:var(--amber); color:#fff; font-family:var(--font-head);
+  font-size:.66rem; font-weight:700; display:grid; place-items:center;
+  border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.4);
+}
+.challenge-pin-sample{ width:16px; height:16px; border-radius:50%; background:var(--amber); display:inline-block; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.4); }
+
+/* ---------- AI-assisted duplicate detection ---------- */
+.dup-list{ display:flex; flex-direction:column; gap:10px; }
+.dup-item{
+  border:1px solid var(--line); border-radius:var(--radius-m);
+  padding:14px 16px; background:#FBFAF5;
+  display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; align-items:flex-start;
+}
+.dup-main{ display:flex; flex-direction:column; gap:8px; min-width:0; flex:1 1 320px; }
+.dup-src, .dup-match{ display:flex; align-items:flex-start; gap:10px; font-size:.88rem; }
+.dup-src > span, .dup-match > span{ display:flex; flex-direction:column; gap:2px; }
+.dup-confidence{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.conf-pill{
+  border-radius:999px; padding:3px 11px; font-size:.75rem; font-weight:700;
+  font-family:var(--font-head); display:inline-block;
+}
+.conf-high{ background:var(--red-light); color:var(--red); }
+.conf-medium{ background:var(--amber-light); color:#8A5A11; }
+.conf-low{ background:var(--sal-light); color:var(--sal); }
+.conf-strong{ background:var(--teal-light); color:var(--teal); }
+.conf-good{ background:var(--amber-light); color:#8A5A11; }
+.conf-possible{ background:var(--sal-light); color:var(--sal); }
+.uni-note{ font-size:.8rem; color:var(--ink-soft); }
+.dup-signals{ font-size:.78rem; }
+.dup-signals .signal{ display:inline-block; background:#EFEAD9; border-radius:999px; padding:1px 9px; margin:1px 3px 1px 0; color:var(--ink-soft); }
+.dup-actions{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }

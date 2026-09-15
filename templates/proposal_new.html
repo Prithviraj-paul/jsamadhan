@@ -1,0 +1,53 @@
+{% extends "app_base.html" %}
+{% set active = 'teams' %}
+{% block title %}{{ t('p4_proposal_new_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('team_details', team_id=team.id) }}">{{ team.name }}</a> / {{ t('p4_proposal_new_title') }}
+</div>
+
+<div class="topbar">
+  <div>
+    <h1>{{ t('p4_proposal_new_title') }}</h1>
+    <p class="hint" style="margin:0; max-width:64ch;">{{ t('p4_proposal_new_sub') }}</p>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <span class="badge badge-aiverified">{{ team.challenge.code }}</span>
+  </div>
+</div>
+
+<form method="POST" class="card" style="margin-top:18px; max-width:840px;">
+  <label for="title">{{ t('p4_prop_title') }}</label>
+  <input type="text" id="title" name="title" required value="{{ form.title if form else '' }}" placeholder="{{ t('p4_prop_title_ph') }}">
+
+  <label for="problem_statement" style="margin-top:16px;">{{ t('p4_problem') }}</label>
+  <textarea id="problem_statement" name="problem_statement" rows="4" required>{{ form.problem_statement if form else '' }}</textarea>
+
+  <label for="proposed_solution" style="margin-top:16px;">{{ t('p4_solution') }}</label>
+  <textarea id="proposed_solution" name="proposed_solution" rows="4" required>{{ form.proposed_solution if form else '' }}</textarea>
+
+  <label for="methodology" style="margin-top:16px;">{{ t('p4_methodology') }}</label>
+  <textarea id="methodology" name="methodology" rows="4" required>{{ form.methodology if form else '' }}</textarea>
+
+  <div class="field-row" style="margin-top:16px;">
+    <div>
+      <label for="expected_outcome">{{ t('p4_outcome') }}</label>
+      <textarea id="expected_outcome" name="expected_outcome" rows="2">{{ form.expected_outcome if form else '' }}</textarea>
+    </div>
+    <div>
+      <label for="required_resources">{{ t('p4_resources') }}</label>
+      <textarea id="required_resources" name="required_resources" rows="2">{{ form.required_resources if form else '' }}</textarea>
+    </div>
+  </div>
+
+  <label for="estimated_duration" style="margin-top:16px;">{{ t('p4_duration') }}</label>
+  <input type="text" id="estimated_duration" name="estimated_duration" value="{{ form.estimated_duration if form else '' }}" placeholder="{{ t('p4_duration_ph') }}">
+
+  <div style="margin-top:24px; display:flex; gap:10px; flex-wrap:wrap;">
+    <button type="submit" class="btn btn-forest">{{ t('p4_save_draft') }}</button>
+    <a class="btn btn-ghost" href="{{ url_for('team_details', team_id=team.id) }}">{{ t('nav_back_home') }}</a>
+  </div>
+</form>
+
+{% endblock %}

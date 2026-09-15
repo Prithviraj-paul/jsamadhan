@@ -20,6 +20,11 @@
   <div class="section-title"><h2>{{ t('login_title') }}</h2></div>
   {% if role is none %}
   <p>{{ t('login_choose_role') }}</p>
+  <div class="demo-creds" style="margin:10px 0 4px;">
+    <strong>{{ t('demo_logins') }}</strong> {{ t('demo_role_creds_note') }}<br>
+    Citizen: <code>citizen@example.com / citizen123</code> · Officer: <code>officer1@jsamadhan.gov / officer123</code><br>
+    University: <code>university1@jsamadhan.demo / university123</code> · Faculty: <code>faculty1@jsamadhan.demo / faculty123</code> · Student: <code>student1@jsamadhan.demo / student123</code>
+  </div>
   <div class="role-grid login-choice">
     <a class="role-card" href="{{ url_for('login', role='citizen') }}">
       <h3>{{ t('role_citizen') }}</h3>
@@ -34,6 +39,21 @@
     <a class="role-card" href="{{ url_for('login', role='admin') }}">
       <h3>{{ t('role_admin') }}</h3>
       <p>{{ t('role_admin_desc') }}</p>
+      <span class="choice-arrow" aria-hidden="true">→</span>
+    </a>
+    <a class="role-card" href="{{ url_for('login', role='university') }}">
+      <h3>{{ t('role_university') }}</h3>
+      <p>{{ t('role_university_desc') }}</p>
+      <span class="choice-arrow" aria-hidden="true">→</span>
+    </a>
+    <a class="role-card" href="{{ url_for('login', role='faculty') }}">
+      <h3>{{ t('role_faculty') }}</h3>
+      <p>{{ t('role_faculty_desc') }}</p>
+      <span class="choice-arrow" aria-hidden="true">→</span>
+    </a>
+    <a class="role-card" href="{{ url_for('login', role='student') }}">
+      <h3>{{ t('role_student') }}</h3>
+      <p>{{ t('role_student_desc') }}</p>
       <span class="choice-arrow" aria-hidden="true">→</span>
     </a>
   </div>

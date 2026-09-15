@@ -1,0 +1,55 @@
+{% extends "app_base.html" %}
+{% set active = 'profile' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('uni_profile') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('university_dashboard') }}">{{ t('uni_dashboard_title') }}</a> / {{ t('uni_profile') }}</div>
+
+<div class="topbar">
+  <div>
+    <h1>{{ t('uni_profile') }}</h1>
+    <p class="hint" style="margin:0; max-width:64ch;">{{ t('uni_profile_sub') }}</p>
+  </div>
+  {{ m.uni_verification_badge(uni) }}
+</div>
+
+<div class="card">
+  <form method="POST" action="{{ url_for('university_profile') }}">
+    <div class="grid grid-2">
+      <div>
+        <label for="name">{{ t('uni_field_name') }}</label>
+        <input type="text" id="name" name="name" value="{{ uni.name }}">
+
+        <label for="short_name">{{ t('uni_field_short_name') }}</label>
+        <input type="text" id="short_name" name="short_name" value="{{ uni.short_name or '' }}">
+
+        <label for="institution_type">{{ t('uni_field_type') }}</label>
+        <select id="institution_type" name="institution_type">
+          {% for ut in uni_types %}
+          <option value="{{ ut }}" {% if uni.institution_type == ut %}selected{% endif %}>{{ ut }}</option>
+          {% endfor %}
+        </select>
+
+        <label for="district">{{ t('th_district') }}</label>
+        <input type="text" id="district" name="district" value="{{ uni.district }}">
+      </div>
+      <div>
+        <label for="phone">{{ t('uni_field_phone') }}</label>
+        <input type="text" id="phone" name="phone" value="{{ uni.phone or '' }}">
+
+        <label for="website">{{ t('uni_field_website') }}</label>
+        <input type="text" id="website" name="website" value="{{ uni.website or '' }}">
+
+        <label for="address">{{ t('uni_field_address') }}</label>
+        <input type="text" id="address" name="address" value="{{ uni.address or '' }}">
+
+        <label for="description">{{ t('uni_field_description') }}</label>
+        <textarea id="description" name="description" rows="4">{{ uni.description or '' }}</textarea>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-forest" style="margin-top:12px;">{{ t('uni_profile_save') }}</button>
+  </form>
+</div>
+
+{% endblock %}

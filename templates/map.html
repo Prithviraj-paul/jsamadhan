@@ -35,6 +35,12 @@
       <li><span class="dot" style="background:#35689c;"></span> Low (&lt; 25)</li>
     </ul>
   </div>
+  <div class="card" style="margin:0;">
+    <strong style="font-size:.82rem; color:var(--ink-soft);">{{ t('map_legend_challenges') }}</strong>
+    <ul class="map-legend">
+      <li><span class="pin-sample challenge-pin-sample"></span> {{ t('map_legend_challenge_item') }}</li>
+    </ul>
+  </div>
 </div>
 
 {% endblock %}
@@ -93,6 +99,23 @@
       bounds.push([c.lat, c.lng]);
     });
     if (bounds.length > 1) map.fitBounds(bounds, { padding: [30, 30] });
+  }).catch(function (e) { console.error(e); });
+
+  var challengeApi = {{ url_for('api_challenge_map_data')|tojson }};
+  var challengeBase = {{ url_for('challenge_detail', challenge_id=1234567)|replace('1234567', '{}')|tojson }};
+  fetch(challengeApi).then(function (r) { return r.json(); }).then(function (chs) {
+    chs.forEach(function (ch) {
+      var html = '<div class="challenge-pin">' + (ch.reports || 1) + '</div>';
+      var icon = L.divIcon({ className: 'challenge-pin-wrap', html: html, iconSize: [22, 22], iconAnchor: [11, 11] });
+      var marker = L.marker([ch.lat, ch.lng], { icon: icon }).addTo(map);
+      marker.bindPopup(
+        '<strong>' + ch.code + '</strong> — ' + (ch.title || '') + '<br>' +
+        'Challenge · ' + ch.category + ' · ' + ch.district + '<br>' +
+        'Priority: ' + ch.priority + ' · Status: ' + ch.status + '<br>' +
+        'Reports: ' + ch.reports +
+        '&nbsp;&nbsp;<a href="' + challengeBase.replace('{}', ch.id) + '">open challenge &rarr;</a>'
+      );
+    });
   }).catch(function (e) { console.error(e); });
 })();
 </script>

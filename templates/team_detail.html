@@ -1,0 +1,171 @@
+{% extends "app_base.html" %}
+{% set active = 'teams' %}
+{% import "macros.html" as m %}
+{% block title %}{{ team.name }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  {% if is_gov %}
+  <a href="{{ url_for('command_center') }}">{{ t('cmd_center') }}</a>
+  {% elif g.user.role == 'university' %}
+  <a href="{{ url_for('university_teams') }}">{{ t('p4_team_list_title') }}</a>
+  {% else %}
+  <a href="{{ url_for('university_teams') }}">{{ t('p4_team_list_title') }}</a>
+  {% endif %}
+  / {{ team.name }}
+</div>
+
+<div class="topbar">
+  <div>
+    <h1>{{ team.name }}</h1>
+    <p style="margin:6px 0 0; max-width:72ch; font-size:.92rem;">{{ team.description or t('not_assigned') }}</p>
+    <div class="meta" style="font-size:.84rem; color:var(--ink-soft); margin-top:8px;">
+      {{ t('p4_challenge') }}: <strong>{{ team.challenge.code }}</strong> · {{ team.challenge.title }} · {{ t('p4_institution') }}: {{ team.university.short_name or team.university.name }}
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    {{ m.team_status_badge(team) }}
+    {% if not team.accepted %}<span class="badge badge-rejected">{{ t('p4_need_accepted') }}</span>{% endif %}
+  </div>
+</div>
+
+{% if g.user.role in ('faculty', 'student') and not is_member %}
+<div class="banner banner-ok" style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+  <span>{{ t('p4_joining_hint') }}</span>
+  <form method="POST" action="{{ url_for('team_join', team_id=team.id) }}">
+    <button type="submit" class="btn btn-forest">{{ t('p4_join') }}</button>
+  </form>
+</div>
+{% elif is_member %}
+<div class="banner banner-ok" style="margin-top:16px;">✅ {{ t('p4_you_joined') }}</div>
+{% endif %}
+
+<div class="grid grid-2" style="margin-top:16px;">
+  <div class="card">
+    <div class="cc-section-head">
+      <div>
+        <h2 style="font-size:.95rem; margin-top:0;">{{ t('p4_team_members') }} ({{ team.members|length }})</h2>
+      </div>
+    </div>
+    {% if team.members %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('p4_member') }}</th>
+            <th>{{ t('p4_member_department') }}</th>
+            <th>{{ t('p4_team_member_role') }}</th>
+            {% if is_admin %}<th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for mm in team.members %}
+          <tr>
+            <td><strong>{{ mm.name }}</strong><div style="font-size:.76rem; color:var(--ink-soft);">{{ mm.email }}</div></td>
+            <td style="font-size:.8rem; color:var(--ink-soft);">{{ mm.department or (mm.course if mm.course is defined) or '—' }}</td>
+            <td>{{ m.team_role_badge(mm.member_role) }}</td>
+            {% if is_admin %}
+            <td>
+              <form method="POST" action="{{ url_for('team_remove_member', team_id=team.id, user_id=mm.user_id) }}">
+                <button class="btn btn-sm btn-ghost">{{ t('p4_remove') }}</button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p4_no_members') }}</p>
+    {% endif %}
+
+    {% if is_admin %}
+    <form method="POST" action="{{ url_for('team_add_member', team_id=team.id) }}" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
+      <h2 style="font-size:.9rem;">{{ t('p4_add_member') }}</h2>
+      <p class="hint" style="margin:2px 0 8px;">{{ t('p4_member_added_hint') }}</p>
+      <div class="field-row">
+        <div>
+          <label for="user_id">{{ t('p4_member') }}</label>
+          <select id="user_id" name="user_id">
+            {% for c in candidates if not c.in_team %}
+            <option value="{{ c.user_id }}">{{ c.name }} ({{ c.role|capitalize }} — {{ c.department or c.course or '' }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="member_role">{{ t('p4_team_member_role') }}</label>
+          <select id="member_role" name="member_role">
+            {% for r in ('FACULTY_LEAD', 'FACULTY', 'TEAM_LEAD', 'STUDENT') %}
+            <option value="{{ r }}">{{ t('team_role_' ~ r) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-sm btn-forest" style="margin-top:10px;">{{ t('p4_add_member') }}</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="cc-section-head">
+      <div>
+        <h2 style="font-size:.95rem; margin-top:0;">{{ t('p4_proposals') }}</h2>
+      </div>
+      {% if is_admin or is_member %}
+      <a class="btn btn-sm btn-forest" href="{{ url_for('proposal_new', team_id=team.id) }}">+ {{ t('p4_new_proposal') }}</a>
+      {% endif %}
+    </div>
+
+    {% if team.proposals %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('p4_prop_title') }}</th>
+            <th>{{ t('p4_prop_status') }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in team.proposals %}
+          <tr>
+            <td><a href="{{ url_for('proposal_detail', proposal_id=p.id) }}" style="font-weight:600; color:var(--forest);">{{ p.title }}</a></td>
+            <td>{{ m.proposal_status_badge(p) }}</td>
+            <td><a class="btn btn-sm btn-ghost" href="{{ url_for('proposal_detail', proposal_id=p.id) }}">{{ t('p4_view') }} →</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('not_assigned') }}</p>
+    {% endif %}
+
+    {% if team.projects %}
+    <h2 style="font-size:.95rem; margin-top:22px;">{{ t('p4_projects') }}</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('p4_project_title') }}</th>
+            <th>{{ t('p4_project_status') }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for proj in team.projects %}
+          <tr>
+            <td><a href="{{ url_for('project_details', project_id=proj.id) }}" style="font-weight:600; color:var(--forest);">{{ proj.title }}</a></td>
+            <td>{{ m.project_status_badge(proj) }}</td>
+            <td><a class="btn btn-sm btn-ghost" href="{{ url_for('project_details', project_id=proj.id) }}">{{ t('p4_view') }} →</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

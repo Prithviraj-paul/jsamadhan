@@ -1,0 +1,152 @@
+{% extends "app_base.html" %}
+{% set active = 'dashboard' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('nav_faculty_dashboard') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="topbar">
+  <div>
+    <h1>{{ t('nav_faculty_dashboard') }}</h1>
+    <p class="hint" style="margin:0; max-width:64ch;">{{ t('faculty_dashboard_sub') }}</p>
+  </div>
+  <div class="hint" style="margin:0;">{{ prof.department }}{% if prof.university %} · {{ prof.university.short_name or prof.university.name }}{% endif %}</div>
+</div>
+
+<div class="kpi-grid-inline">
+  <div class="kpi"><div class="n">{{ matches|length }}</div><div class="l">{{ t('faculty_kpi_total') }}</div></div>
+  <div class="kpi {% if relevant %}kpi-hot{% endif %}"><div class="n">{{ relevant|length }}</div><div class="l">{{ t('faculty_kpi_relevant') }}</div></div>
+  <div class="kpi"><div class="n">{{ recommended|length }}</div><div class="l">{{ t('faculty_kpi_recommended') }}</div></div>
+  <div class="kpi"><div class="n">{{ my_teams|length }}</div><div class="l">{{ t('p4_my_teams') }}</div></div>
+  <div class="kpi"><div class="n">{{ my_proposals|length }}</div><div class="l">{{ t('p4_my_proposals') }}</div></div>
+  <div class="kpi"><div class="n">{{ my_projects|length }}</div><div class="l">{{ t('p4_my_projects') }}</div></div>
+</div>
+
+<!-- Relevant challenges (invited / accepted) -->
+<div class="card" style="margin-top:22px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:1rem;">{{ t('faculty_kpi_relevant') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('faculty_challenges_sub') }}</p>
+    </div>
+  </div>
+  {% if relevant %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('th_challenge') }}</th>
+          <th>{{ t('th_district') }}</th>
+          <th>{{ t('ai_match_score') }}</th>
+          <th>{{ t('th_status') }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for mt in relevant %}
+        <tr>
+          <td><a href="{{ url_for('university_challenge_detail', match_id=mt.id) }}" style="font-weight:600; color:var(--forest);">{{ mt.challenge.code }}</a><div style="font-size:.78rem; color:var(--ink-soft); max-width:260px;">{{ mt.challenge.title }}</div></td>
+          <td>{{ dist_label(mt.challenge.district) }}</td>
+          <td><span class="conf-pill conf-{{ mt.match_level }}">{{ mt.score|int }}%</span></td>
+          <td>{{ m.uni_match_status_badge(mt) }}</td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('university_challenge_detail', match_id=mt.id) }}">{{ t('action_open') }} →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('faculty_no_challenges') }}</p>
+  {% endif %}
+</div>
+
+<!-- AI recommendations (not yet invited) -->
+{% if recommended %}
+<div class="card" style="margin-top:22px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:1rem;">{{ t('faculty_kpi_recommended') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('uni_match_disclaimer') }}</p>
+    </div>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('th_challenge') }}</th>
+          <th>{{ t('th_district') }}</th>
+          <th>{{ t('ai_match_score') }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for mt in recommended %}
+        <tr>
+          <td><a href="{{ url_for('university_challenge_detail', match_id=mt.id) }}" style="font-weight:600; color:var(--forest);">{{ mt.challenge.code }}</a><div style="font-size:.78rem; color:var(--ink-soft); max-width:260px;">{{ mt.challenge.title }}</div></td>
+          <td>{{ dist_label(mt.challenge.district) }}</td>
+          <td><span class="conf-pill conf-{{ mt.match_level }}">{{ mt.score|int }}%</span></td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('university_challenge_detail', match_id=mt.id) }}">{{ t('action_open') }} →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- My teams / proposals / projects (Phase 4) -->
+{% if my_teams or my_proposals or my_projects %}
+<div class="grid grid-2" style="margin-top:22px; align-items:start;">
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('p4_my_teams') }}</h2>
+    {% if my_teams %}
+    {% for tm in my_teams %}
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding:6px 0;">
+      <div>
+        <a href="{{ url_for('team_details', team_id=tm.id) }}" style="font-weight:600; color:var(--forest);">{{ tm.name }}</a>
+        <div class="hint" style="margin:2px 0 0;">{{ tm.challenge.code }}</div>
+      </div>
+      <span style="display:flex; gap:8px; align-items:center;">{{ m.team_status_badge(tm) }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('not_assigned') }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('p4_my_proposals') }}</h2>
+    {% if my_proposals %}
+    {% for p in my_proposals %}
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding:6px 0;">
+      <div>
+        <a href="{{ url_for('proposal_detail', proposal_id=p.id) }}" style="font-weight:600; color:var(--forest);">{{ p.title[:56] }}</a>
+        <div class="hint" style="margin:2px 0 0;">{{ p.challenge.code }}</div>
+      </div>
+      <span style="display:flex; gap:8px; align-items:center;">{{ m.proposal_status_badge(p) }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('not_assigned') }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('p4_my_projects') }}</h2>
+    {% if my_projects %}
+    {% for proj in my_projects %}
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding:6px 0;">
+      <div>
+        <a href="{{ url_for('project_details', project_id=proj.id) }}" style="font-weight:600; color:var(--forest);">{{ proj.title[:56] }}</a>
+        <div class="hint" style="margin:2px 0 0;">{{ proj.challenge.code }}</div>
+      </div>
+      <span style="display:flex; gap:8px; align-items:center;">{{ m.project_status_badge(proj) }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p4_no_my_projects') }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

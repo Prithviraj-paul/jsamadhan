@@ -1,0 +1,30 @@
+{% extends "app_base.html" %}
+{% set active = 'teams' %}
+{% block title %}{{ t('p4_team_new_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('university_challenges') }}">{{ t('uni_challenges_all') }}</a> / <a href="{{ url_for('university_challenge_detail', match_id=match.id) }}">{{ challenge.code }}</a> / {{ t('p4_team_new_title') }}
+</div>
+
+<h1>{{ t('p4_team_new_title') }}</h1>
+<p class="hint" style="max-width:64ch; margin-top:0;">{{ t('p4_team_new_sub') }}</p>
+
+{% if not match.accepted %}
+<div class="banner banner-warn" style="margin-top:16px;">{{ t('p4_need_accepted') }}</div>
+{% else %}
+<form method="POST" class="card" style="margin-top:18px; max-width:760px;">
+  <label for="name">{{ t('p4_team_name') }}</label>
+  <input type="text" id="name" name="name" required value="{{ form.name if form else '' }}" placeholder="{{ t('p4_team_name_ph') }}">
+
+  <label for="description" style="margin-top:16px;">{{ t('p4_team_desc') }}</label>
+  <textarea id="description" name="description" rows="4" placeholder="{{ t('p4_team_desc_ph') }}">{{ form.description if form else '' }}</textarea>
+
+  <div style="margin-top:24px; display:flex; gap:10px; flex-wrap:wrap;">
+    <button type="submit" class="btn btn-forest">{{ t('p4_team_create') }}</button>
+    <a class="btn btn-ghost" href="{{ url_for('university_challenge_detail', match_id=match.id) }}">{{ t('nav_back_home') }}</a>
+  </div>
+</form>
+{% endif %}
+
+{% endblock %}

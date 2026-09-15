@@ -1,0 +1,191 @@
+{% extends "app_base.html" %}
+{% set active = 'teams' %}
+{% import "macros.html" as m %}
+{% block title %}{{ proposal.title }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  {% if is_gov %}
+  <a href="{{ url_for('gov_proposals') }}">{{ t('p4_gov_board_title') }}</a>
+  {% else %}
+  <a href="{{ url_for('team_details', team_id=proposal.team.id) }}">{{ proposal.team.name }}</a>
+  {% endif %}
+  / {{ proposal.title[:60] }}
+</div>
+
+<div class="topbar" style="flex-wrap:wrap;">
+  <div>
+    <h1>{{ proposal.title }}</h1>
+    <div class="meta" style="font-size:.84rem; color:var(--ink-soft); margin-top:8px;">
+      {{ t('p4_challenge') }}: <strong>{{ proposal.challenge.code }}</strong> · {{ t('p4_institution') }}: {{ proposal.university.short_name or proposal.university.name }} · {{ t('p4_team_members') }}: {{ proposal.team.name }}
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    {{ m.proposal_status_badge(proposal) }}
+    {% if proposal.reviewer %}
+    <span class="hint" style="margin:0;">{{ t('p4_reviewed_by') }}: {{ proposal.reviewer.name }}</span>
+    {% endif %}
+  </div>
+</div>
+
+{% if is_gov and proposal.is_marker %}
+<div class="banner banner-ai" style="margin-top:16px;">{{ t('p4_review') }} — {{ t('p4_tab_pending') }}</div>
+{% endif %}
+
+<div class="grid grid-2" style="margin-top:16px; align-items:start;">
+  <div class="card">
+    <h2 style="font-size:1rem; margin-top:0;">{{ t('p4_problem') }}</h2>
+    <p style="font-size:.9rem;">{{ proposal.problem_statement }}</p>
+
+    <h2 style="font-size:1rem;">{{ t('p4_solution') }}</h2>
+    <p style="font-size:.9rem;">{{ proposal.proposed_solution }}</p>
+
+    <h2 style="font-size:1rem;">{{ t('p4_methodology') }}</h2>
+    <p style="font-size:.9rem;">{{ proposal.methodology }}</p>
+
+    <div class="ai-meta-grid" style="margin-top:14px; grid-template-columns:repeat(2,1fr);">
+      <div>
+        <div class="l">{{ t('p4_outcome') }}</div>
+        <div class="v">{{ proposal.expected_outcome or t('not_assigned') }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('p4_resources') }}</div>
+        <div class="v">{{ proposal.required_resources or t('not_assigned') }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('p4_duration') }}</div>
+        <div class="v">{{ proposal.estimated_duration or t('not_assigned') }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('p4_start_date') }}</div>
+        <div class="v">{{ proposal.created_at.strftime('%d %b %Y') }}</div>
+      </div>
+    </div>
+
+    {% if proposal.review_comment %}
+    <div class="banner banner-warn" style="margin-top:16px; margin-bottom:0;">
+      <strong>{{ t('p4_review_comment') }}:</strong> {{ proposal.review_comment }}
+    </div>
+    {% endif %}
+
+    {% if proposal.projects %}
+    <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--line);">
+      <h2 style="font-size:.95rem;">{{ t('p4_projects') }}</h2>
+      {% for proj in proposal.projects %}
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px;">
+        <span><a href="{{ url_for('project_details', project_id=proj.id) }}" style="font-weight:600; color:var(--forest);">{{ proj.title }}</a> · {{ m.project_status_badge(proj) }}</span>
+        <a class="btn btn-sm btn-ghost" href="{{ url_for('project_details', project_id=proj.id) }}">{{ t('p4_view') }} →</a>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    <!-- Proposal timeline -->
+    {% if proposal.logs %}
+    <div class="card">
+      <h2 style="font-size:.95rem; margin-top:0;">{{ t('p4_logs') }}</h2>
+      <ul class="timeline" style="max-height:340px; overflow-y:auto;">
+        {% for lg in proposal.logs|reverse %}
+        <li>
+          <div class="t-status">{{ lg.action }} · {{ lg.old_status or '—' }} → {{ lg.new_status or '—' }}</div>
+          {% if lg.comment %}<div class="t-note">{{ lg.comment }}</div>{% endif %}
+          <div class="t-time">{{ lg.created_at.strftime('%d %b %Y, %H:%M UTC') }}</div>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- University / team member actions -->
+    {% if (is_admin or is_member) and proposal.status in ('DRAFT', 'REVISION_REQUESTED') %}
+    <div class="card" style="margin-top:16px;">
+      <h2 style="font-size:.95rem; margin-top:0;">{{ t('p4_edit') }}</h2>
+      <form method="POST" action="{{ url_for('proposal_edit', proposal_id=proposal.id) }}">
+        <label for="e_title">{{ t('p4_prop_title') }}</label>
+        <input type="text" id="e_title" name="title" required value="{{ proposal.title }}">
+        <label for="e_problem" style="margin-top:12px;">{{ t('p4_problem') }}</label>
+        <textarea id="e_problem" name="problem_statement" rows="3" required>{{ proposal.problem_statement }}</textarea>
+        <label for="e_solution" style="margin-top:12px;">{{ t('p4_solution') }}</label>
+        <textarea id="e_solution" name="proposed_solution" rows="3" required>{{ proposal.proposed_solution }}</textarea>
+        <label for="e_method" style="margin-top:12px;">{{ t('p4_methodology') }}</label>
+        <textarea id="e_method" name="methodology" rows="3" required>{{ proposal.methodology }}</textarea>
+        <label for="e_outcome" style="margin-top:12px;">{{ t('p4_outcome') }}</label>
+        <textarea id="e_outcome" name="expected_outcome" rows="2">{{ proposal.expected_outcome }}</textarea>
+        <label for="e_resources" style="margin-top:12px;">{{ t('p4_resources') }}</label>
+        <textarea id="e_resources" name="required_resources" rows="2">{{ proposal.required_resources }}</textarea>
+        <label for="e_duration" style="margin-top:12px;">{{ t('p4_duration') }}</label>
+        <input type="text" id="e_duration" name="estimated_duration" value="{{ proposal.estimated_duration }}">
+        <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+          <button type="submit" class="btn btn-sm btn-forest">{{ t('p4_save_draft') }}</button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+
+    {% if (is_admin or is_member) and proposal.status in ('DRAFT', 'REVISION_REQUESTED') %}
+    <div class="card" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <span>{{ t('p4_submit') }}</span>
+      <form method="POST" action="{{ url_for('proposal_submit', proposal_id=proposal.id) }}">
+        <button type="submit" class="btn btn-forest">{{ t('p4_submit') }} →</button>
+      </form>
+    </div>
+    {% elif (is_admin or is_member) %}
+    <p class="hint" style="margin-top:16px;">{{ t('p4_draft_only') }}</p>
+    {% endif %}
+
+    <!-- Government review actions -->
+    {% if is_gov and proposal.status == 'SUBMITTED' %}
+    <div class="card" style="margin-top:16px;">
+      <h2 style="font-size:.95rem; margin-top:0;">{{ t('p4_review') }}</h2>
+      <form method="POST" action="{{ url_for('gov_proposal_review', proposal_id=proposal.id) }}">
+        <button type="submit" class="btn btn-forest">{{ t('p4_begin_review') }}</button>
+      </form>
+    </div>
+    {% endif %}
+
+    {% if is_gov and proposal.status in ('SUBMITTED', 'UNDER_REVIEW') %}
+    <div class="card" style="margin-top:16px; border-color:var(--sal);">
+      <h2 style="font-size:.95rem; margin-top:0;">{{ t('p4_review') }}</h2>
+      <form method="POST" action="{{ url_for('gov_proposal_verdict', proposal_id=proposal.id) }}">
+        <label for="review_comment">{{ t('p4_comment') }}</label>
+        <textarea id="review_comment" name="review_comment" rows="2" placeholder="{{ t('p4_comment_ph') }}"></textarea>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="submit" name="decision" value="APPROVED" class="btn btn-forest">{{ t('p4_approve') }}</button>
+          <button type="submit" name="decision" value="REVISION_REQUESTED" class="btn btn-teal">{{ t('p4_revision') }}</button>
+          <button type="submit" name="decision" value="REJECTED" class="btn btn-red">{{ t('p4_reject') }}</button>
+        </div>
+        <p class="hint" style="margin:8px 0 0; font-size:.75rem;">{{ t('p4_comment_ph') }}</p>
+      </form>
+    </div>
+    {% endif %}
+
+    {% if is_gov and proposal.is_approved and not proposal.projects %}
+    <div class="card" style="margin-top:16px; border-color:var(--sal);">
+      <h2 style="font-size:.95rem; margin-top:0;">{{ t('p4_convert') }}</h2>
+      <form method="POST" action="{{ url_for('gov_proposal_create_project', proposal_id=proposal.id) }}">
+        <label for="title">{{ t('p4_project_title') }}</label>
+        <input type="text" id="title" name="title" value="{{ proposal.title }} — Project">
+        <div class="field-row">
+          <div>
+            <label for="start_date">{{ t('p4_start_date') }}</label>
+            <input type="date" id="start_date" name="start_date">
+          </div>
+          <div>
+            <label for="target_end_date">{{ t('p4_target_end') }}</label>
+            <input type="date" id="target_end_date" name="target_end_date">
+          </div>
+        </div>
+        <label for="description" style="margin-top:12px;">{{ t('p4_project_desc') }}</label>
+        <textarea id="description" name="description" rows="3">{{ proposal.proposed_solution }}</textarea>
+        <div style="margin-top:14px;">
+          <button type="submit" class="btn btn-forest">{{ t('p4_to_project') }} -></button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

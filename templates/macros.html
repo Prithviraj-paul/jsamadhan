@@ -66,3 +66,120 @@
   <div class="banner banner-danger">{{ t('banner_escalated') }}</div>
 {% endif %}
 {%- endmacro %}
+
+{% macro priority_badge(level) -%}
+{% if level == 'critical' %}
+  <span class="badge badge-overdue">{{ t('urgency_critical') }}</span>
+{% elif level == 'high' %}
+  <span class="badge badge-reopened">{{ t('urgency_high') }}</span>
+{% elif level == 'low' %}
+  <span class="badge badge-accepted">{{ t('urgency_low') }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('urgency_normal') }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro challenge_status_badge(ch) -%}
+{% if ch.status == 'NEEDS_VALIDATION' %}
+  <span class="badge badge-pending">{{ t('status_chal_needs_validation') }}</span>
+{% elif ch.status == 'READY_FOR_MATCHING' %}
+  <span class="badge badge-aiverified">{{ t('status_chal_ready') }}</span>
+{% elif ch.status == 'ASSIGNED' %}
+  <span class="badge badge-accepted">{{ t('status_chal_assigned') }}</span>
+{% elif ch.status == 'IN_PROJECT' %}
+  <span class="badge badge-accepted">{{ t('status_chal_in_project') }}</span>
+{% elif ch.status == 'COMPLETED' %}
+  <span class="badge badge-resolved">{{ t('status_chal_completed') }}</span>
+{% elif ch.status == 'REJECTED' %}
+  <span class="badge badge-rejected">{{ t('status_chal_rejected') }}</span>
+{% elif ch.status == 'VALIDATED' %}
+  <span class="badge badge-aiverified">{{ t('status_chal_validated') }}</span>
+{% else %}
+  <span class="badge badge-submitted">{{ ch.status }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro match_level_badge(level) -%}
+{% if level == 'strong' %}
+  <span class="badge badge-resolved">{{ t('match_level_strong') }}</span>
+{% elif level == 'good' %}
+  <span class="badge badge-aiverified">{{ t('match_level_good') }}</span>
+{% elif level == 'possible' %}
+  <span class="badge badge-pending">{{ t('match_level_possible') }}</span>
+{% else %}
+  <span class="badge badge-rejected">{{ t('match_level_low') }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro uni_match_status_badge(m) -%}
+{% if m.status == 'INVITED' %}
+  <span class="badge badge-aiverified">{{ t('uni_match_invited') }}</span>
+{% elif m.status == 'ACCEPTED' %}
+  <span class="badge badge-resolved">{{ t('uni_match_accepted') }}</span>
+{% elif m.status == 'DECLINED' %}
+  <span class="badge badge-rejected">{{ t('uni_match_declined') }}</span>
+{% elif m.status == 'REMOVED' %}
+  <span class="badge badge-pending">{{ t('uni_match_removed') }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('uni_match_recommended') }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro uni_verification_badge(u) -%}
+{% if u.verification_status == 'VERIFIED' %}
+  <span class="badge badge-resolved">{{ t('uni_verified') }}</span>
+{% elif u.verification_status == 'SUSPENDED' %}
+  <span class="badge badge-overdue">{{ t('uni_suspended') }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('uni_pending') }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro team_status_badge(tm) -%}
+{% set s = tm.status %}
+{% if s in ('COMPLETED',) %}
+  <span class="badge badge-resolved">{{ t('team_status_' ~ s) }}</span>
+{% elif s in ('SUBMITTED', 'ACTIVE') %}
+  <span class="badge badge-aiverified">{{ t('team_status_' ~ s) }}</span>
+{% elif s in ('ARCHIVED',) %}
+  <span class="badge badge-rejected">{{ t('team_status_' ~ s) }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('team_status_' ~ s) }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro team_role_badge(r) -%}
+{% if r == 'FACULTY_LEAD' %}
+  <span class="badge badge-resolved">{{ t('team_role_' ~ r) }}</span>
+{% elif r in ('TEAM_LEAD', 'FACULTY') %}
+  <span class="badge badge-aiverified">{{ t('team_role_' ~ r) }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('team_role_' ~ r) }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro proposal_status_badge(p) -%}
+{% set s = p.status %}
+{% if s == 'APPROVED' %}
+  <span class="badge badge-resolved">{{ t('proposal_status_' ~ s) }}</span>
+{% elif s in ('SUBMITTED', 'UNDER_REVIEW', 'REVISION_REQUESTED') %}
+  <span class="badge badge-aiverified">{{ t('proposal_status_' ~ s) }}</span>
+{% elif s == 'REJECTED' %}
+  <span class="badge badge-rejected">{{ t('proposal_status_' ~ s) }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('proposal_status_' ~ s) }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro project_status_badge(p) -%}
+{% set s = p.status %}
+{% if s == 'COMPLETED' %}
+  <span class="badge badge-resolved">{{ t('project_status_' ~ s) }}</span>
+{% elif s in ('CREATED', 'ACTIVE') %}
+  <span class="badge badge-aiverified">{{ t('project_status_' ~ s) }}</span>
+{% elif s in ('PAUSED', 'CANCELLED') %}
+  <span class="badge badge-rejected">{{ t('project_status_' ~ s) }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('project_status_' ~ s) }}</span>
+{% endif %}
+{%- endmacro %}

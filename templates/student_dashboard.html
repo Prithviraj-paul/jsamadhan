@@ -1,0 +1,88 @@
+{% extends "app_base.html" %}
+{% set active = 'dashboard' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('nav_student_dashboard') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="topbar">
+  <div>
+    <h1>{{ t('nav_student_dashboard') }}</h1>
+    <p class="hint" style="margin:0; max-width:64ch;">{{ t('student_dashboard_sub') }}</p>
+  </div>
+  <div class="hint" style="margin:0;">{{ prof.course }} · {{ prof.year }}</div>
+</div>
+
+<div class="kpi-grid-inline">
+  <div class="kpi"><div class="n">{{ accepted|length }}</div><div class="l">{{ t('student_kpi_accepted') }}</div></div>
+  <div class="kpi"><div class="n">{{ university_count }}</div><div class="l">{{ t('student_kpi_faculty') }}</div></div>
+  <div class="kpi"><div class="n">{{ my_teams|length }}</div><div class="l">{{ t('p4_my_teams') }}</div></div>
+  <div class="kpi"><div class="n">{{ my_projects|length }}</div><div class="l">{{ t('p4_my_projects') }}</div></div>
+</div>
+
+<div class="card" style="margin-top:22px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:1rem;">{{ t('student_kpi_accepted') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('student_challenges_sub') }}</p>
+    </div>
+  </div>
+  {% if accepted %}
+  <div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>{{ t('th_challenge') }}</th>
+        <th>{{ t('th_district') }}</th>
+        <th>{{ t('ai_match_score') }}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        {% for mt in accepted %}
+        <tr>
+          <td><a href="{{ url_for('university_challenge_detail', match_id=mt.id) }}" style="font-weight:600; color:var(--forest);">{{ mt.challenge.code }}</a><div style="font-size:.78rem; color:var(--ink-soft); max-width:260px;">{{ mt.challenge.title }}</div></td>
+          <td>{{ dist_label(mt.challenge.district) }}</td>
+          <td><span class="conf-pill conf-{{ mt.match_level }}">{{ mt.score|int }}% · {{ m.match_level_badge(mt.match_level) }}</span></td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('university_challenge_detail', match_id=mt.id) }}">{{ t('action_open') }} →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('student_no_challenges') }}</p>
+  {% endif %}
+</div>
+
+<!-- My teams / projects (Phase 4) -->
+{% if my_teams or my_projects %}
+<div class="grid grid-2" style="margin-top:22px; align-items:start;">
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('p4_my_teams') }}</h2>
+    {% if my_teams %}
+    {% for t in my_teams %}
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding:6px 0;">
+      <a href="{{ url_for('team_details', team_id=t.id) }}" style="font-weight:600; color:var(--forest);">{{ t.name }}</a>
+      <span style="display:flex; gap:8px; align-items:center;">{{ m.team_status_badge(t) }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('not_assigned') }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('p4_my_projects') }}</h2>
+    {% if my_projects %}
+    {% for proj in my_projects %}
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding:6px 0;">
+      <a href="{{ url_for('project_details', project_id=proj.id) }}" style="font-weight:600; color:var(--forest);">{{ proj.title[:56] }}</a>
+      <span style="display:flex; gap:8px; align-items:center;">{{ m.project_status_badge(proj) }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p4_no_my_projects') }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,132 @@
+{% extends "app_base.html" %}
+{% set active = 'challenges' %}
+{% import "macros.html" as m %}
+{% block title %}{{ challenge.code }} — {{ uni.short_name or uni.name }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('university_challenges') }}">{{ t('uni_challenges_all') }}</a> / {{ challenge.code }}
+</div>
+
+<div class="topbar">
+  <div>
+    <div class="crumb">{{ challenge.code }} · {{ challenge.created_at.strftime('%d %b %Y') }}</div>
+    <h1>{{ challenge.title }}</h1>
+    <p style="margin:6px 0 0; max-width:75ch; font-size:.92rem;">{{ challenge.description }}</p>
+    <div class="meta" style="font-size:.84rem; color:var(--ink-soft); margin-top:8px;">
+      {{ dist_label(challenge.district) }} · {{ cat_label(challenge.category) }}
+      {% if challenge.subcategory %} · {{ challenge.subcategory }}{% endif %}
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    <span class="conf-pill conf-{{ match.match_level }}">{{ match.score|int }}%</span>
+    {{ m.match_level_badge(match.match_level) }}
+    {{ m.uni_match_status_badge(match) }}
+  </div>
+</div>
+
+<!-- NIWA-visible basic challenge facts (no citizen PII, no coordinates) -->
+<div class="grid grid-2" style="margin-top:16px;">
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('uni_chali_info') }}</h2>
+    <div class="ai-meta-grid" style="grid-template-columns:repeat(2,1fr);">
+      <div><div class="l">{{ t('th_priority') }}</div><div class="v">{{ m.priority_badge(challenge.priority_key) }}</div></div>
+      <div><div class="l">{{ t('th_reports') }}</div><div class="v">{{ challenge.report_count }}</div></div>
+      <div><div class="l">{{ t('th_district') }}</div><div class="v">{{ dist_label(challenge.district) }}</div></div>
+      <div><div class="l">{{ t('category') }}</div><div class="v">{{ cat_label(challenge.category) }}</div></div>
+    </div>
+    <div class="hint" style="margin-top:10px;">{{ t('uni_chali_data_note') }}</div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('uni_match_section') }}</h2>
+    <div class="ai-meta-grid" style="grid-template-columns:repeat(2,1fr);">
+      <div><div class="l">{{ t('ai_match_score') }}</div><div class="v"><strong>{{ match.score|int }}</strong>/100</div></div>
+      <div><div class="l">{{ t('ai_match_level') }}</div><div class="v">{{ m.match_level_badge(match.match_level) }}</div></div>
+    </div>
+    {% if match.signal_list %}
+    <div class="hint" style="margin-top:10px;">
+      {{ t('uni_reasons') }}:
+      {% for s in match.signal_list %}<span class="signal">{{ s }}</span>{% endfor %}
+    </div>
+    {% endif %}
+    <div class="hint" style="margin-top:10px;">{{ t('uni_match_disclaimer') }}</div>
+  </div>
+</div>
+
+{% if match.status == 'INVITED' %}
+<div class="card" style="margin-top:16px; border-color:var(--sal);">
+  <h2 style="font-size:.95rem; margin-top:0;">{{ t('uni_invited_banner') }}</h2>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+    <form method="POST" action="{{ url_for('university_accept', match_id=match.id) }}">
+      <button type="submit" class="btn btn-forest">{{ t('uni_accept') }}</button>
+    </form>
+    <form method="POST" action="{{ url_for('university_decline', match_id=match.id) }}">
+      <input type="text" name="response_note" placeholder="{{ t('uni_decline_reason_ph') }}" style="min-width:220px;">
+      <button type="submit" class="btn btn-red">{{ t('uni_decline') }}</button>
+    </form>
+  </div>
+  <p class="hint" style="margin:10px 0 0;">{{ t('uni_decline_reason_required') }}</p>
+</div>
+{% elif match.status == 'ACCEPTED' %}
+{% set team = my_team %}
+<div class="banner banner-ok" style="margin-top:16px; margin-bottom:0;">✅ {{ t('uni_accepted_banner') }}</div>
+
+<!-- Solution development (teams / proposals / projects) -->
+<div class="card" style="margin-top:16px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:1rem;">{{ t('p4_sol_dev') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('p4_sol_dev_sub') }}</p>
+    </div>
+    {% if not team %}
+    <a class="btn btn-sm btn-forest" href="{{ url_for('team_new', match_id=match.id) }}">+ {{ t('p4_team_create') }}</a>
+    {% endif %}
+  </div>
+
+  {% if team %}
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+    <div>
+      <strong style="font-size:.95rem;"><a href="{{ url_for('team_details', team_id=team.id) }}" style="color:var(--forest);">{{ team.name }}</a></strong>
+      <span style="margin-left:8px;">{{ m.team_status_badge(team) }}</span>
+      <div class="hint" style="margin:4px 0 0;">{{ team.members|length }} {{ t('p4_team_members') }} · {{ team.proposals|length }} {{ t('p4_proposals_lc') }} · {{ team.projects|length }} {{ t('p4_projects_lc') }}</div>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn btn-sm btn-ghost" href="{{ url_for('team_details', team_id=team.id) }}">{{ t('p4_view') }} →</a>
+      {% if team.proposals|length == 0 %}
+      <a class="btn btn-sm btn-forest" href="{{ url_for('proposal_new', team_id=team.id) }}">+ {{ t('p4_new_proposal') }}</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if team.proposals %}
+  <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--line);">
+    {% for p in team.proposals %}
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding:6px 0;">
+      <span><a href="{{ url_for('proposal_detail', proposal_id=p.id) }}" style="font-weight:600; color:var(--forest);">{{ p.title }}</a></span>
+      <span style="display:flex; gap:8px; align-items:center;">{{ m.proposal_status_badge(p) }} <a class="btn btn-sm btn-ghost" href="{{ url_for('proposal_detail', proposal_id=p.id) }}">{{ t('p4_view') }} →</a></span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if team.projects %}
+  <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--line);">
+    {% for proj in team.projects %}
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding:6px 0;">
+      <span><a href="{{ url_for('project_details', project_id=proj.id) }}" style="font-weight:600; color:var(--forest);">{{ proj.title }}</a></span>
+      <span style="display:flex; gap:8px; align-items:center;">{{ m.project_status_badge(proj) }} <a class="btn btn-sm btn-ghost" href="{{ url_for('project_details', project_id=proj.id) }}">{{ t('p4_view') }} →</a></span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('p4_no_team_yet') }} <a href="{{ url_for('team_new', match_id=match.id) }}" style="color:var(--forest);">{{ t('p4_team_create') }} →</a></p>
+  {% endif %}
+</div>
+
+{% elif match.status == 'DECLINED' %}
+<div class="banner banner-warn" style="margin-top:16px; margin-bottom:0;">{{ t('uni_declined_banner') }}{% if match.response_note %} — {{ match.response_note }}{% endif %}</div>
+{% endif %}
+
+{% endblock %}

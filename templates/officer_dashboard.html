@@ -1,14 +1,241 @@
 {% extends "app_base.html" %}
+{% if current_user.role == 'admin' %}
+{% set active = 'command-center' %}
+{% else %}
 {% set active = 'dashboard' %}
+{% endif %}
 {% import "macros.html" as m %}
-{% block title %}{{ t('officer_queue_title') }} — {{ t('app_name') }}{% endblock %}
+{% block title %}{{ t('cmd_center') }} — {{ t('app_name') }}{% endblock %}
 {% block content %}
 
 <div class="topbar">
-  <h1>{{ t('officer_queue_title') }}</h1>
+  <div>
+    <h1>{{ t('cmd_center') }}</h1>
+    <p class="hint" style="margin:0; max-width:64ch;">{{ t('cmd_sub') }}</p>
+  </div>
+  <a href="{{ url_for('new_challenge') }}" class="btn btn-forest">+ {{ t('btn_create_challenge') }}</a>
 </div>
 
-<h2 style="font-size:1.02rem;">{{ t('needs_review') }}</h2>
+<!-- KPI cards -->
+<div class="kpi-grid-inline">
+  <div class="kpi"><div class="n">{{ kpis.citizen_reports }}</div><div class="l">{{ t('kpi_citizen_reports') }}</div></div>
+  <div class="kpi"><div class="n">{{ kpis.needs_validation }}</div><div class="l">{{ t('kpi_needs_validation') }}</div></div>
+  <div class="kpi"><div class="n">{{ kpis.validated_challenges }}</div><div class="l">{{ t('kpi_validated_challenges') }}</div></div>
+  <div class="kpi {% if kpis.critical_challenges %}kpi-hot{% endif %}"><div class="n">{{ kpis.critical_challenges }}</div><div class="l">{{ t('kpi_critical_challenges') }}</div></div>
+  <div class="kpi {% if kpis.awaiting_institution %}kpi-hot{% endif %}"><div class="n">{{ kpis.awaiting_institution }}</div><div class="l">{{ t('kpi_awaiting_institution') }}</div></div>
+  <div class="kpi {% if kpis.uni_matching_ready %}kpi-hot{% endif %}"><div class="n">{{ kpis.uni_matching_ready }}</div><div class="l">{{ t('kpi_uni_matching_ready') }}</div></div>
+  <div class="kpi {% if kpis.uni_recommendations %}kpi-hot{% endif %}"><div class="n">{{ kpis.uni_recommendations }}</div><div class="l">{{ t('kpi_uni_recommendations') }}</div></div>
+  <div class="kpi {% if kpis.duplicate_alerts %}kpi-hot{% endif %}"><div class="n">{{ kpis.duplicate_alerts }}</div><div class="l">{{ t('kpi_duplicate_alerts') }}</div></div>
+  <div class="kpi"><div class="n">{{ kpis.active_projects }}</div><div class="l">{{ t('kpi_active_projects') }}</div></div>
+  <div class="kpi"><div class="n">{{ kpis.pilot_projects }}</div><div class="l">{{ t('kpi_pilot_projects') }}</div></div>
+  <div class="kpi"><div class="n">{{ kpis.deployed_solutions }}</div><div class="l">{{ t('kpi_deployed') }}</div></div>
+</div>
+
+<!-- Action required -->
+<div class="card" style="margin-top:22px;">
+  <div class="cc-section-head">
+    <h2 style="font-size:1rem;">{{ t('action_required') }}</h2>
+    <span class="hint" style="margin:0;">{{ t('cmd_validation_note') }}</span>
+  </div>
+  <ul class="action-list">
+    <li>
+      <a href="#validation-queue" class="action-item {% if actions.reports_needing_validation %}action-live{% endif %}">
+        <span class="action-dot {% if actions.reports_needing_validation %}dot-live{% endif %}"></span>
+        <span>{{ t('act_reports_validation') }}</span>
+        <span class="action-count">{{ actions.reports_needing_validation }}</span>
+      </a>
+    </li>
+    <li>
+      <a href="#challenge-table" class="action-item {% if actions.challenges_needing_review %}action-live{% endif %}">
+        <span class="action-dot {% if actions.challenges_needing_review %}dot-live{% endif %}"></span>
+        <span>{{ t('act_challenges_review') }}</span>
+        <span class="action-count">{{ actions.challenges_needing_review }}</span>
+      </a>
+    </li>
+    <li>
+      <a href="#challenge-table" class="action-item {% if actions.challenges_needing_match %}action-live{% endif %}">
+        <span class="action-dot {% if actions.challenges_needing_match %}dot-live{% endif %}"></span>
+        <span>{{ t('act_challenges_match') }}</span>
+        <span class="action-count">{{ actions.challenges_needing_match }}</span>
+      </a>
+    </li>
+    <li>
+      <a href="#challenge-table" class="action-item {% if actions.uni_recommendations_review %}action-live{% endif %}">
+        <span class="action-dot {% if actions.uni_recommendations_review %}dot-live{% endif %}"></span>
+        <span>{{ t('act_uni_recommendations_review') }}</span>
+        <span class="action-count">{{ actions.uni_recommendations_review }}</span>
+      </a>
+    </li>
+    <li>
+      <a href="#duplicate-alerts" class="action-item {% if actions.duplicate_matches_pending %}action-live{% endif %}">
+        <span class="action-dot {% if actions.duplicate_matches_pending %}dot-live{% endif %}"></span>
+        <span>{{ t('act_duplicates_review') }}</span>
+        <span class="action-count">{{ actions.duplicate_matches_pending }}</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('gov_proposals') }}" class="action-item {% if actions.proposals_needing_approval %}action-live{% endif %}">
+        <span class="action-dot {% if actions.proposals_needing_approval %}dot-live{% endif %}"></span>
+        <span>{{ t('act_proposals_approval') }}</span>
+        <span class="action-count">{{ actions.proposals_needing_approval }}</span>
+      </a>
+    </li>
+    <li class="future">
+      <span class="action-dot"></span>
+      <span>{{ t('act_projects_overdue') }}</span>
+      <span class="action-count">{{ actions.projects_overdue }}</span>
+    </li>
+    <li class="future">
+      <span class="action-dot"></span>
+      <span>{{ t('act_pilots_eval') }}</span>
+      <span class="action-count">{{ actions.pilots_needing_evaluation }}</span>
+    </li>
+  </ul>
+</div>
+
+<!-- AI-assisted duplicate alerts -->
+<div class="card" style="margin-top:22px;" id="duplicate-alerts">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:1rem;">{{ t('dup_alerts_title') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('dup_alerts_sub') }}</p>
+    </div>
+  </div>
+  {% if duplicate_alerts %}
+  <div class="dup-list">
+    {% for m in duplicate_alerts %}
+    <div class="dup-item">
+      <div class="dup-main">
+        <div class="dup-src">
+          <a href="{{ url_for('officer_complaint', complaint_id=m.complaint_id) }}"
+             class="btn btn-sm btn-ghost">{{ m.complaint.code }} →</a>
+          <span><strong>{{ m.complaint.title }}</strong>
+            <span class="hint">{{ dist_label(m.complaint.district) }} · {{ cat_label(m.complaint.category) }}</span>
+          </span>
+        </div>
+        <div class="dup-match">
+          {% if m.candidate_type == 'challenge' %}
+          <a href="{{ url_for('challenge_detail', challenge_id=m.candidate.id) }}" class="btn btn-sm btn-ghost">{{ m.candidate.code }} →</a>
+          <span><strong>{{ m.candidate.title }}</strong>
+            <span class="hint">{{ t('dup_candidate_challenge') }}</span></span>
+          {% else %}
+          <a href="{{ url_for('officer_complaint', complaint_id=m.candidate.id) }}" class="btn btn-sm btn-ghost">{{ m.candidate.code }} →</a>
+          <span><strong>{{ m.candidate.title }}</strong>
+            <span class="hint">{{ dist_label(m.candidate.district) }} · {{ cat_label(m.candidate.category) }} · {{ t('dup_candidate_report') }}</span></span>
+          {% endif %}
+        </div>
+        <div class="dup-confidence">
+          <span class="conf-pill conf-{{ m.level }}">{{ m.confidence|int }}% · {{ m.level|capitalize }}</span>
+          <span class="hint">{{ t('dup_conf_ai') }}</span>
+        </div>
+        {% if m.signal_list %}
+        <div class="hint dup-signals">
+          {{ t('dup_reasons') }}: {% for s in m.signal_list[:3] %}<span class="signal">{{ s }}</span>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      <div class="dup-actions">
+        <form method="POST" action="{{ url_for('duplicate_link_to_challenge', match_id=m.id) }}">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          {% if m.candidate_type == 'challenge' %}
+          <button class="btn btn-sm btn-forest">{{ t('dup_link_challenge') }}</button>
+          {% else %}
+          <button class="btn btn-sm btn-ghost" disabled title="{{ t('dup_pair_reports_hint') }}">{{ t('dup_link_challenge') }}</button>
+          {% endif %}
+        </form>
+        <form method="POST" action="{{ url_for('duplicate_confirm', match_id=m.id) }}">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button class="btn btn-sm btn-ghost">{{ t('dup_confirm') }}</button>
+        </form>
+        <form method="POST" action="{{ url_for('review_duplicate', match_id=m.id) }}">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button class="btn btn-sm btn-ghost" name="not-related" value="1">{{ t('dup_not_duplicate') }}</button>
+        </form>
+        <form method="POST" action="{{ url_for('review_duplicate', match_id=m.id) }}">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button class="btn btn-sm btn-ghost">{{ t('dup_dismiss') }}</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('dup_alerts_none') }}</p>
+  {% endif %}
+</div>
+
+<!-- Official challenges table -->
+<div class="card" style="margin-top:22px;" id="challenge-table">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:1rem;">{{ t('cc_table_title') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('cc_table_sub') }}</p>
+    </div>
+    <a href="{{ url_for('new_challenge') }}" class="btn btn-sm btn-ghost">+ {{ t('btn_create_challenge') }}</a>
+  </div>
+  {% if challenges %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('th_challenge') }}</th>
+          <th>{{ t('th_district') }}</th>
+          <th>{{ t('th_reports') }}</th>
+          <th>{{ t('th_priority') }}</th>
+          <th>{{ t('th_status') }}</th>
+          <th>{{ t('th_university') }}</th>
+          <th>{{ t('th_project') }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ch in challenges %}
+        <tr>
+          <td>
+            <a href="{{ url_for('challenge_detail', challenge_id=ch.id) }}" style="font-weight:600; color:var(--forest);">
+              {{ ch.code }}
+            </a>
+            <div style="font-size:.78rem; color:var(--ink-soft); max-width:230px;">{{ ch.title }}</div>
+          </td>
+          <td>{{ dist_label(ch.district) }}</td>
+          <td>{{ ch.report_count }}</td>
+          <td>{{ m.priority_badge(ch.priority_key) }}</td>
+          <td>{{ m.challenge_status_badge(ch) }}</td>
+          <td style="font-size:.8rem; color:var(--ink-soft);">
+            {% if ch.uni_summary and ch.uni_summary.accepted %}
+              <span style="color:var(--forest); font-weight:600;">{{ ch.uni_summary.accepted|join(', ') }}</span><br>
+              <span class="hint">{{ t('uni_kpi_accepted') }} {{ ch.uni_summary.accepted|length }}</span>
+            {% elif ch.uni_summary and ch.uni_summary.invited %}
+              {{ ch.uni_summary.invited|join(', ') }}<br>
+              <span class="hint">{{ t('uni_match_invited') }}</span>
+            {% else %}
+              <span style="color:var(--ink-faint);">{{ t('not_assigned') }}</span>
+            {% endif %}
+          </td>
+          <td style="font-size:.8rem;">
+            {% if ch.lifecycle and ch.lifecycle.projects %}
+              {% for proj in ch.lifecycle.projects %}
+              <a href="{{ url_for('project_details', project_id=proj.id) }}" style="color:var(--forest); font-weight:600;">{{ proj.title[:48] }}</a>
+              {{ m.project_status_badge(proj) }}
+              {% endfor %}
+            {% else %}
+              <span style="color:var(--ink-faint);">{{ t('not_assigned') }}</span>
+            {% endif %}
+          </td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('challenge_detail', challenge_id=ch.id) }}">{{ t('action_open') }} →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('no_challenges') }}</p>
+  {% endif %}
+</div>
+
+<!-- Officer work queue (kept live under the command center) -->
+{% if my_cases is defined %}
+<h2 style="font-size:1.02rem; margin-top:30px;" id="validation-queue">{{ t('needs_review') }}</h2>
 {% for c in queue %}
 <a class="complaint-card" href="{{ url_for('officer_complaint', complaint_id=c.id) }}" style="display:flex;">
   <div>
@@ -49,5 +276,6 @@
 {% else %}
 <div class="card">{{ t('no_resolved_yet') }}</div>
 {% endfor %}
+{% endif %}
 
 {% endblock %}

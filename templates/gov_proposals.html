@@ -1,0 +1,86 @@
+{% extends "app_base.html" %}
+{% set active = 'command-center' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('p4_gov_board_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('command_center') }}">{{ t('cmd_center') }}</a> / {{ t('p4_gov_board_title') }}</div>
+
+<h1>{{ t('p4_gov_board_title') }}</h1>
+<p class="hint" style="margin-top:0;">{{ t('p4_gov_board_sub') }}</p>
+
+<div class="grid grid-2" style="margin-top:18px; align-items:start;">
+  <div class="card">
+    <div class="cc-section-head">
+      <div>
+        <h2 style="font-size:.95rem; margin-top:0;">{{ t('p4_review') }} ({{ review|length }})</h2>
+      </div>
+    </div>
+    {% if review %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('p4_prop_title') }}</th>
+            <th>{{ t('p4_challenge') }}</th>
+            <th>{{ t('p4_institution') }}</th>
+            <th>{{ t('p4_prop_status') }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in review %}
+          <tr>
+            <td><a href="{{ url_for('proposal_detail', proposal_id=p.id) }}" style="font-weight:600; color:var(--forest);">{{ p.title }}</a></td>
+            <td style="font-size:.78rem;">{{ p.challenge.code }}</td>
+            <td style="font-size:.78rem;">{{ p.university.short_name or p.university.name }}</td>
+            <td>{{ m.proposal_status_badge(p) }}</td>
+            <td><a class="btn btn-sm btn-forest" href="{{ url_for('proposal_detail', proposal_id=p.id) }}">{{ t('p4_review') }} →</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p4_no_review') }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="cc-section-head">
+      <div>
+        <h2 style="font-size:.95rem; margin-top:0;">{{ t('p4_decided') }} ({{ decided|length }})</h2>
+      </div>
+    </div>
+    {% if decided %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('p4_prop_title') }}</th>
+            <th>{{ t('p4_challenge') }}</th>
+            <th>{{ t('p4_team') }}</th>
+            <th>{{ t('p4_prop_status') }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in decided %}
+          <tr>
+            <td><a href="{{ url_for('proposal_detail', proposal_id=p.id) }}" style="font-weight:600; color:var(--forest);">{{ p.title }}</a></td>
+            <td style="font-size:.78rem;">{{ p.challenge.code }}</td>
+            <td style="font-size:.78rem;">{{ p.team.name }}</td>
+            <td>{{ m.proposal_status_badge(p) }}</td>
+            <td><a class="btn btn-sm btn-ghost" href="{{ url_for('proposal_detail', proposal_id=p.id) }}">{{ t('p4_view') }} →</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p4_no_decided') }}</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends "app_base.html" %}
+{% if current_user.role == 'admin' %}
+{% set active = 'command-center' %}
+{% else %}
+{% set active = 'dashboard' %}
+{% endif %}
+{% block title %}{{ t('challenge_new_title') if not editing else t('challenge_edit_title') }} — {{ t('app_name') }}{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('command_center') }}">{{ t('cmd_center') }}</a> /
+  {% if editing %}<a href="{{ url_for('challenge_detail', challenge_id=challenge.id) }}">{{ challenge.code }}</a> / {% endif %}
+  {{ t('challenge_new_title') if not editing else t('challenge_edit_title') }}</div>
+
+<h1>{{ t('challenge_new_title') if not editing else t('challenge_edit_title') }}</h1>
+
+<div class="card" style="margin-top:18px;">
+
+  {% if relink_warning %}
+  <div class="banner banner-danger" style="margin-bottom:16px;">
+    <strong>⚠️ {{ t('ch_relink_warning_title') }}</strong>
+    <ul style="margin:8px 0 0; padding-left:18px; font-size:.86rem;">
+      {% for w in relink_warning %}
+      <li>{{ t('ch_relink_warning_item', code=w.complaint_code, title=w.complaint_title, ch=w.challenge_code) }}</li>
+      {% endfor %}
+    </ul>
+    <p class="hint" style="margin:8px 0 0;">{{ t('ch_relink_warning_hint') }}</p>
+  </div>
+  {% endif %}
+
+  {% if not editing and ai %}
+  <div class="banner banner-ai ai-recommend">
+    <strong>🤖 {{ t('ch_ai_recommendation') }}</strong>
+    <div style="font-weight:500; font-size:.85rem; margin-top:4px;">
+      {{ t('ai_priority_label') }}: {{ ai.level|capitalize }} · {{ t('ai_confidence_label') }} {{ ai.confidence }}/100 · {{ t('ai_reason_label') }}: {{ ai.reason }}
+    </div>
+    <div class="hint" style="margin:4px 0 0; color:var(--teal);">{{ t('ai_disclaimer') }}</div>
+    <button type="button" class="btn btn-sm btn-forest" style="margin-top:10px;" data-accept-ai>{{ t('ch_accept_ai') }}</button>
+  </div>
+  {% endif %}
+
+  <form method="POST" style="margin-top:{% if not editing %}8px{% else %}0{% endif %};">
+    <label for="title">{{ t('ch_title') }}</label>
+    <input type="text" id="title" name="title" required
+           value="{{ challenge.title if editing else form.title if form else seed.title if seed else '' }}"
+           placeholder="{{ t('ch_title_ph') }}">
+
+    <label for="description">{{ t('ch_desc') }}</label>
+    <textarea id="description" name="description" required placeholder="{{ t('ch_desc_ph') }}">{{ challenge.description if editing else form.description if form else seed.description if seed else '' }}</textarea>
+
+    <div class="field-row">
+      <div>
+        <label for="category">{{ t('category') }}</label>
+        <select id="category" name="category">
+          {% for cat in CATEGORIES %}
+          <option value="{{ cat }}" {{ 'selected' if (challenge and challenge.category == cat) or (not editing and form and form.category == cat) or (not editing and not form and seed and seed.category == cat) }}>{{ cat_label(cat) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="subcategory">{{ t('ch_subcategory') }}</label>
+        <input type="text" id="subcategory" name="subcategory" placeholder="{{ t('ch_subcategory_ph') }}"
+               value="{{ challenge.subcategory if editing else form.subcategory if form else '' }}">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div>
+        <label for="district">{{ t('district') }}</label>
+        <select id="district" name="district">
+          {% for dist in DISTRICTS %}
+          <option value="{{ dist }}" {{ 'selected' if (challenge and challenge.district == dist) or (not editing and form and form.district == dist) or (not editing and not form and seed and seed.district == dist) }}>{{ dist_label(dist) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="location_text">{{ t('location_details') }}</label>
+        <input type="text" id="location_text" name="location" placeholder="{{ t('location_ph') }}"
+               value="{{ challenge.location_text if editing else form['location'] if form else '' }}">
+      </div>
+    </div>
+
+    <input type="hidden" name="lat" data-latitude value="{{ challenge.latitude if editing else '' }}">
+    <input type="hidden" name="lng" data-longitude value="{{ challenge.longitude if editing else '' }}">
+
+    <div data-location-picker>
+      <div class="location-picker">
+        <div class="location-picker-head">
+          <strong style="font-size:.88rem;">Location (optional)</strong>
+          <span data-location-status class="hint" style="margin-top:0;"></span>
+        </div>
+        <div class="location-search">
+          <input type="text" data-location-search placeholder="Search address or landmark in Jharkhand..." style="font-size:.86rem;">
+          <button type="button" class="btn btn-sm btn-ghost" data-search-location>Search</button>
+          <button type="button" class="btn btn-sm btn-forest" data-use-location>📍 Use my location</button>
+        </div>
+        <div data-location-suggestions class="location-suggestions" hidden></div>
+        <div data-location-map class="location-map"></div>
+        <div class="hint">Click anywhere on the map or use the buttons above to set coordinates.</div>
+      </div>
+    </div>
+
+    <div class="field-row" style="margin-top:4px;">
+      <div>
+        <label for="priority_level">{{ t('ch_priority_level') }}</label>
+        <select id="priority_level" name="priority_level">
+          {% for pl in ('low', 'normal', 'high', 'critical') %}
+          <option value="{{ pl }}" {{ 'selected' if (challenge and challenge.priority_level == pl) or (not editing and ai and ai.level == pl) }}>{{ pl|capitalize }}</option>
+          {% endfor %}
+        </select>
+        <div class="hint">{{ t('ch_priority_hint') }}</div>
+      </div>
+      <div>
+        <label for="priority_score">{{ t('ch_priority_score') }}</label>
+        <input type="number" id="priority_score" name="priority_score" min="0" max="100" value="{{ challenge.priority_score if editing else ai.score if ai and not editing else 0 }}">
+        <div class="hint">0–100</div>
+      </div>
+    </div>
+
+    {% if not editing %}
+    <input type="hidden" name="use_ai_priority" id="use_ai_priority" value="">
+
+    <label style="margin-top:22px;">{{ t('ch_related_reports') }}</label>
+    <p class="hint" style="margin:2px 0 8px;">{{ t('ch_related_reports_hint') }}</p>
+    {% if unlinked %}
+    <div class="cc-link-list">
+      {% for c in unlinked[:60] %}
+      <label class="cc-link-opt">
+        <input type="checkbox" name="complaint_ids" value="{{ c.id }}" {{ 'checked' if c.id in preselect }}>
+        <span><strong>{{ c.code }}</strong> — {{ c.title }}</span>
+        <span class="hint">{{ dist_label(c.district) }} · {{ cat_label(c.category) }} · {{ t('int_created') }} {{ c.created_at.strftime('%d %b %Y') }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="hint">{{ t('no_unlinked_reports') }}</p>
+    {% endif %}
+    {% endif %}
+
+    {% if relink_warning %}
+    <label style="display:flex; gap:8px; align-items:center; margin-top:14px; font-size:.87rem; color:var(--danger);">
+      <input type="checkbox" name="confirm_relink" value="1" required>
+      <span>{{ t('ch_relink_confirm') }}</span>
+    </label>
+    {% endif %}
+
+    <div style="margin-top:24px; display:flex; gap:10px; flex-wrap:wrap;">
+      <button type="submit" class="btn btn-primary btn-block">{{ t('ch_edit_save') if editing else t('btn_create_challenge') }}</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  var accept = document.querySelector('[data-accept-ai]');
+  if (!accept) return;
+  var score = {{ ai.score if ai else 0 }};
+  var level = {{ (ai.level|tojson) if ai else '"normal"' }};
+  accept.addEventListener('click', function () {
+    var useAi = document.getElementById('use_ai_priority');
+    var sel = document.getElementById('priority_level');
+    var sc = document.getElementById('priority_score');
+    if (useAi) useAi.value = '1';
+    if (sel) sel.value = level;
+    if (sc) { sc.value = score; sc.disabled = false; }
+  });
+})();
+</script>
+
+{% endblock %}

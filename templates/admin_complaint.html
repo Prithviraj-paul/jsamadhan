@@ -108,6 +108,75 @@
   </div>
 </div>
 
+<!-- Official Challenge from this report -->
+<div class="banner banner-ok" style="margin-top:20px; margin-bottom:20px;">
+  <a href="{{ url_for('new_challenge', complaint_id=complaint.id) }}" class="btn btn-sm btn-forest">📋 {{ t('btn_create_challenge') }}</a>
+  <span style="font-weight:500;">{{ t('create_challenge_hint', code=complaint.code) }}</span>
+</div>
+
+<!-- AI-assisted duplicate detection -->
+<div class="card" style="margin-top:20px;" id="duplicate-match">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:1rem; margin-top:0;">{{ t('dup_detect_title') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('dup_detect_sub') }}</p>
+    </div>
+  </div>
+  {% if duplicate_matches %}
+  <div class="dup-list">
+    {% for m in duplicate_matches %}
+    <div class="dup-item">
+      <div class="dup-main">
+        <div class="dup-match">
+          {% if m.candidate_type == 'challenge' %}
+          <a href="{{ url_for('challenge_detail', challenge_id=m.candidate.id) }}" class="btn btn-sm btn-ghost">{{ m.candidate.code }} →</a>
+          <span><strong>{{ m.candidate.title }}</strong>
+            <span class="hint">{{ t('dup_candidate_challenge') }}</span></span>
+          {% else %}
+          <a href="{{ url_for('admin_complaint', complaint_id=m.candidate.id) }}" class="btn btn-sm btn-ghost">{{ m.candidate.code }} →</a>
+          <span><strong>{{ m.candidate.title }}</strong>
+            <span class="hint">{{ dist_label(m.candidate.district) }} · {{ cat_label(m.candidate.category) }} · {{ t('dup_candidate_report') }}</span></span>
+          {% endif %}
+        </div>
+        <div class="dup-confidence">
+          <span class="conf-pill conf-{{ m.level }}">{{ m.confidence|int }}% · {{ m.level|capitalize }}</span>
+          <span class="hint">{{ t('dup_conf_ai') }}</span>
+        </div>
+        {% if m.signal_list %}
+        <div class="hint dup-signals">
+          {{ t('dup_reasons') }}: {% for s in m.signal_list[:4] %}<span class="signal">{{ s }}</span>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      <div class="dup-actions">
+        {% if m.candidate_type == 'challenge' %}
+        <form method="POST" action="{{ url_for('duplicate_link_to_challenge', match_id=m.id) }}">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button class="btn btn-sm btn-forest">{{ t('dup_link_challenge') }}</button>
+        </form>
+        {% else %}
+        <form method="POST" action="{{ url_for('duplicate_confirm', match_id=m.id) }}">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button class="btn btn-sm btn-ghost">{{ t('dup_confirm') }}</button>
+        </form>
+        {% endif %}
+        <form method="POST" action="{{ url_for('review_duplicate', match_id=m.id) }}">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button class="btn btn-sm btn-ghost" name="not-related" value="1">{{ t('dup_not_duplicate') }}</button>
+        </form>
+        <form method="POST" action="{{ url_for('review_duplicate', match_id=m.id) }}">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button class="btn btn-sm btn-ghost">{{ t('dup_dismiss') }}</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('dup_detect_none') }}</p>
+  {% endif %}
+</div>
+
 <!-- Resolution evidence + AI check -->
 {% if complaint.resolution_filename %}
 <div class="card" style="margin-top:20px;">

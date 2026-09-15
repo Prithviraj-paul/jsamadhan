@@ -1,0 +1,61 @@
+{% extends "app_base.html" %}
+{% set active = 'challenges' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('uni_challenges_all') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('university_dashboard') }}">{{ t('uni_dashboard_title') }}</a> / {{ t('uni_challenges_all') }}</div>
+
+<div class="topbar">
+  <div>
+    <h1>{{ t('uni_challenges_all') }}</h1>
+    <p class="hint" style="margin:0; max-width:64ch;">{{ t('uni_challenges_sub') }}</p>
+  </div>
+</div>
+
+{% if matches %}
+{% for mt in matches %}
+<div class="card" style="margin-top:16px;">
+  <div class="cc-section-head" style="gap:8px;">
+    <div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <strong style="color:var(--forest); font-size:1.02rem;">{{ mt.challenge.code }}</strong>
+        {{ m.match_level_badge(mt.match_level) }}
+        {{ m.uni_match_status_badge(mt) }}
+      </div>
+      <h2 style="font-size:1rem; margin:6px 0 2px;">{{ mt.challenge.title }}</h2>
+      <p class="hint" style="margin:0; max-width:75ch;">{{ mt.challenge.description[:180] }}{% if mt.challenge.description|length > 180 %}…{% endif %}</p>
+      <div style="font-size:.8rem; color:var(--ink-soft); margin-top:4px;">
+        {{ dist_label(mt.challenge.district) }} · {{ cat_label(mt.challenge.category) }}
+        {% if mt.challenge.subcategory %} · {{ mt.challenge.subcategory }}{% endif %}
+        · {{ t('th_reports') }} {{ mt.challenge.report_count }}
+      </div>
+    </div>
+    <div class="conf-pill conf-{{ mt.match_level }}" style="font-size:.86rem; align-self:flex-start;">{{ mt.score|int }}%</div>
+  </div>
+  {% if mt.signal_list %}
+  <div class="hint">
+    {{ t('uni_reasons') }}: {% for s in mt.signal_list[:4] %}<span class="signal">{{ s }}</span>{% endfor %}
+  </div>
+  {% endif %}
+  <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+    {% if mt.status == 'INVITED' %}
+    <form method="POST" action="{{ url_for('university_accept', match_id=mt.id) }}">
+      <button class="btn btn-sm btn-forest">{{ t('uni_accept') }}</button>
+    </form>
+    <form method="POST" action="{{ url_for('university_decline', match_id=mt.id) }}">
+      <input type="text" name="response_note" placeholder="{{ t('uni_decline_reason_ph') }}" style="min-width:170px;">
+      <button class="btn btn-sm btn-ghost">{{ t('uni_decline') }}</button>
+    </form>
+    {% endif %}
+    <a class="btn btn-sm btn-ghost" href="{{ url_for('university_challenge_detail', match_id=mt.id) }}">{{ t('action_open') }} →</a>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="card">
+  <p class="hint" style="margin:0;">{{ t('uni_no_matches') }}</p>
+</div>
+{% endif %}
+
+{% endblock %}

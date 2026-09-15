@@ -142,8 +142,10 @@ def main():
         conn = db.get_db()
         count = conn.execute("SELECT COUNT(*) c FROM complaints").fetchone()["c"]
         if count:
-            print(f"Complaints table already has {count} rows — not seeding. A clean start:"
-                  "\n  stop server, delete jsamadhan.db and uploads/*, then rerun.")
+            print(f"Complaints table already has {count} rows — not re-seeding complaints."
+                  "\n  A clean start: stop server, delete jsamadhan.db and uploads/*, then rerun.")
+            # Still ensure demo official challenges exist for the Command Center demo.
+            seed_demo_challenges(conn)
             return
 
         rnd = random.Random(7)
@@ -304,6 +306,81 @@ def main():
         print(f"Seeded {len(DEMO) + 1} demo complaints with map pins and photos."
               "\n  Open /admin/map (or /officer/map) to see the Live Map.")
         print("  The public landing page now shows 2 resolved cases with real before/after photos.")
+
+        # --- minimal official challenges (Government Command Center) --------
+        seed_demo_challenges(conn)
+
+
+def seed_demo_challenges(conn):
+    """Create two demo official challenges only when the challenges table is
+    empty and the required demo complaints exist. Runs as a harmless no-op
+    if the table already has rows."""
+    import app as app_mod
+    from app import _challenge_ai_recommendation
+
+    ch_count = conn.execute("SELECT COUNT(*) c FROM challenges").fetchone()["c"]
+    if ch_count:
+        print(f"  Challenges table already has {ch_count} rows — not seeding demo challenges.")
+        return
+
+    now = datetime.utcnow()
+    admin_id = conn.execute("SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1").fetchone()
+    officer_id = conn.execute("SELECT id FROM users WHERE role='officer' ORDER BY id LIMIT 1").fetchone()
+    admin_id = admin_id["id"] if admin_id else 1
+    officer_id = officer_id["id"] if officer_id else 2
+
+    # Link to the first two seeded complaints (potholes + dead streetlights).
+    c1 = conn.execute("SELECT id FROM complaints WHERE title LIKE '%Deep potholes%' LIMIT 1").fetchone()
+    c2 = conn.execute("SELECT id FROM complaints WHERE title LIKE '%streetlights dead%' LIMIT 1").fetchone()
+
+    with app_mod.app.app_context():
+        if c1:
+            rows1 = [dict(conn.execute("SELECT * FROM complaints WHERE id=?", (c1["id"],)).fetchone())]
+            rec1 = _challenge_ai_recommendation(rows1)
+            ch1_id = db.create_challenge(
+                conn,
+                code=db.new_challenge_code(conn),
+                title="Persistent waterlogging and road damage",
+                description="Multiple citizen reports highlight severe road deterioration and recurring waterlogging in this sector. Requires coordinated municipal and public works intervention.",
+                category="Roads & Infrastructure",
+                subcategory="Road Damage",
+                district="Ranchi",
+                location_text="Ranchi (demo data)",
+                latitude=rows1[0]["latitude"], longitude=rows1[0]["longitude"],
+                priority_score=rec1["score"], priority_level=rec1["level"],
+                ai_summary=rec1["summary"], ai_confidence=rec1["confidence"],
+                created_by=admin_id,
+            )
+            db.link_complaints_to_challenge(conn, ch1_id, [c1["id"]])
+            db.validate_challenge(conn, ch1_id, admin_id)
+            conn.commit()
+            ch1_code = db.get_challenge_row(conn, challenge_id=ch1_id)["code"]
+            print(f"  Seeded official challenge {ch1_code} -> linked complaint #{c1['id']}")
+
+        if c2:
+            rows2 = [dict(conn.execute("SELECT * FROM complaints WHERE id=?", (c2["id"],)).fetchone())]
+            rec2 = _challenge_ai_recommendation(rows2)
+            ch2_id = db.create_challenge(
+                conn,
+                code=db.new_challenge_code(conn),
+                title="Unsafe street lighting in market corridor",
+                description="Complete darkness along a 200-metre market stretch after sunset. Safety risk for women, children and commuters. Municipal coordination required.",
+                category="Electricity",
+                subcategory="Street Lighting",
+                district="Bokaro",
+                location_text="Bokaro (demo data)",
+                latitude=rows2[0]["latitude"], longitude=rows2[0]["longitude"],
+                priority_score=rec2["score"], priority_level=rec2["level"],
+                ai_summary=rec2["summary"], ai_confidence=rec2["confidence"],
+                created_by=officer_id,
+            )
+            db.link_complaints_to_challenge(conn, ch2_id, [c2["id"]])
+            db.add_challenge_log(conn, ch2_id, "NEEDS_VALIDATION",
+                             "Challenge created by officer. Government users notified via the command feed.",
+                             officer_id)
+            conn.commit()
+            ch2_code = db.get_challenge_row(conn, challenge_id=ch2_id)["code"]
+            print(f"  Seeded official challenge {ch2_code} -> linked complaint #{c2['id']}")
 
 
 if __name__ == "__main__":

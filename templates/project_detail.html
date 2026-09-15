@@ -1,0 +1,56 @@
+{% extends "app_base.html" %}
+{% set active = 'teams' %}
+{% import "macros.html" as m %}
+{% block title %}{{ project.title }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('proposal_detail', proposal_id=project.proposal.id) }}">{{ t('p4_prop_title') }} #{{ project.proposal.id }}</a> / {{ project.title[:60] }}
+</div>
+
+<div class="topbar" style="flex-wrap:wrap;">
+  <div>
+    <h1>{{ project.title }}</h1>
+    <div class="meta" style="font-size:.84rem; color:var(--ink-soft); margin-top:8px;">
+      {{ t('p4_challenge') }}: <strong>{{ project.challenge.code }}</strong> · {{ t('p4_institution') }}: {{ project.university.short_name or project.university.name }} · {{ t('p4_team') }}: {{ project.team.name }}
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    {{ m.project_status_badge(project) }}
+    {% if project.target_end_date %}<span class="badge badge-pending">{{ t('p4_target_end') }}: {{ project.target_end_date.strftime('%d %b %Y') }}</span>{% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <h2 style="font-size:.95rem; margin-top:0;">{{ t('ch_desc') }}</h2>
+  <p style="font-size:.9rem;">{{ project.description or t('not_assigned') }}</p>
+
+  <div class="ai-meta-grid" style="margin-top:14px; grid-template-columns:repeat(3,1fr);">
+    <div>
+      <div class="l">{{ t('p4_start_date') }}</div>
+      <div class="v">{{ project.start_date.strftime('%d %b %Y') if project.start_date else t('not_assigned') }}</div>
+    </div>
+    <div>
+      <div class="l">{{ t('p4_target_end') }}</div>
+      <div class="v">{{ project.target_end_date.strftime('%d %b %Y') if project.target_end_date else t('not_assigned') }}</div>
+    </div>
+    <div>
+      <div class="l">{{ t('p4_created') }}</div>
+      <div class="v">{{ project.created_at.strftime('%d %b %Y') }}</div>
+    </div>
+  </div>
+
+  <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--line);">
+    <h2 style="font-size:.95rem;">{{ t('p4_source_proposal') }}</h2>
+    <p style="font-size:.9rem; margin:4px 0 0;">
+      {{ t('p4_prop_status') }}: {{ m.proposal_status_badge(project.proposal) }} ·
+      <a href="{{ url_for('proposal_detail', proposal_id=project.proposal.id) }}" style="font-weight:600; color:var(--forest);">{{ project.proposal.title }}</a>
+    </p>
+  </div>
+
+  {% if is_lead_uni or is_member %}
+  <div class="banner banner-ok" style="margin-top:18px; margin-bottom:0;">{{ t('p4_project_in_progress', code=project.challenge.code) }}</div>
+  {% endif %}
+</div>
+
+{% endblock %}
