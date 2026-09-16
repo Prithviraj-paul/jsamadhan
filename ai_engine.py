@@ -1088,3 +1088,154 @@ def match_challenge_to_university(challenge, university, expertise_rows):
         "signals": signals[:8],
         "matched_keywords": matched_expert[:8],
     }
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 — industry / startup / MSME fit for project discovery
+# ---------------------------------------------------------------------------
+
+INDUSTRY_FIT_WEIGHTS = {
+    "expertise": 0.40,       # core_expertise keywords vs project domain
+    "technology": 0.25,      # technologies vs project requirements
+    "sector": 0.15,          # sector name vs challenge category
+    "text": 0.15,            # Jaccard word overlap with the project brief
+    "geo": 0.05,             # same district (deliberately modest)
+}
+
+INDUSTRY_FIT_LEVELS = (
+    ("strong", 70), ("good", 50), ("possible", 30), ("low", 0),
+)
+
+
+def industry_fit_level(score):
+    for level, threshold in INDUSTRY_FIT_LEVELS:
+        if score >= threshold:
+            return level
+    return "low"
+
+
+def industry_project_fit(project, organization):
+    """Deterministic, read-only compatibility score between a verified
+    industry organization and a ready project. Uses the same keyword-overlap
+    approach as the university matcher (expertise/technology/sector vs the
+    challenge domain and project brief) — no model inference, no new AI.
+
+    `project`       hydrated project with .challenge/.proposal/.title/.description
+    `organization`  hydrated industry org with .sector/.core_expertise/
+                    .technologies/.capabilities/.description/.district
+
+    Returns:
+        {"score": float 0-100, "level": str, "signals": [str]}
+    """
+    challenge = _row_dict(getattr(project, "challenge", None) or {})
+    proposal = _row_dict(getattr(project, "proposal", None) or {})
+    organization = _row_dict(organization or {})
+
+    domain_tokens = set(CATEGORY_DOMAIN_KEYWORDS.get(
+        challenge.get("category") or "Other", []))
+    domain_tokens |= set(_tokenize(challenge.get("subcategory")))
+
+    project_preview = " ".join([
+        str(project.title or ""), str(project.description or ""),
+        str(challenge.get("title") or ""), str(challenge.get("description") or ""),
+        str(proposal.get("problem_statement") or ""),
+        str(proposal.get("proposed_solution") or ""),
+        str(proposal.get("expected_outcome") or ""),
+    ])
+    project_tokens = set(_tokenize(project_preview)) | domain_tokens
+
+    sectors = set(_tokenize(organization.get("sector")))
+    expertise = " ".join([
+        str(organization.get("core_expertise") or ""),
+        str(organization.get("capabilities") or ""),
+        str(organization.get("description") or ""),
+    ])
+    expertise_tokens = set(_tokenize(expertise))
+    technology_tokens = set(_tokenize(organization.get("technologies")))
+
+    all_org_tokens = expertise_tokens | technology_tokens | sectors
+    signals = []
+    weights = dict(INDUSTRY_FIT_WEIGHTS)
+
+    # 1. Expertise / capability overlap with the project brief -------------
+    matched_exp = sorted(project_tokens & expertise_tokens)
+    if matched_exp:
+        exp_score = 0.3 + 0.7 * min(1.0, len(matched_exp) / 4.0)
+        signals.append(f"{len(matched_exp)} matching expertise keyword(s): "
+                       f"{', '.join(matched_exp[:5])}")
+    else:
+        exp_score = 0.0
+        signals.append("No expertise keywords overlap the project brief")
+
+    # 2. Technology fit ------------------------------------------------------
+    matched_tech = sorted(project_tokens & technology_tokens)
+    if technology_tokens:
+        if matched_tech:
+            tech_score = 0.4 + 0.6 * min(1.0, len(matched_tech) / 2.0)
+            signals.append(f"Technologies relevant to the project: "
+                           f"{', '.join(matched_tech[:4])}")
+        else:
+            tech_score = 0.15
+            signals.append("Technologies listed do not overlap the project brief")
+    else:
+        tech_score = 0.0
+        signals.append("No technologies listed in the profile")
+
+    # 3. Sector vs challenge category ----------------------------------------
+    matched_sector = sorted(domain_tokens & sectors)
+    if sectors:
+        if matched_sector:
+            sector_score = 0.6 + 0.4 * min(1.0, len(matched_sector) / 1.0)
+            signals.append(f"Sector matches the challenge category "
+                           f"({', '.join(matched_sector[:3])})")
+        else:
+            sector_score = 0.2
+            signals.append("Sector does not directly match the challenge category")
+    else:
+        sector_score = 0.0
+        signals.append("No sector described")
+
+    # 4. Textual overlap ------------------------------------------------------
+    text_score = _jaccard_similarity(
+        sorted(project_tokens), sorted(all_org_tokens))
+    if text_score >= 0.15:
+        signals.append(f"Strong textual overlap with the project "
+                       f"({int(text_score * 100)}% word overlap)")
+    elif text_score >= 0.06:
+        signals.append(f"Some textual overlap with the project "
+                       f"({int(text_score * 100)}% word overlap)")
+
+    # 5. Geographic relevance -------------------------------------------------
+    org_district = (organization.get("district") or "").strip()
+    proj_district = (challenge.get("district") or "").strip()
+    if org_district and proj_district and org_district == proj_district:
+        geo_score = 1.0
+        signals.append(f"Located in {org_district} — same district as the project")
+    else:
+        geo_score = 0.2
+        signals.append(
+            f"Located in {org_district or 'an unknown district'} — outside "
+            "the project district")
+
+    if not technology_tokens:
+        weights["expertise"] += weights.pop("technology", 0)
+        tech_score = 0.0
+    if not sectors:
+        weights["expertise"] += weights.pop("sector", 0)
+        sector_score = 0.0
+
+    total_w = sum(weights.values()) or 1.0
+    score = (
+        exp_score * weights.get("expertise", 0)
+        + tech_score * weights.get("technology", 0)
+        + sector_score * weights.get("sector", 0)
+        + text_score * weights.get("text", 0)
+        + geo_score * weights.get("geo", 0)
+    ) / total_w
+
+    score = round(min(100.0, max(0.0, score * 100)), 1)
+    return {
+        "score": score,
+        "level": industry_fit_level(score),
+        "signals": signals[:6],
+    }

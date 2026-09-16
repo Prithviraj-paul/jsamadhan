@@ -1,0 +1,102 @@
+{% extends "app_base.html" %}
+{% set active = 'command-center' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('p6_pilots_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('command_center') }}">{{ t('cmd_center') }}</a> / {{ t('p6_pilots_title') }}</div>
+
+<div class="topbar" style="flex-wrap:wrap;">
+  <div>
+    <h1>{{ t('p6_pilots_title') }}</h1>
+    <p class="hint" style="margin-top:0;">{{ t('p6_pilots_sub') }}</p>
+  </div>
+  <a class="btn btn-forest" href="{{ url_for('gov_pilot_new') }}">+ {{ t('p6_pilot_open_btn') }}</a>
+</div>
+
+<div class="grid grid-2" style="margin-top:18px; align-items:start;">
+  <div class="card">
+    <div class="cc-section-head">
+      <div>
+        <h2 style="font-size:.95rem; margin-top:0;">{{ t('p6_pilots_title') }} — {{ t('pilot_status_ACTIVE') }} ({{ in_progress|length }})</h2>
+      </div>
+    </div>
+    {% if in_progress %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('p6_th_project') }}</th>
+            <th>{{ t('p6_pilot_district') }}</th>
+            <th>{{ t('p6_th_status') }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in in_progress %}
+          <tr>
+            <td>
+              <a href="{{ url_for('gov_pilot_detail', pilot_id=p.id) }}" style="font-weight:600; color:var(--forest);">{{ p.project.title[:56] }}</a>
+              {% if p.is_overdue %}<div class="hint" style="color:var(--danger,#c0392b);">{{ t('act_pilots_overdue') }}</div>{% endif %}
+            </td>
+            <td style="font-size:.78rem;">{{ dist_label(p.district) }}</td>
+            <td>{{ m.pilot_status_badge(p) }}</td>
+            <td><a class="btn btn-sm btn-ghost" href="{{ url_for('gov_pilot_detail', pilot_id=p.id) }}">{{ t('ind_view') }} →</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p6_no_pilot') }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="cc-section-head">
+      <div>
+        <h2 style="font-size:.95rem; margin-top:0;">{{ t('pilot_status_DEPLOYED') }} ({{ deployed|length }})</h2>
+      </div>
+    </div>
+    {% if deployed %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('p6_th_project') }}</th>
+            <th>{{ t('p6_pilot_district') }}</th>
+            <th>{{ t('p6_th_reviewer') }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in deployed %}
+          <tr>
+            <td><a href="{{ url_for('gov_pilot_detail', pilot_id=p.id) }}" style="font-weight:600; color:var(--forest);">{{ p.project.title[:56] }}</a></td>
+            <td style="font-size:.78rem;">{{ dist_label(p.district) }}</td>
+            <td style="font-size:.78rem;">{{ p.reviewer.name if p.reviewer else t('not_assigned') }}</td>
+            <td><a class="btn btn-sm btn-ghost" href="{{ url_for('gov_pilot_detail', pilot_id=p.id) }}">{{ t('ind_view') }} →</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p6_no_pilot') }}</p>
+    {% endif %}
+
+    <div class="ai-meta-grid" style="margin-top:16px; grid-template-columns:1fr 1fr;">
+      <div>
+        <div class="l">{{ t('gov_collabs_review') }}</div>
+        <div class="v">{{ pilots_eval }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('act_pilots_overdue') }}</div>
+        <div class="v">{{ pilots_overdue }}</div>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:12px;">{{ t('p6_pilot_open_sub') }}</p>
+  </div>
+</div>
+
+{% endblock %}

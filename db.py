@@ -20,7 +20,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH = os.path.join(BASE_DIR, "jsamadhan.db")
 
-ROLES = ("citizen", "officer", "admin", "university", "faculty", "student")
+ROLES = ("citizen", "officer", "admin", "university", "faculty", "student",
+         "industry")
 INFRA_CATEGORIES = {"Roads & Infrastructure"}
 
 CATEGORIES = [
@@ -78,6 +79,44 @@ PROPOSAL_FEEDBACK_STATUSES = ("REVISION_REQUESTED", "APPROVED", "REJECTED")
 # Proposals that still need the reviewer's attention.
 PROPOSAL_MARKER_STATUSES = ("SUBMITTED", "UNDER_REVIEW")
 PROJECT_STATUSES = ("CREATED", "ACTIVE", "COMPLETED", "PAUSED", "CANCELLED")
+
+# Phase 5 — industry / startup / MSME collaboration & funding.
+INDUSTRY_ORG_TYPES = ("INDUSTRY", "STARTUP", "MSME", "CSR", "RESEARCH_LAB",
+                      "TECHNOLOGY_PROVIDER")
+INDUSTRY_VERIFICATION_STATUSES = ("PENDING", "VERIFIED", "REJECTED")
+COLLABORATION_TYPES = ("TECHNICAL_SUPPORT", "FUNDING", "MENTORSHIP", "EQUIPMENT",
+                       "INFRASTRUCTURE", "DATA", "SOFTWARE", "TESTING_SUPPORT",
+                       "INDUSTRY_EXPERTISE")
+COLLABORATION_STATUSES = ("INTERESTED", "SUBMITTED", "UNDER_REVIEW",
+                          "ACCEPTED", "REVISION_REQUESTED", "REJECTED")
+# Collaboration requests that still need government attention.
+COLLABORATION_MARKER_STATUSES = ("SUBMITTED", "UNDER_REVIEW")
+# Collaboration statuses that carry a government verdict + feedback comment.
+COLLABORATION_FEEDBACK_STATUSES = ("ACCEPTED", "REVISION_REQUESTED", "REJECTED")
+COLLABORATION_ORDER = {
+    "INTERESTED": 0, "SUBMITTED": 1, "UNDER_REVIEW": 2, "ACCEPTED": 3,
+    "REVISION_REQUESTED": 4, "REJECTED": 5, None: 6,
+}
+FUNDING_TYPES = ("GRANT", "CSR", "SPONSORSHIP", "IN_KIND")
+FUNDING_STATUSES = ("PROPOSED", "APPROVED", "DECLINED", "DISBURSEMENT_PENDING")
+COLLABORATION_CONNECT_STATUSES = ("CONNECTED", "ACTIVE", "COMPLETED", "DISENGAGED")
+
+# Phase 6 — project lifecycle: prototype → testing → pilot → deployment.
+# Each stage follows the collaboration pattern: a government review verdict +
+# feedback comment, an audit log table, and marker statuses that still need
+# government attention. DEPLOYED is the terminal, honest platform state — it
+# only ever means an authorized reviewer completed the deployment review.
+PROTOTYPE_STATUSES = ("SUBMITTED", "UNDER_REVIEW", "APPROVED",
+                      "REVISION_REQUESTED")
+PROTOTYPE_MARKER_STATUSES = ("SUBMITTED", "UNDER_REVIEW")
+PROTOTYPE_FEEDBACK_STATUSES = ("APPROVED", "REVISION_REQUESTED")
+TESTING_STATUSES = ("SUBMITTED", "UNDER_REVIEW", "APPROVED",
+                    "REVISION_REQUESTED")
+TESTING_MARKER_STATUSES = ("SUBMITTED", "UNDER_REVIEW")
+TESTING_FEEDBACK_STATUSES = ("APPROVED", "REVISION_REQUESTED")
+TESTING_RESULT_STATUSES = ("PASS", "FAIL", "PENDING")
+PILOT_STATUSES = ("PLANNED", "ACTIVE", "COMPLETED", "DEPLOYED")
+PILOT_ACTIVE_STATUSES = ("PLANNED", "ACTIVE", "COMPLETED")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
@@ -363,6 +402,187 @@ CREATE TABLE IF NOT EXISTS projects (
     FOREIGN KEY(university_id) REFERENCES universities(id),
     FOREIGN KEY(team_id) REFERENCES teams(id),
     FOREIGN KEY(proposal_id) REFERENCES proposals(id),
+    FOREIGN KEY(created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS industry_organizations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    short_name TEXT,
+    legal_entity_name TEXT,
+    org_type TEXT NOT NULL DEFAULT 'INDUSTRY',
+    sector TEXT,
+    core_expertise TEXT,
+    technologies TEXT,
+    capabilities TEXT,
+    email TEXT,
+    phone TEXT,
+    address TEXT,
+    district TEXT,
+    city TEXT,
+    website TEXT,
+    description TEXT,
+    verification_status TEXT NOT NULL DEFAULT 'PENDING',
+    verification_note TEXT,
+    verified_by INTEGER,
+    verified_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id),
+    FOREIGN KEY(verified_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS collaboration_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    organization_id INTEGER NOT NULL,
+    requested_by INTEGER NOT NULL,
+    collaboration_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    expected_support TEXT,
+    proposed_amount REAL,
+    currency TEXT NOT NULL DEFAULT 'INR',
+    funding_type TEXT,
+    funding_description TEXT,
+    status TEXT NOT NULL DEFAULT 'INTERESTED',
+    review_comment TEXT,
+    reviewed_by INTEGER,
+    reviewed_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id),
+    FOREIGN KEY(organization_id) REFERENCES industry_organizations(id),
+    FOREIGN KEY(requested_by) REFERENCES users(id),
+    FOREIGN KEY(reviewed_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS collaboration_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    old_status TEXT,
+    new_status TEXT,
+    performed_by INTEGER,
+    comment TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(request_id) REFERENCES collaboration_requests(id),
+    FOREIGN KEY(performed_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS project_collaborations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    organization_id INTEGER NOT NULL,
+    request_id INTEGER NOT NULL UNIQUE,
+    agreed_support TEXT,
+    approved_amount REAL,
+    funding_status TEXT NOT NULL DEFAULT 'PROPOSED',
+    start_date TEXT,
+    target_end_date TEXT,
+    status TEXT NOT NULL DEFAULT 'CONNECTED',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id),
+    FOREIGN KEY(organization_id) REFERENCES industry_organizations(id),
+    FOREIGN KEY(request_id) REFERENCES collaboration_requests(id)
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT,
+    ref_type TEXT,
+    ref_id INTEGER,
+    read INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+);
+
+-- Phase 6 — prototype / testing / pilot / deployment lifecycle. One record
+-- per project keeps the stage linear; revisions are in-place resubmissions
+-- that the government reviews again. All transitions are guarded in Python.
+CREATE TABLE IF NOT EXISTS project_prototypes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL UNIQUE,
+    description TEXT NOT NULL,
+    progress_update TEXT NOT NULL DEFAULT '',
+    version TEXT NOT NULL,
+    evidence_json TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'SUBMITTED',
+    submitted_by INTEGER NOT NULL,
+    submitted_at TEXT NOT NULL,
+    reviewer_comment TEXT,
+    reviewed_by INTEGER,
+    reviewed_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id),
+    FOREIGN KEY(submitted_by) REFERENCES users(id),
+    FOREIGN KEY(reviewed_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS prototype_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    prototype_id INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    old_status TEXT,
+    new_status TEXT,
+    performed_by INTEGER,
+    comment TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(prototype_id) REFERENCES project_prototypes(id),
+    FOREIGN KEY(performed_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS testing_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL UNIQUE,
+    prototype_id INTEGER NOT NULL,
+    objective TEXT NOT NULL,
+    test_description TEXT NOT NULL,
+    expected_result TEXT NOT NULL,
+    actual_result TEXT NOT NULL,
+    test_result TEXT NOT NULL DEFAULT 'PENDING',
+    issues_findings TEXT NOT NULL DEFAULT '',
+    evidence_json TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'SUBMITTED',
+    reviewer_comment TEXT,
+    submitted_by INTEGER NOT NULL,
+    submitted_at TEXT NOT NULL,
+    reviewed_by INTEGER,
+    reviewed_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id),
+    FOREIGN KEY(prototype_id) REFERENCES project_prototypes(id),
+    FOREIGN KEY(submitted_by) REFERENCES users(id),
+    FOREIGN KEY(reviewed_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS pilot_deployments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL UNIQUE,
+    district TEXT NOT NULL,
+    location TEXT,
+    target_community TEXT,
+    objectives TEXT NOT NULL DEFAULT '',
+    start_date TEXT,
+    target_end_date TEXT,
+    responsible_org TEXT,
+    status TEXT NOT NULL DEFAULT 'PLANNED',
+    progress_updates TEXT NOT NULL DEFAULT '',
+    deployment_review_comment TEXT,
+    reviewed_by INTEGER,
+    reviewed_at TEXT,
+    created_by INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id),
+    FOREIGN KEY(reviewed_by) REFERENCES users(id),
     FOREIGN KEY(created_by) REFERENCES users(id)
 );
 """
@@ -845,8 +1065,8 @@ def linked_complaints(conn, challenge_id):
 
 def command_center_kpis(conn):
     """Live, real numbers for the Command Center KPI cards. Teams, proposals
-    and projects now report from the Phase 4 tables; pilot/deployment cards
-    still honestly read zero until those phases exist."""
+    and projects report from the Phase 4 tables; prototype/testing/pilot/
+    deployed counts report from Phase 6 tables as stages actually progress."""
     total = conn.execute("SELECT COUNT(*) c FROM complaints").fetchone()["c"]
     needs_validation = conn.execute(
         "SELECT COUNT(*) c FROM complaints WHERE status IN ('Pending Officer Review','AI Verified')"
@@ -878,14 +1098,36 @@ def command_center_kpis(conn):
         "active_projects": conn.execute(
             "SELECT COUNT(*) c FROM projects WHERE status IN ('CREATED','ACTIVE')"
         ).fetchone()["c"],
-        "pilot_projects": 0,
-        "deployed_solutions": 0,
+        "prototype_reviews": conn.execute(
+            "SELECT COUNT(*) c FROM project_prototypes WHERE status IN "
+            + _sql_in(PROTOTYPE_MARKER_STATUSES),
+            (*PROTOTYPE_MARKER_STATUSES,)).fetchone()["c"],
+        "testing_reviews": conn.execute(
+            "SELECT COUNT(*) c FROM testing_reports WHERE status IN "
+            + _sql_in(TESTING_MARKER_STATUSES),
+            (*TESTING_MARKER_STATUSES,)).fetchone()["c"],
+        "pilot_projects": conn.execute(
+            "SELECT COUNT(*) c FROM pilot_deployments WHERE status IN "
+            + _sql_in(PILOT_ACTIVE_STATUSES),
+            (*PILOT_ACTIVE_STATUSES,)).fetchone()["c"],
+        "deployed_solutions": conn.execute(
+            "SELECT COUNT(*) c FROM pilot_deployments WHERE status='DEPLOYED'"
+        ).fetchone()["c"],
+        "industry_organizations": count_industry_organizations(conn),
+        "industry_verified": count_industry_organizations(conn, "VERIFIED"),
+        "industry_pending": count_industry_organizations(conn, "PENDING"),
+        "collab_reviews": count_collaborations_needing_review(conn),
+        "collab_accepted": conn.execute(
+            "SELECT COUNT(*) c FROM collaboration_requests "
+            "WHERE status='ACCEPTED'").fetchone()["c"],
     }
 
 
 def command_center_actions(conn):
     """Action Required panel counts — every value derived from live data.
-    Pilot/pilot-evaluation actions are future phases and honest zeros."""
+    Phase 6 stages (prototype/testing approval, pilot evaluation, overdue
+    pilot milestones) report from their tables; nothing is an empty future
+    count anymore."""
     return {
         "reports_needing_validation": conn.execute(
             "SELECT COUNT(*) c FROM complaints WHERE status IN ('Pending Officer Review','AI Verified')"
@@ -899,8 +1141,24 @@ def command_center_actions(conn):
         ).fetchone()["c"],
         "uni_recommendations_review": count_recommendations_pending_review(conn),
         "proposals_needing_approval": count_proposals_needing_review(conn),
-        "projects_overdue": 0,
-        "pilots_needing_evaluation": 0,
+        "industry_verifications_pending": count_industry_organizations(conn, "PENDING"),
+        "collab_requests_review": count_collaborations_needing_review(conn),
+        "prototypes_needing_review": conn.execute(
+            "SELECT COUNT(*) c FROM project_prototypes WHERE status IN "
+            + _sql_in(PROTOTYPE_MARKER_STATUSES),
+            (*PROTOTYPE_MARKER_STATUSES,)).fetchone()["c"],
+        "testing_needing_review": conn.execute(
+            "SELECT COUNT(*) c FROM testing_reports WHERE status IN "
+            + _sql_in(TESTING_MARKER_STATUSES),
+            (*TESTING_MARKER_STATUSES,)).fetchone()["c"],
+        "pilots_needing_evaluation": conn.execute(
+            "SELECT COUNT(*) c FROM pilot_deployments WHERE status='COMPLETED'"
+        ).fetchone()["c"],
+        "pilots_overdue": conn.execute(
+            "SELECT COUNT(*) c FROM pilot_deployments WHERE status IN "
+            + _sql_in(("PLANNED", "ACTIVE"))
+            + " AND target_end_date IS NOT NULL AND target_end_date < ?",
+            (*("PLANNED", "ACTIVE"), _now().date().isoformat())).fetchone()["c"],
     }
 
 
@@ -2034,3 +2292,1457 @@ def attach_lifecycle(conn, challenges):
     """Attach .lifecycle to a list of challenge objects (dashboard rows)."""
     for ch in challenges:
         ch.lifecycle = challenge_lifecycle(conn, ch.id)
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 — industry / startup / MSME organizations
+# ---------------------------------------------------------------------------
+
+def list_user_ids_by_role(conn, role):
+    rows = conn.execute("SELECT id FROM users WHERE role=?",
+                        (role,)).fetchall()
+    return [r["id"] for r in rows]
+
+
+def create_industry_organization(conn, user_id, name, org_type="INDUSTRY",
+                                 short_name=None, legal_entity_name=None,
+                                 sector=None, core_expertise=None,
+                                 technologies=None, capabilities=None,
+                                 email=None, phone=None, address=None,
+                                 district=None, city=None, website=None,
+                                 description=None):
+    """One industry account owns exactly one organization profile."""
+    cur = conn.execute(
+        "INSERT INTO industry_organizations (user_id, name, short_name, "
+        "legal_entity_name, org_type, sector, core_expertise, technologies, "
+        "capabilities, email, phone, address, district, city, website, "
+        "description, verification_status, created_at, updated_at) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (user_id, name, short_name, legal_entity_name,
+         org_type, sector, core_expertise, technologies, capabilities,
+         email, phone, address, district, city, website, description,
+         "PENDING", _now().isoformat(), _now().isoformat()))
+    conn.commit()
+    return cur.lastrowid
+
+
+def get_industry_organization_row(conn, org_id):
+    if org_id is None:
+        return None
+    return conn.execute("SELECT * FROM industry_organizations WHERE id=?",
+                        (org_id,)).fetchone()
+
+
+def hydrate_industry_organization(conn, row, with_relations=True):
+    if row is None:
+        return None
+    d = dict(row)
+    ns = SimpleNamespace(**d)
+    ns.created_at = _parse_dt(d.get("created_at"))
+    ns.updated_at = _parse_dt(d.get("updated_at"))
+    ns.verified_at = _parse_dt(d.get("verified_at"))
+    ns.is_verified = d.get("verification_status") == "VERIFIED"
+    ns.is_pending = d.get("verification_status") == "PENDING"
+    ns.is_rejected = d.get("verification_status") == "REJECTED"
+    if with_relations:
+        ns.owner = hydrate_user(get_user_by_id(conn, d.get("user_id")))
+        ns.verifier = hydrate_user(get_user_by_id(conn, d.get("verified_by")))
+        ns.collaborations = list_collaborations_for_org(conn, d["id"])
+    return ns
+
+
+def get_industry_organization(conn, org_id):
+    return hydrate_industry_organization(
+        conn, get_industry_organization_row(conn, org_id))
+
+
+def get_organization_for_user(conn, user):
+    """The industry profile linked to a logged-in industry account, or None."""
+    if user is None or user.role != "industry":
+        return None
+    row = conn.execute(
+        "SELECT * FROM industry_organizations WHERE user_id=?",
+        (user.id,)).fetchone()
+    return hydrate_industry_organization(conn, row)
+
+
+ORG_EDITABLE_FIELDS = (
+    "name", "short_name", "legal_entity_name", "org_type", "sector",
+    "core_expertise", "technologies", "capabilities", "email", "phone",
+    "address", "district", "city", "website", "description")
+
+
+def update_industry_organization(conn, org_id, **fields):
+    allowed = {k: v for k, v in fields.items() if k in ORG_EDITABLE_FIELDS}
+    if not allowed:
+        return
+    allowed["updated_at"] = _now().isoformat()
+    set_clause = ", ".join(f"{k}=?" for k in allowed)
+    conn.execute(f"UPDATE industry_organizations SET {set_clause} WHERE id=?",
+                 (*allowed.values(), org_id))
+    conn.commit()
+
+
+def list_industry_organizations(conn, verification=None, org_type=None):
+    q = "SELECT * FROM industry_organizations"
+    args = []
+    conds = []
+    if verification:
+        conds.append("verification_status=?")
+        args.append(verification)
+    if org_type:
+        conds.append("org_type=?")
+        args.append(org_type)
+    if conds:
+        q += " WHERE " + " AND ".join(conds)
+    q += " ORDER BY updated_at DESC"
+    rows = conn.execute(q, args).fetchall()
+    return [hydrate_industry_organization(conn, r) for r in rows]
+
+
+def verify_industry_organization(conn, org_id, verdict, note, verifier_id):
+    """Government verdict on an organization profile: PENDING -> VERIFIED
+    or REJECTED. Only an un-reviewed profile can be actioned."""
+    verdict = verdict if verdict in INDUSTRY_VERIFICATION_STATUSES else None
+    if verdict in (None, "PENDING"):
+        raise ValueError("Unknown verification verdict.")
+    row = get_industry_organization_row(conn, org_id)
+    if row is None:
+        raise ValueError("Organization not found.")
+    if row["verification_status"] != "PENDING":
+        raise ValueError("Only a pending organization can be verified or rejected.")
+    conn.execute(
+        "UPDATE industry_organizations SET verification_status=?, "
+        "verification_note=?, verified_by=?, verified_at=?, updated_at=? "
+        "WHERE id=?",
+        (verdict, note or "", verifier_id, _now().isoformat(),
+         _now().isoformat(), org_id))
+    add_notification(conn, row["user_id"], "organization",
+                     ("notif_org_verified" if verdict == "VERIFIED"
+                      else "notif_org_rejected"),
+                     f"Government reviewed your organization profile."
+                     + (f" Note: {note}" if note else ""),
+                     "organization", org_id)
+    conn.commit()
+    return get_industry_organization_row(conn, org_id)
+
+
+def count_industry_organizations(conn, verification=None):
+    if verification:
+        return conn.execute(
+            "SELECT COUNT(*) c FROM industry_organizations "
+            "WHERE verification_status=?", (verification,)).fetchone()["c"]
+    return conn.execute(
+        "SELECT COUNT(*) c FROM industry_organizations").fetchone()["c"]
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 — notifications feed (industry / university / government)
+# ---------------------------------------------------------------------------
+
+def add_notification(conn, user_id, kind, title, body="",
+                     ref_type=None, ref_id=None):
+    conn.execute(
+        "INSERT INTO notifications (user_id, kind, title, body, ref_type, "
+        "ref_id, read, created_at) VALUES (?,?,?,?,?,?,0,?)",
+        (user_id, kind, title, body or "", ref_type, ref_id, _now().isoformat()))
+
+
+def hydrate_notification(row):
+    d = dict(row)
+    ns = SimpleNamespace(**d)
+    ns.created_at = _parse_dt(d.get("created_at"))
+    ns.is_read = bool(d.get("read"))
+    return ns
+
+
+def list_notifications(conn, user_id, limit=50):
+    rows = conn.execute(
+        "SELECT * FROM notifications WHERE user_id=? "
+        "ORDER BY created_at DESC LIMIT ?", (user_id, limit)).fetchall()
+    return [hydrate_notification(r) for r in rows]
+
+
+def unread_notification_count(conn, user_id):
+    return conn.execute(
+        "SELECT COUNT(*) c FROM notifications WHERE user_id=? AND read=0",
+        (user_id,)).fetchone()["c"]
+
+
+def mark_notification_read(conn, notification_id, user_id):
+    conn.execute("UPDATE notifications SET read=1 WHERE id=? AND user_id=?")
+    conn.commit()
+
+
+def mark_all_notifications_read(conn, user_id):
+    conn.execute("UPDATE notifications SET read=1 WHERE user_id=? "
+                 "AND read=0", (user_id,))
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 — discovery, collaboration requests and accepted collaborations
+# ---------------------------------------------------------------------------
+
+def project_discoverable(project):
+    """An industry partner can only collaborate on a project created from an
+    APPROVED proposal (Academic Solution Ready) that is still in motion."""
+    return (project is not None
+            and project.proposal is not None
+            and project.proposal.status == "APPROVED"
+            and project.status in ("CREATED", "ACTIVE"))
+
+
+def project_faculty_lead(conn, team_id):
+    row = conn.execute(
+        "SELECT u.name FROM team_members tm JOIN users u ON u.id=tm.user_id "
+        "WHERE tm.team_id=? AND tm.status='ACTIVE' AND tm.member_role IN "
+        "('FACULTY_LEAD','FACULTY') ORDER BY CASE tm.member_role "
+        "WHEN 'FACULTY_LEAD' THEN 0 ELSE 1 END LIMIT 1",
+        (team_id,)).fetchone()
+    return row["name"] if row else None
+
+
+def list_discoverable_projects(conn):
+    """Every project that is ready for industry collaboration. Faithful to
+    Phase 4: only projects born from APPROVED proposals, without student or
+    citizen PII — the industry sees the institution, the team name and the
+    faculty lead, never student phone/email details."""
+    rows = conn.execute(
+        "SELECT p.* FROM projects p JOIN proposals pr ON pr.id=p.proposal_id "
+        "WHERE pr.status='APPROVED' AND p.status IN ('CREATED','ACTIVE') "
+        "ORDER BY p.created_at DESC").fetchall()
+    out = []
+    for r in rows:
+        project = hydrate_project(conn, r)
+        ns = SimpleNamespace(
+            id=project.id, title=project.title, description=project.description,
+            status=project.status, start_date=project.start_date,
+            target_end_date=project.target_end_date,
+            challenge=project.challenge, university=project.university,
+            team=project.team, proposal=project.proposal,
+            faculty_lead=project_faculty_lead(conn, project.team_id),
+        )
+        ns.collaborations = list_project_collaborations(conn, project_id=ns.id)
+        ns.academic_ready = True
+        out.append(ns)
+    return out
+
+
+def get_collaboration_row(conn, request_id):
+    if request_id is None:
+        return None
+    return conn.execute("SELECT * FROM collaboration_requests WHERE id=?",
+                        (request_id,)).fetchone()
+
+
+def hydrate_collaboration_log(row):
+    d = dict(row)
+    ns = SimpleNamespace(**d)
+    ns.created_at = _parse_dt(d.get("created_at"))
+    return ns
+
+
+def add_collaboration_log(conn, request_id, action, old_status, new_status,
+                          performed_by, comment=""):
+    conn.execute(
+        "INSERT INTO collaboration_logs (request_id, action, old_status, "
+        "new_status, performed_by, comment, created_at) VALUES (?,?,?,?,?,?,?)",
+        (request_id, action, old_status, new_status, performed_by,
+         comment or "", _now().isoformat()))
+
+
+def hydrate_collaboration(conn, row, with_relations=True):
+    if row is None:
+        return None
+    d = dict(row)
+    ns = SimpleNamespace(**d)
+    ns.created_at = _parse_dt(d.get("created_at"))
+    ns.updated_at = _parse_dt(d.get("updated_at"))
+    ns.reviewed_at = _parse_dt(d.get("reviewed_at"))
+    ns.is_accepted = d.get("status") == "ACCEPTED"
+    ns.is_pending = d.get("status") in ("INTERESTED", "SUBMITTED", "UNDER_REVIEW")
+    ns.is_interested = d.get("status") == "INTERESTED"
+    if with_relations:
+        ns.project = hydrate_project(
+            conn, get_project_row(conn, d["project_id"]), with_relations=True)
+        ns.organization = hydrate_industry_organization(
+            conn, get_industry_organization_row(conn, d["organization_id"]),
+            with_relations=False)
+        ns.requester = hydrate_user(get_user_by_id(conn, d.get("requested_by")))
+        ns.reviewer = hydrate_user(get_user_by_id(conn, d.get("reviewed_by")))
+        ns.logs = [hydrate_collaboration_log(r) for r in conn.execute(
+            "SELECT * FROM collaboration_logs WHERE request_id=? "
+            "ORDER BY created_at ASC", (d["id"],)).fetchall()]
+        ns.collaboration = get_project_collaboration(conn, d["id"],
+                                                     by_request=True)
+    return ns
+
+
+def get_collaboration(conn, request_id):
+    return hydrate_collaboration(conn, get_collaboration_row(conn, request_id))
+
+
+def _open_duplicate(conn, project_id, org_id):
+    statuses = ("INTERESTED", "SUBMITTED", "UNDER_REVIEW",
+                "REVISION_REQUESTED")
+    row = conn.execute(
+        "SELECT id FROM collaboration_requests WHERE project_id=? AND "
+        "organization_id=? AND status IN " + _sql_in(statuses),
+        (project_id, org_id, *statuses)).fetchone()
+    if row:
+        return row
+    return conn.execute(
+        "SELECT 1 FROM project_collaborations WHERE project_id=? AND "
+        "organization_id=? AND status IN ('CONNECTED','ACTIVE')",
+        (project_id, org_id)).fetchone()
+
+
+def express_interest(conn, project, org, requested_by, collaboration_type,
+                     title, description, expected_support="", proposed_amount=None,
+                     funding_type=None, funding_description=""):
+    """Industry expresses initial interest (the INTERESTED state). Enforces
+    verified-org eligibility, discoverable projects and a single open
+    request per (project, organization) so interest can never be spammed."""
+    if org is None or not org.is_verified:
+        raise ValueError("Only a government-verified organization can "
+                         "collaborate on a project.")
+    if not project_discoverable(project):
+        raise ValueError("This project is not open for collaboration.")
+    if _open_duplicate(conn, project.id, org.id):
+        raise ValueError("You already have an open request on this project.")
+    collaboration_type = (collaboration_type
+                          if collaboration_type in COLLABORATION_TYPES
+                          else "TECHNICAL_SUPPORT")
+    funding_type = (funding_type if funding_type in FUNDING_TYPES else None)
+    if funding_type in ("GRANT", "CSR", "SPONSORSHIP") and not proposed_amount:
+        proposed_amount = 0.0
+    cur = conn.execute(
+        "INSERT INTO collaboration_requests (project_id, organization_id, "
+        "requested_by, collaboration_type, title, description, "
+        "expected_support, proposed_amount, currency, funding_type, "
+        "funding_description, status, created_at, updated_at) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (project.id, org.id, requested_by, collaboration_type, title,
+         description, expected_support, proposed_amount, "INR", funding_type,
+         funding_description, "INTERESTED", _now().isoformat(),
+         _now().isoformat()))
+    add_collaboration_log(conn, cur.lastrowid, "INTERESTED",
+                          None, "INTERESTED", requested_by,
+                          "Organization expressed interest in the project.")
+    conn.commit()
+    add_notification(
+        conn, org.user_id, "collaboration",
+        "notif_collab_interest",
+        f"Your interest on project \"{title[:60]}\" is saved. Submit it "
+        "to send the request to the government review.",
+        "collaboration", cur.lastrowid)
+    return cur.lastrowid
+
+
+def _project_university_recipients(conn, request_row):
+    """University admin account + active faculty of the owning institution —
+    the people who should know about collaboration events on their project."""
+    pj = conn.execute(
+        "SELECT university_id FROM projects WHERE id=?",
+        (request_row["project_id"],)).fetchone()
+    if pj is None:
+        return []
+    uni_id = pj["university_id"]
+    recipients = []
+    row = conn.execute(
+        "SELECT admin_user_id FROM universities WHERE id=?",
+        (uni_id,)).fetchone()
+    if row and row["admin_user_id"]:
+        recipients.append(row["admin_user_id"])
+    for f in conn.execute(
+            "SELECT user_id FROM faculty WHERE university_id=?",
+            (uni_id,)).fetchall():
+        recipients.append(f["user_id"])
+    return list(dict.fromkeys(recipients))
+
+
+def submit_collaboration(conn, request_id, actor_id):
+    """INTERESTED -> SUBMITTED, or a REVISION_REQUESTED resubmission back to
+    SUBMITTED so the government reviewer can re-check the updated request."""
+    row = get_collaboration_row(conn, request_id)
+    if row is None:
+        raise ValueError("Collaboration request not found.")
+    if row["status"] == "INTERESTED":
+        old_status, new_status = "INTERESTED", "SUBMITTED"
+    elif row["status"] == "REVISION_REQUESTED":
+        old_status, new_status = "REVISION_REQUESTED", "SUBMITTED"
+    else:
+        raise ValueError("This request is not in a submittable state.")
+    conn.execute("UPDATE collaboration_requests SET status=?, updated_at=? "
+                 "WHERE id=?", (new_status, _now().isoformat(), request_id))
+    add_collaboration_log(conn, request_id, "SUBMITTED", old_status,
+                          new_status, actor_id,
+                          "Collaboration request submitted for government review.")
+    org = get_industry_organization_row(conn, row["organization_id"])
+    for uid in list_user_ids_by_role(conn, "officer"):
+        add_notification(conn, uid, "collaboration",
+                         "notif_collab_submitted",
+                         f"Organization "
+                         f"\"{(org['name'] if org else 'Partner')}\" submitted "
+                         f"a collaboration request on project #{row['project_id']}.",
+                         "collaboration", request_id)
+    for uid in list_user_ids_by_role(conn, "admin"):
+        add_notification(conn, uid, "collaboration",
+                         "notif_collab_submitted",
+                         f"Organization "
+                         f"\"{(org['name'] if org else 'Partner')}\" submitted "
+                         f"a collaboration request on project #{row['project_id']}.",
+                         "collaboration", request_id)
+    for uid in _project_university_recipients(conn, row):
+        add_notification(conn, uid, "collaboration",
+                         "notif_collab_submitted_uni",
+                         "An industry partner has submitted a collaboration "
+                         f"request on your project #{row['project_id']}.",
+                         "collaboration", request_id)
+    conn.commit()
+    return new_status
+
+
+def begin_collaboration_review(conn, request_id, actor_id):
+    """SUBMITTED -> UNDER_REVIEW (reviewer takes up the request)."""
+    row = get_collaboration_row(conn, request_id)
+    if row is None or row["status"] != "SUBMITTED":
+        raise ValueError("Only a submitted request can begin review.")
+    conn.execute("UPDATE collaboration_requests SET status='UNDER_REVIEW', "
+                 "updated_at=? WHERE id=?", (_now().isoformat(), request_id))
+    add_collaboration_log(conn, request_id, "REVIEW_STARTED",
+                          "SUBMITTED", "UNDER_REVIEW", actor_id,
+                          "Government reviewer began assessing the request.")
+    org = get_industry_organization_row(conn, row["organization_id"])
+    if org:
+        add_notification(conn, org["user_id"], "collaboration",
+                         "notif_collab_reviewing",
+                         "The government is now reviewing your collaboration "
+                         "request.",
+                         "collaboration", request_id)
+    conn.commit()
+    return "UNDER_REVIEW"
+
+
+def review_collaboration(conn, request_id, decision, comment, actor_id):
+    """Government verdict on a collaboration request: ACCEPTED /
+    REVISION_REQUESTED / REJECTED. Accepting creates the tracked
+    project_collaborations record (Industry Collaboration Connected) with a
+    PROPOSED funding line — no money ever moves in this platform."""
+    decision = (decision if decision in COLLABORATION_FEEDBACK_STATUSES
+                else None)
+    if decision is None:
+        raise ValueError("Unknown review decision.")
+    row = get_collaboration_row(conn, request_id)
+    if row is None:
+        raise ValueError("Collaboration request not found.")
+    if row["status"] != "UNDER_REVIEW":
+        raise ValueError("A verdict is only possible while the request is "
+                         "under review.")
+    old_status = row["status"]
+    conn.execute(
+        "UPDATE collaboration_requests SET status=?, review_comment=?, "
+        "reviewed_by=?, reviewed_at=?, updated_at=? WHERE id=?",
+        (decision, comment or "", actor_id, _now().isoformat(),
+         _now().isoformat(), request_id))
+    add_collaboration_log(conn, request_id, decision, old_status,
+                          decision, actor_id, comment or "")
+    org = get_industry_organization_row(conn, row["organization_id"])
+    if org:
+        add_notification(conn, org["user_id"], "collaboration",
+                         {
+                             "ACCEPTED": "notif_collab_accepted",
+                             "REVISION_REQUESTED": "notif_collab_revision",
+                             "REJECTED": "notif_collab_rejected",
+                         }[decision],
+                         (comment or "The government reviewed your "
+                          "collaboration request."),
+                         "collaboration", request_id)
+    if decision == "ACCEPTED":
+        existing = conn.execute(
+            "SELECT 1 FROM project_collaborations WHERE request_id=?",
+            (request_id,)).fetchone()
+        if existing is None:
+            conn.execute(
+                "INSERT INTO project_collaborations (project_id, "
+                "organization_id, request_id, agreed_support, approved_amount, "
+                "funding_status, start_date, target_end_date, status, "
+                "created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (row["project_id"], row["organization_id"], request_id,
+                 row["expected_support"] or "", row["proposed_amount"] or 0,
+                 "PROPOSED", _now().date().isoformat(), "", "CONNECTED",
+                 _now().isoformat(), _now().isoformat()))
+        add_collaboration_log(conn, request_id, "CONNECTED",
+                              decision, "CONNECTED", actor_id,
+                              "Industry collaboration connected to the project.")
+        for uid in _project_university_recipients(conn, row):
+            add_notification(conn, uid, "collaboration",
+                             "notif_collab_accepted_uni",
+                             "An industry partner is now connected to your "
+                             f"project #{row['project_id']}.",
+                             "collaboration", request_id)
+    conn.commit()
+    return decision
+
+
+def get_project_collaboration(conn, pc_id, by_request=False):
+    q = ("SELECT * FROM project_collaborations WHERE "
+         + ("request_id=?" if by_request else "id=?"))
+    row = conn.execute(q, (pc_id,)).fetchone()
+    if row is None:
+        return None
+    return hydrate_project_collaboration(conn, row)
+
+
+def hydrate_project_collaboration(conn, row):
+    d = dict(row)
+    ns = SimpleNamespace(**d)
+    ns.created_at = _parse_dt(d.get("created_at"))
+    ns.updated_at = _parse_dt(d.get("updated_at"))
+    ns.start_date = _parse_dt(d.get("start_date"))
+    ns.target_end_date = _parse_dt(d.get("target_end_date"))
+    ns.organization = hydrate_industry_organization(
+        conn, get_industry_organization_row(conn, d["organization_id"]),
+        with_relations=False)
+    ns.request = hydrate_collaboration(
+        conn, get_collaboration_row(conn, d["request_id"]),
+        with_relations=False)
+    return ns
+
+
+def list_project_collaborations(conn, project_id=None, organization_id=None):
+    q = "SELECT * FROM project_collaborations"
+    args = []
+    conds = []
+    if project_id is not None:
+        conds.append("project_id=?")
+        args.append(project_id)
+    if organization_id is not None:
+        conds.append("organization_id=?")
+        args.append(organization_id)
+    if conds:
+        q += " WHERE " + " AND ".join(conds)
+    q += " ORDER BY created_at DESC"
+    rows = conn.execute(q, args).fetchall()
+    return [hydrate_project_collaboration(conn, r) for r in rows]
+
+
+def update_collaboration_funding(conn, request_id, funding_status, comment,
+                                 actor_id):
+    """Funding representation only: an ACCEPTED collaboration's funding line
+    moves PROPOSED -> APPROVED / DECLINED, and APPROVED ->
+    DISBURSEMENT_PENDING. No payment ever happens."""
+    if funding_status not in FUNDING_STATUSES or funding_status == "PROPOSED":
+        raise ValueError("Unknown funding state.")
+    row = get_collaboration_row(conn, request_id)
+    if row is None or row["status"] != "ACCEPTED":
+        raise ValueError("Only an accepted collaboration carries funding.")
+    pc = get_project_collaboration(conn, request_id, by_request=True)
+    if pc is None:
+        raise ValueError("No connected collaboration for this request.")
+    if funding_status == "DISBURSEMENT_PENDING" and \
+            pc.funding_status != "APPROVED":
+        raise ValueError("Funding must be approved before disbursement "
+                         "is pending.")
+    conn.execute(
+        "UPDATE project_collaborations SET funding_status=?, updated_at=? "
+        "WHERE id=?", (funding_status, _now().isoformat(), pc.id))
+    add_collaboration_log(conn, request_id, "FUNDING_" + funding_status,
+                          pc.funding_status, funding_status, actor_id,
+                          comment or "")
+    org = get_industry_organization_row(conn, row["organization_id"])
+    if org:
+        add_notification(conn, org["user_id"], "funding",
+                         "notif_funding_status",
+                         f"Proposed funding is now marked "
+                         f"{funding_status.lower().replace('_', ' ')}.",
+                         "collaboration", request_id)
+    conn.commit()
+    return funding_status
+
+
+def list_collaborations_for_org(conn, org_id):
+    rows = conn.execute(
+        "SELECT * FROM collaboration_requests WHERE organization_id=? "
+        "ORDER BY updated_at DESC", (org_id,)).fetchall()
+    return [hydrate_collaboration(conn, r) for r in rows]
+
+
+def list_collaborations_for_project(conn, project_id):
+    rows = conn.execute(
+        "SELECT * FROM collaboration_requests WHERE project_id=? "
+        "ORDER BY updated_at DESC", (project_id,)).fetchall()
+    return [hydrate_collaboration(conn, r) for r in rows]
+
+
+def list_collaborations_for_university(conn, university_id):
+    rows = conn.execute(
+        "SELECT cr.* FROM collaboration_requests cr JOIN projects p "
+        "ON p.id=cr.project_id WHERE p.university_id=? "
+        "ORDER BY cr.updated_at DESC", (university_id,)).fetchall()
+    return [hydrate_collaboration(conn, r) for r in rows]
+
+
+def list_collaborations_for_mode(conn, mode):
+    if mode == "review":
+        q = ("SELECT * FROM collaboration_requests WHERE status IN "
+             + _sql_in(COLLABORATION_MARKER_STATUSES)
+             + " ORDER BY updated_at DESC")
+        args = (*COLLABORATION_MARKER_STATUSES,)
+    elif mode == "decided":
+        q = ("SELECT * FROM collaboration_requests WHERE status IN "
+             + _sql_in(COLLABORATION_FEEDBACK_STATUSES)
+             + " ORDER BY reviewed_at DESC")
+        args = (*COLLABORATION_FEEDBACK_STATUSES,)
+    else:
+        q = "SELECT * FROM collaboration_requests ORDER BY updated_at DESC"
+        args = ()
+    rows = conn.execute(q, args).fetchall()
+    return [hydrate_collaboration(conn, r) for r in rows]
+
+
+def count_collaborations_needing_review(conn):
+    return conn.execute(
+        "SELECT COUNT(*) c FROM collaboration_requests WHERE status IN "
+        + _sql_in(COLLABORATION_MARKER_STATUSES),
+        (*COLLABORATION_MARKER_STATUSES,)).fetchone()["c"]
+
+
+def get_connected_collaboration(conn, project_id):
+    """The accepted, industry-connected collaboration on a project, if any."""
+    row = conn.execute(
+        "SELECT * FROM project_collaborations WHERE project_id=? "
+        "ORDER BY id ASC LIMIT 1", (project_id,)).fetchone()
+    return hydrate_project_collaboration(conn, row) if row else None
+
+
+def project_readiness(conn, project):
+    """Honest readiness stage. The label advances only on government-approved
+    milestones: Academic Solution Ready → Industry Collaboration Connected →
+    Prototype Ready → Testing Completed → Pilot In Progress / Completed →
+    Deployed. "Deployed" only ever means an authorized reviewer completed the
+    platform's deployment review — never independent real-world verification."""
+    academic = project is not None and (
+        getattr(project, "proposal", None) is not None
+        and project.proposal.status == "APPROVED")
+    connected = (get_connected_collaboration(conn, project.id) is not None
+                 if project is not None else False)
+    prototype = None
+    testing = None
+    pilot = None
+    if project is not None:
+        prototype = get_prototype_for_project(conn, project.id)
+        testing = get_testing_report_for_project(conn, project.id)
+        pilot = get_pilot_for_project(conn, project.id)
+    prototype_ready = bool(prototype and prototype.status == "APPROVED")
+    testing_completed = bool(testing and testing.status == "APPROVED")
+    pilot_label = None
+    if pilot is not None:
+        if pilot.status == "DEPLOYED":
+            pilot_label = "deployed"
+        elif pilot.status == "COMPLETED":
+            pilot_label = "pilot_completed"
+        elif pilot.status in ("PLANNED", "ACTIVE"):
+            pilot_label = "pilot_active"
+    if pilot_label:
+        label = pilot_label
+    elif testing_completed:
+        label = "testing_completed"
+    elif prototype_ready:
+        label = "prototype_ready"
+    elif connected:
+        label = "industry_connected"
+    elif academic:
+        label = "academic_ready"
+    else:
+        label = "not_ready"
+    return {
+        "academic_ready": academic,
+        "industry_connected": connected,
+        "prototype_ready": prototype_ready,
+        "testing_completed": testing_completed,
+        "pilot_active": pilot is not None and pilot.status in ("PLANNED", "ACTIVE"),
+        "pilot_completed": pilot is not None and pilot.status == "COMPLETED",
+        "deployed": pilot is not None and pilot.status == "DEPLOYED",
+        "label": label,
+        "prototype": prototype,
+        "testing": testing,
+        "pilot": pilot,
+    }
+
+
+def industry_dashboard_kpis(conn):
+    return {
+        "orgs_total": count_industry_organizations(conn),
+        "orgs_verified": count_industry_organizations(conn, "VERIFIED"),
+        "orgs_pending": count_industry_organizations(conn, "PENDING"),
+        "orgs_rejected": count_industry_organizations(conn, "REJECTED"),
+        "collab_reviews": count_collaborations_needing_review(conn),
+        "collab_accepted": conn.execute(
+            "SELECT COUNT(*) c FROM collaboration_requests "
+            "WHERE status='ACCEPTED'").fetchone()["c"],
+        "collab_connected": conn.execute(
+            "SELECT COUNT(*) c FROM project_collaborations").fetchone()["c"],
+        "funding_approved": conn.execute(
+            "SELECT COALESCE(SUM(approved_amount),0) s FROM "
+            "project_collaborations WHERE funding_status='APPROVED'"
+        ).fetchone()["s"],
+        "funding_proposed": conn.execute(
+            "SELECT COALESCE(SUM(approved_amount),0) s FROM "
+            "project_collaborations WHERE funding_status IN "
+            "('PROPOSED','DISBURSEMENT_PENDING')").fetchone()["s"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Phase 6 — project lifecycle: prototype → testing → pilot → deployment
+# ---------------------------------------------------------------------------
+
+def _project_university_recipients_for(conn, project_id):
+    """University admin + faculty accounts of the project's owning institution
+    (Phase 6 counterpart of the collaboration recipient helper)."""
+    return _project_university_recipients(conn, {"project_id": project_id})
+
+
+def _gov_user_ids(conn):
+    uids = list(list_user_ids_by_role(conn, "admin"))
+    for uid in list_user_ids_by_role(conn, "officer"):
+        if uid not in uids:
+            uids.append(uid)
+    return uids
+
+
+def _team_user_ids(conn, team_id):
+    rows = conn.execute(
+        "SELECT user_id FROM team_members WHERE team_id=? AND status='ACTIVE'",
+        (team_id,)).fetchall()
+    return [r["user_id"] for r in rows]
+
+
+def _connected_industry_users(conn, project_id):
+    """user_ids of the industry organization owners connected to a project
+    through an accepted collaboration (CONNECTED/ACTIVE). No student PII is
+    ever attached here — industry only reads project-level lifecycle info."""
+    rows = conn.execute(
+        "SELECT DISTINCT io.user_id FROM project_collaborations pc "
+        "JOIN industry_organizations io ON io.id=pc.organization_id "
+        "WHERE pc.project_id=? AND pc.status IN ('CONNECTED','ACTIVE')",
+        (project_id,)).fetchall()
+    return [r["user_id"] for r in rows]
+
+
+def _clean_evidence(evidence):
+    """Normalize evidence from any accepted shape (JSON string or a list of
+    {name, path} / plain filename strings) into a list of {name, path}."""
+    if not evidence:
+        return []
+    if isinstance(evidence, str):
+        try:
+            evidence = json.loads(evidence)
+        except (ValueError, TypeError):
+            return [{"name": evidence, "path": evidence}]
+    out = []
+    for item in (evidence if isinstance(evidence, list) else [evidence]):
+        if isinstance(item, str) and item.strip():
+            out.append({"name": item.strip(), "path": item.strip()})
+        elif isinstance(item, dict) and item.get("path"):
+            out.append({"name": item.get("name") or item["path"],
+                        "path": item["path"]})
+    return out
+
+
+def add_prototype_log(conn, prototype_id, action, old_status, new_status,
+                      performed_by, comment=""):
+    conn.execute(
+        "INSERT INTO prototype_logs (prototype_id, action, old_status, "
+        "new_status, performed_by, comment, created_at) VALUES (?,?,?,?,?,?,?)",
+        (prototype_id, action, old_status, new_status, performed_by,
+         comment or "", _now().isoformat()))
+
+
+def hydrate_prototype_log(row):
+    d = dict(row)
+    ns = SimpleNamespace(**d)
+    ns.created_at = _parse_dt(d.get("created_at"))
+    return ns
+
+
+def get_prototype_row(conn, prototype_id):
+    if prototype_id is None:
+        return None
+    return conn.execute("SELECT * FROM project_prototypes WHERE id=?",
+                        (prototype_id,)).fetchone()
+
+
+def get_prototype_for_project(conn, project_id):
+    row = conn.execute("SELECT * FROM project_prototypes WHERE project_id=?",
+                       (project_id,)).fetchone()
+    return hydrate_prototype(conn, row) if row else None
+
+
+def hydrate_prototype(conn, row):
+    if row is None:
+        return None
+    d = dict(row)
+    ns = SimpleNamespace(**d)
+    ns.created_at = _parse_dt(d.get("created_at"))
+    ns.updated_at = _parse_dt(d.get("updated_at"))
+    ns.submitted_at = _parse_dt(d.get("submitted_at"))
+    ns.reviewed_at = _parse_dt(d.get("reviewed_at"))
+    ns.evidence = _clean_evidence(d.get("evidence_json"))
+    ns.is_approved = d.get("status") == "APPROVED"
+    ns.is_revision = d.get("status") == "REVISION_REQUESTED"
+    ns.project = hydrate_project(
+        conn, get_project_row(conn, d["project_id"]), with_relations=False)
+    ns.submitter = hydrate_user(get_user_by_id(conn, d.get("submitted_by")))
+    ns.reviewer = hydrate_user(get_user_by_id(conn, d.get("reviewed_by")))
+    ns.logs = [hydrate_prototype_log(r) for r in conn.execute(
+        "SELECT * FROM prototype_logs WHERE prototype_id=? "
+        "ORDER BY created_at ASC", (d["id"],)).fetchall()]
+    return ns
+
+
+def get_prototype(conn, prototype_id):
+    return hydrate_prototype(conn, get_prototype_row(conn, prototype_id))
+
+
+def create_prototype(conn, project_id, description, version, submitted_by,
+                     progress_update="", evidence=None):
+    """Team submits the prototype (stage 1). Exactly one record per project and
+    only a live project (born from an APPROVED proposal) can carry one."""
+    project = get_project_row(conn, project_id)
+    if project is None:
+        raise ValueError("Project not found.")
+    if project["status"] not in ("CREATED", "ACTIVE"):
+        raise ValueError("Only a live project can have a prototype.")
+    if get_prototype_for_project(conn, project_id) is not None:
+        raise ValueError("A prototype already exists for this project.")
+    evidence = _clean_evidence(evidence)
+    cur = conn.execute(
+        "INSERT INTO project_prototypes (project_id, description, "
+        "progress_update, version, evidence_json, status, submitted_by, "
+        "submitted_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (project_id, description or "", progress_update or "", version or "v1",
+         json.dumps(evidence), "SUBMITTED", submitted_by,
+         _now().isoformat(), _now().isoformat(), _now().isoformat()))
+    add_prototype_log(conn, cur.lastrowid, "SUBMITTED", None, "SUBMITTED",
+                      submitted_by,
+                      "Prototype submitted for government review.")
+    for uid in _gov_user_ids(conn):
+        add_notification(conn, uid, "prototype", "notif_prototype_submitted",
+                         f"Team submitted a prototype on project #{project_id} "
+                         f"\"{project['title'][:60]}\".",
+                         "prototype", cur.lastrowid)
+    add_challenge_log(conn, project["challenge_id"], "PROTOTYPE_SUBMITTED",
+                      f"Prototype submitted for project "
+                      f"\"{project['title'][:60]}\".", submitted_by)
+    conn.commit()
+    return cur.lastrowid
+
+
+def update_prototype_details(conn, prototype_id, description=None,
+                             version=None, progress_update=None,
+                             evidence=None):
+    """Edits the working content while the prototype is in the revision state.
+    The state machine itself is untouched — a resubmission re-enters review."""
+    row = get_prototype_row(conn, prototype_id)
+    if row is None:
+        raise ValueError("Prototype not found.")
+    if row["status"] != "REVISION_REQUESTED":
+        raise ValueError("Only a revision-requested prototype can be edited.")
+    d = dict(row)
+    if description is not None:
+        d["description"] = description
+    if version is not None:
+        d["version"] = version
+    if progress_update is not None:
+        d["progress_update"] = progress_update
+    if evidence is not None:
+        d["evidence_json"] = json.dumps(_clean_evidence(evidence))
+    d["updated_at"] = _now().isoformat()
+    conn.execute(
+        "UPDATE project_prototypes SET description=?, progress_update=?, "
+        "version=?, evidence_json=?, updated_at=? WHERE id=?",
+        (d["description"], d["progress_update"], d["version"],
+         d["evidence_json"], d["updated_at"], prototype_id))
+    add_prototype_log(conn, prototype_id, "UPDATED", row["status"],
+                      row["status"], row["submitted_by"],
+                      "Prototype draft updated.")
+    conn.commit()
+
+
+def resubmit_prototype(conn, prototype_id, actor_id):
+    """REVISION_REQUESTED -> SUBMITTED so the government re-checks the update."""
+    row = get_prototype_row(conn, prototype_id)
+    if row is None or row["status"] != "REVISION_REQUESTED":
+        raise ValueError("Only a revision-requested prototype can be "
+                         "resubmitted.")
+    conn.execute("UPDATE project_prototypes SET status='SUBMITTED', "
+                 "reviewer_comment=NULL, updated_at=? WHERE id=?",
+                 (_now().isoformat(), prototype_id))
+    add_prototype_log(conn, prototype_id, "SUBMITTED",
+                      "REVISION_REQUESTED", "SUBMITTED", actor_id,
+                      "Prototype resubmitted after revision.")
+    for uid in _gov_user_ids(conn):
+        add_notification(conn, uid, "prototype", "notif_prototype_submitted",
+                         f"Prototype #{prototype_id} was resubmitted after "
+                         "revision.", "prototype", prototype_id)
+    conn.commit()
+    return "SUBMITTED"
+
+
+def begin_prototype_review(conn, prototype_id, actor_id):
+    """SUBMITTED -> UNDER_REVIEW (reviewer takes up the prototype)."""
+    row = get_prototype_row(conn, prototype_id)
+    if row is None or row["status"] != "SUBMITTED":
+        raise ValueError("Only a submitted prototype can begin review.")
+    conn.execute("UPDATE project_prototypes SET status='UNDER_REVIEW', "
+                 "updated_at=? WHERE id=?", (_now().isoformat(), prototype_id))
+    add_prototype_log(conn, prototype_id, "REVIEW_STARTED",
+                      "SUBMITTED", "UNDER_REVIEW", actor_id,
+                      "Government reviewer began assessing the prototype.")
+    conn.commit()
+    return "UNDER_REVIEW"
+
+
+def review_prototype(conn, prototype_id, decision, comment, actor_id):
+    """Government verdict on the prototype: APPROVED / REVISION_REQUESTED.
+    Approval notifies the team, the university and connected industry
+    partners (project-level info only — never student or citizen PII)."""
+    decision = (decision if decision in PROTOTYPE_FEEDBACK_STATUSES else None)
+    if decision is None:
+        raise ValueError("Unknown review decision.")
+    row = get_prototype_row(conn, prototype_id)
+    if row is None:
+        raise ValueError("Prototype not found.")
+    if row["status"] != "UNDER_REVIEW":
+        raise ValueError("A verdict is only possible while under review.")
+    old_status = row["status"]
+    conn.execute(
+        "UPDATE project_prototypes SET status=?, reviewer_comment=?, "
+        "reviewed_by=?, reviewed_at=?, updated_at=? WHERE id=?",
+        (decision, comment or "", actor_id, _now().isoformat(),
+         _now().isoformat(), prototype_id))
+    add_prototype_log(conn, prototype_id, decision, old_status, decision,
+                      actor_id, comment or "")
+    project = get_project_row(conn, row["project_id"])
+    if project:
+        for uid in _team_user_ids(conn, project["team_id"]):
+            add_notification(conn, uid, "prototype",
+                             ("notif_prototype_approved"
+                              if decision == "APPROVED"
+                              else "notif_prototype_revision"),
+                             (comment or (("Your prototype was approved by "
+                                           "the government.") if decision
+                                           == "APPROVED"
+                                           else "Your prototype needs "
+                                                "revision.")),
+                             "prototype", prototype_id)
+        for uid in _project_university_recipients_for(conn, row["project_id"]):
+            add_notification(conn, uid, "prototype",
+                             ("notif_prototype_approved"
+                              if decision == "APPROVED"
+                              else "notif_prototype_revision"),
+                             f"Prototype on project "
+                             f"\"{project['title'][:60]}\" "
+                             + ("was approved." if decision == "APPROVED"
+                                else "needs revision."),
+                             "prototype", prototype_id)
+        for uid in _connected_industry_users(conn, row["project_id"]):
+            add_notification(conn, uid, "prototype",
+                             ("notif_prototype_approved_partner"
+                              if decision == "APPROVED"
+                              else "notif_prototype_revision_partner"),
+                             f"Prototype on project "
+                             f"\"{project['title'][:60]}\" "
+                             + ("was approved." if decision == "APPROVED"
+                                else "was returned for revision."),
+                             "prototype", prototype_id)
+    conn.commit()
+    return decision
+
+
+def list_prototypes(conn, mode="all"):
+    if mode == "review":
+        q = ("SELECT * FROM project_prototypes WHERE status IN "
+             + _sql_in(PROTOTYPE_MARKER_STATUSES)
+             + " ORDER BY submitted_at DESC")
+        args = (*PROTOTYPE_MARKER_STATUSES,)
+    elif mode == "decided":
+        q = ("SELECT * FROM project_prototypes WHERE status IN "
+             + _sql_in(PROTOTYPE_FEEDBACK_STATUSES)
+             + " ORDER BY reviewed_at DESC")
+        args = (*PROTOTYPE_FEEDBACK_STATUSES,)
+    else:
+        q = "SELECT * FROM project_prototypes ORDER BY submitted_at DESC"
+        args = ()
+    return [hydrate_prototype(conn, r)
+            for r in conn.execute(q, args).fetchall()]
+
+
+def count_prototypes_needing_review(conn):
+    return conn.execute(
+        "SELECT COUNT(*) c FROM project_prototypes WHERE status IN "
+        + _sql_in(PROTOTYPE_MARKER_STATUSES),
+        (*PROTOTYPE_MARKER_STATUSES,)).fetchone()["c"]
+
+
+def get_testing_report_row(conn, report_id):
+    if report_id is None:
+        return None
+    return conn.execute("SELECT * FROM testing_reports WHERE id=?",
+                        (report_id,)).fetchone()
+
+
+def get_testing_report_for_project(conn, project_id):
+    row = conn.execute("SELECT * FROM testing_reports WHERE project_id=?",
+                       (project_id,)).fetchone()
+    return hydrate_testing_report(conn, row) if row else None
+
+
+def hydrate_testing_report(conn, row):
+    if row is None:
+        return None
+    d = dict(row)
+    ns = SimpleNamespace(**d)
+    ns.created_at = _parse_dt(d.get("created_at"))
+    ns.updated_at = _parse_dt(d.get("updated_at"))
+    ns.submitted_at = _parse_dt(d.get("submitted_at"))
+    ns.reviewed_at = _parse_dt(d.get("reviewed_at"))
+    ns.evidence = _clean_evidence(d.get("evidence_json"))
+    ns.is_approved = d.get("status") == "APPROVED"
+    ns.is_revision = d.get("status") == "REVISION_REQUESTED"
+    ns.project = hydrate_project(
+        conn, get_project_row(conn, d["project_id"]), with_relations=False)
+    ns.submitter = hydrate_user(get_user_by_id(conn, d.get("submitted_by")))
+    ns.reviewer = hydrate_user(get_user_by_id(conn, d.get("reviewed_by")))
+    return ns
+
+
+def get_testing_report(conn, report_id):
+    return hydrate_testing_report(conn, get_testing_report_row(conn, report_id))
+
+
+def create_testing_report(conn, project_id, objective, test_description,
+                          expected_result, actual_result, test_result,
+                          submitted_by, issues_findings="", evidence=None):
+    """Team submits the structured testing report (stage 2). Requires the
+    prototype to have been APPROVED by the government first. test_result
+    carries the PASS / FAIL / PENDING outcome the team measured."""
+    project = get_project_row(conn, project_id)
+    if project is None:
+        raise ValueError("Project not found.")
+    prototype = get_prototype_for_project(conn, project_id)
+    if prototype is None or prototype.status != "APPROVED":
+        raise ValueError("Testing requires an approved prototype first.")
+    if get_testing_report_for_project(conn, project_id) is not None:
+        raise ValueError("A testing report already exists for this project.")
+    test_result = (test_result if test_result in TESTING_RESULT_STATUSES
+                   else "PENDING")
+    evidence = _clean_evidence(evidence)
+    cur = conn.execute(
+        "INSERT INTO testing_reports (project_id, prototype_id, objective, "
+        "test_description, expected_result, actual_result, test_result, "
+        "issues_findings, evidence_json, status, submitted_by, submitted_at, "
+        "created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (project_id, prototype.id, objective or "", test_description or "",
+         expected_result or "", actual_result or "", test_result,
+         issues_findings or "", json.dumps(evidence), "SUBMITTED",
+         submitted_by, _now().isoformat(), _now().isoformat(),
+         _now().isoformat()))
+    for uid in _gov_user_ids(conn):
+        add_notification(conn, uid, "testing", "notif_testing_submitted",
+                         f"Team submitted a testing report on project "
+                         f"#{project_id} \"{project['title'][:60]}\".",
+                         "testing", cur.lastrowid)
+    add_challenge_log(conn, project["challenge_id"], "TESTING_SUBMITTED",
+                      f"Testing report submitted for project "
+                      f"\"{project['title'][:60]}\".", submitted_by)
+    conn.commit()
+    return cur.lastrowid
+
+
+def resubmit_testing_report(conn, report_id, actor_id):
+    """REVISION_REQUESTED -> SUBMITTED so the government re-checks the fixes."""
+    row = get_testing_report_row(conn, report_id)
+    if row is None or row["status"] != "REVISION_REQUESTED":
+        raise ValueError("Only a revision-requested report can be resubmitted.")
+    conn.execute("UPDATE testing_reports SET status='SUBMITTED', "
+                 "reviewer_comment=NULL, updated_at=? WHERE id=?",
+                 (_now().isoformat(), report_id))
+    for uid in _gov_user_ids(conn):
+        add_notification(conn, uid, "testing", "notif_testing_submitted",
+                         f"Testing report #{report_id} was resubmitted after "
+                         "revision.", "testing", report_id)
+    conn.commit()
+    return "SUBMITTED"
+
+
+def update_testing_report(conn, report_id, objective=None,
+                          test_description=None, expected_result=None,
+                          actual_result=None, test_result=None,
+                          issues_findings=None, evidence=None):
+    """Edits the working content while the report is in the revision state.
+    The state machine itself is untouched — a resubmission re-enters review."""
+    row = get_testing_report_row(conn, report_id)
+    if row is None:
+        raise ValueError("Testing report not found.")
+    if row["status"] != "REVISION_REQUESTED":
+        raise ValueError("Only a revision-requested report can be edited.")
+    d = dict(row)
+    if objective is not None:
+        d["objective"] = objective
+    if test_description is not None:
+        d["test_description"] = test_description
+    if expected_result is not None:
+        d["expected_result"] = expected_result
+    if actual_result is not None:
+        d["actual_result"] = actual_result
+    if test_result is not None:
+        d["test_result"] = (test_result if test_result
+                            in TESTING_RESULT_STATUSES else row["test_result"])
+    if issues_findings is not None:
+        d["issues_findings"] = issues_findings
+    if evidence is not None:
+        d["evidence_json"] = json.dumps(_clean_evidence(evidence))
+    d["updated_at"] = _now().isoformat()
+    conn.execute(
+        "UPDATE testing_reports SET objective=?, test_description=?, "
+        "expected_result=?, actual_result=?, test_result=?, issues_findings=?, "
+        "evidence_json=?, updated_at=? WHERE id=?",
+        (d["objective"], d["test_description"], d["expected_result"],
+         d["actual_result"], d["test_result"], d["issues_findings"],
+         d["evidence_json"], d["updated_at"], report_id))
+    for uid in _gov_user_ids(conn):
+        add_notification(conn, uid, "testing", "notif_testing_revision",
+                         f"Team updated testing report #{report_id} after "
+                         "revision.", "testing", report_id)
+    conn.commit()
+    return "UPDATED"
+
+
+def begin_testing_review(conn, report_id, actor_id):
+    """SUBMITTED -> UNDER_REVIEW."""
+    row = get_testing_report_row(conn, report_id)
+    if row is None or row["status"] != "SUBMITTED":
+        raise ValueError("Only a submitted report can begin review.")
+    conn.execute("UPDATE testing_reports SET status='UNDER_REVIEW', "
+                 "updated_at=? WHERE id=?", (_now().isoformat(), report_id))
+    conn.commit()
+    return "UNDER_REVIEW"
+
+
+def review_testing_report(conn, report_id, decision, comment, actor_id):
+    """Government verdict: APPROVED / REVISION_REQUESTED. Approval notifies
+    the team and connected industry partners."""
+    decision = (decision if decision in TESTING_FEEDBACK_STATUSES else None)
+    if decision is None:
+        raise ValueError("Unknown review decision.")
+    row = get_testing_report_row(conn, report_id)
+    if row is None:
+        raise ValueError("Testing report not found.")
+    if row["status"] != "UNDER_REVIEW":
+        raise ValueError("A verdict is only possible while under review.")
+    old_status = row["status"]
+    conn.execute(
+        "UPDATE testing_reports SET status=?, reviewer_comment=?, reviewed_by=?, "
+        "reviewed_at=?, updated_at=? WHERE id=?",
+        (decision, comment or "", actor_id, _now().isoformat(),
+         _now().isoformat(), report_id))
+    project = get_project_row(conn, row["project_id"])
+    if project:
+        for uid in _team_user_ids(conn, project["team_id"]):
+            add_notification(conn, uid, "testing",
+                             ("notif_testing_approved"
+                              if decision == "APPROVED"
+                              else "notif_testing_revision"),
+                             comment or "Your testing report was reviewed by "
+                             "the government.",
+                             "testing", report_id)
+        for uid in _connected_industry_users(conn, row["project_id"]):
+            add_notification(conn, uid, "testing",
+                             ("notif_testing_approved_partner"
+                              if decision == "APPROVED"
+                              else "notif_testing_revision_partner"),
+                             f"Testing results for project "
+                             f"\"{project['title'][:60]}\" "
+                             + ("were approved." if decision == "APPROVED"
+                                else "were returned for revision."),
+                             "testing", report_id)
+    conn.commit()
+    return decision
+
+
+def list_testing_reports(conn, mode="all"):
+    if mode == "review":
+        q = ("SELECT * FROM testing_reports WHERE status IN "
+             + _sql_in(TESTING_MARKER_STATUSES)
+             + " ORDER BY submitted_at DESC")
+        args = (*TESTING_MARKER_STATUSES,)
+    elif mode == "decided":
+        q = ("SELECT * FROM testing_reports WHERE status IN "
+             + _sql_in(TESTING_FEEDBACK_STATUSES)
+             + " ORDER BY reviewed_at DESC")
+        args = (*TESTING_FEEDBACK_STATUSES,)
+    else:
+        q = "SELECT * FROM testing_reports ORDER BY submitted_at DESC"
+        args = ()
+    return [hydrate_testing_report(conn, r)
+            for r in conn.execute(q, args).fetchall()]
+
+
+def count_testing_needing_review(conn):
+    return conn.execute(
+        "SELECT COUNT(*) c FROM testing_reports WHERE status IN "
+        + _sql_in(TESTING_MARKER_STATUSES),
+        (*TESTING_MARKER_STATUSES,)).fetchone()["c"]
+
+
+def get_pilot_row(conn, pilot_id):
+    if pilot_id is None:
+        return None
+    return conn.execute("SELECT * FROM pilot_deployments WHERE id=?",
+                        (pilot_id,)).fetchone()
+
+
+def get_pilot_for_project(conn, project_id):
+    row = conn.execute("SELECT * FROM pilot_deployments WHERE project_id=?",
+                       (project_id,)).fetchone()
+    return hydrate_pilot(conn, row) if row else None
+
+
+def hydrate_pilot(conn, row):
+    if row is None:
+        return None
+    d = dict(row)
+    ns = SimpleNamespace(**d)
+    ns.created_at = _parse_dt(d.get("created_at"))
+    ns.updated_at = _parse_dt(d.get("updated_at"))
+    ns.start_date = _parse_dt(d.get("start_date"))
+    ns.target_end_date = _parse_dt(d.get("target_end_date"))
+    ns.reviewed_at = _parse_dt(d.get("reviewed_at"))
+    ns.updates = []
+    for line in (d.get("progress_updates") or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split("|", 2)
+        if len(parts) == 3:
+            ns.updates.append(SimpleNamespace(
+                created_at=_parse_dt(parts[0].strip()),
+                by=parts[1].strip(),
+                text=parts[2].strip()))
+    ns.is_deployed = d.get("status") == "DEPLOYED"
+    ns.is_overdue = bool(ns.target_end_date) and ns.status in (
+        "PLANNED", "ACTIVE") and _now() > ns.target_end_date
+    ns.project = hydrate_project(
+        conn, get_project_row(conn, d["project_id"]), with_relations=False)
+    ns.creator = hydrate_user(get_user_by_id(conn, d.get("created_by")))
+    ns.reviewer = hydrate_user(get_user_by_id(conn, d.get("reviewed_by")))
+    return ns
+
+
+def get_pilot(conn, pilot_id):
+    return hydrate_pilot(conn, get_pilot_row(conn, pilot_id))
+
+
+def _require_approved_stages(conn, project_id):
+    prototype = get_prototype_for_project(conn, project_id)
+    testing = get_testing_report_for_project(conn, project_id)
+    if prototype is None or prototype.status != "APPROVED":
+        raise ValueError("Pilot requires an approved prototype first.")
+    if testing is None or testing.status != "APPROVED":
+        raise ValueError("Pilot requires an approved testing report first.")
+    return prototype, testing
+
+
+def create_pilot(conn, project_id, district, created_by, location=None,
+                 target_community=None, objectives="", start_date=None,
+                 target_end_date=None, responsible_org=None):
+    """Government opens the pilot (stage 3) once both the prototype and the
+    testing report are approved. One pilot record per project."""
+    project = get_project_row(conn, project_id)
+    if project is None:
+        raise ValueError("Project not found.")
+    if project["status"] not in ("CREATED", "ACTIVE"):
+        raise ValueError("Only a live project can have a pilot.")
+    if district not in DISTRICTS:
+        raise ValueError("Unknown district.")
+    if get_pilot_for_project(conn, project_id) is not None:
+        raise ValueError("A pilot already exists for this project.")
+    _require_approved_stages(conn, project_id)
+    cur = conn.execute(
+        "INSERT INTO pilot_deployments (project_id, district, location, "
+        "target_community, objectives, start_date, target_end_date, "
+        "responsible_org, status, progress_updates, created_by, created_at, "
+        "updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (project_id, district, location or "", target_community or "",
+         objectives or "", start_date or _now().date().isoformat(),
+         target_end_date or "", responsible_org or "", "PLANNED", "",
+         created_by, _now().isoformat(), _now().isoformat()))
+    for uid in _team_user_ids(conn, project["team_id"]):
+        add_notification(conn, uid, "pilot", "notif_pilot_opened",
+                         f"A pilot was opened for project "
+                         f"\"{project['title'][:60]}\" in {district}.",
+                         "pilot", cur.lastrowid)
+    for uid in _project_university_recipients_for(conn, project_id):
+        add_notification(conn, uid, "pilot", "notif_pilot_opened",
+                         f"A pilot was opened for project "
+                         f"\"{project['title'][:60]}\".",
+                         "pilot", cur.lastrowid)
+    for uid in _connected_industry_users(conn, project_id):
+        add_notification(conn, uid, "pilot", "notif_pilot_opened",
+                         f"A pilot was opened for the project you collaborate "
+                         f"on: \"{project['title'][:60]}\".",
+                         "pilot", cur.lastrowid)
+    add_challenge_log(conn, project["challenge_id"], "PILOT_OPENED",
+                      f"Pilot opened for project \"{project['title'][:60]}\" "
+                      f"in {district}.", created_by)
+    conn.commit()
+    return cur.lastrowid
+
+
+def add_pilot_progress(conn, pilot_id, text, actor_id):
+    """Append a dated progress update for a live pilot (PLANNED/ACTIVE/
+    COMPLETED). Each line stores timestamp | author | text."""
+    row = get_pilot_row(conn, pilot_id)
+    if row is None:
+        raise ValueError("Pilot not found.")
+    if row["status"] not in PILOT_ACTIVE_STATUSES:
+        raise ValueError("Progress can only be logged for a live pilot.")
+    actor = get_user_by_id(conn, actor_id)
+    by = actor["name"] if actor else str(actor_id)
+    line = f"{_now().isoformat()}|{by}|{(text or '').strip()}"
+    updates = (row["progress_updates"] or "").strip()
+    updates = updates + ("\n" if updates else "") + line
+    conn.execute("UPDATE pilot_deployments SET progress_updates=?, "
+                 "updated_at=? WHERE id=?",
+                 (updates, _now().isoformat(), pilot_id))
+    project = get_project_row(conn, row["project_id"])
+    if project:
+        for uid in _team_user_ids(conn, project["team_id"]):
+            add_notification(conn, uid, "pilot", "notif_pilot_updated",
+                             f"A pilot progress update was logged for project "
+                             f"\"{project['title'][:60]}\".",
+                             "pilot", pilot_id)
+        for uid in _connected_industry_users(conn, row["project_id"]):
+            add_notification(conn, uid, "pilot", "notif_pilot_updated",
+                             f"A pilot progress update was logged for the "
+                             f"project you collaborate on: "
+                             f"\"{project['title'][:60]}\".",
+                             "pilot", pilot_id)
+    conn.commit()
+
+
+def set_pilot_status(conn, pilot_id, status, actor_id, comment=""):
+    """PLANNED -> ACTIVE -> COMPLETED -> DEPLOYED. DEPLOYED is the terminal,
+    honest state: an authorized reviewer completed the platform's deployment
+    review — never an independent real-world verification claim."""
+    if status not in PILOT_STATUSES:
+        raise ValueError("Unknown pilot status.")
+    row = get_pilot_row(conn, pilot_id)
+    if row is None:
+        raise ValueError("Pilot not found.")
+    order = {"PLANNED": 0, "ACTIVE": 1, "COMPLETED": 2, "DEPLOYED": 3}
+    if order.get(row["status"], 0) + 1 != order[status]:
+        raise ValueError(f"Cannot move pilot from {row['status']} to {status}.")
+    if status == "DEPLOYED":
+        conn.execute(
+            "UPDATE pilot_deployments SET status=?, deployment_review_comment=?, "
+            "reviewed_by=?, reviewed_at=?, updated_at=? WHERE id=?",
+            (status, comment or "", actor_id, _now().isoformat(),
+             _now().isoformat(), pilot_id))
+    else:
+        conn.execute("UPDATE pilot_deployments SET status=?, updated_at=? "
+                     "WHERE id=?", (status, _now().isoformat(), pilot_id))
+    project = get_project_row(conn, row["project_id"])
+    if project:
+        notif_key = {
+            "ACTIVE": "notif_pilot_active",
+            "COMPLETED": "notif_pilot_completed",
+            "DEPLOYED": "notif_pilot_deployed",
+        }.get(status, "notif_pilot_updated")
+        for uid in _team_user_ids(conn, project["team_id"]):
+            add_notification(conn, uid, "pilot", notif_key,
+                             f"The pilot for project "
+                             f"\"{project['title'][:60]}\" is now "
+                             f"{status.lower()}.",
+                             "pilot", pilot_id)
+        if status == "DEPLOYED":
+            for uid in _connected_industry_users(conn, row["project_id"]):
+                add_notification(conn, uid, "pilot", "notif_pilot_deployed",
+                                 f"The solution you collaborate on — "
+                                 f"\"{project['title'][:60]}\" — is marked "
+                                 "deployed after the government deployment "
+                                 "review.",
+                                 "pilot", pilot_id)
+            add_challenge_log(conn, project["challenge_id"], "DEPLOYED",
+                              f"Solution for project "
+                              f"\"{project['title'][:60]}\" marked deployed "
+                              "after the deployment review.", actor_id)
+    conn.commit()
+    return status
+
+
+def list_pilots(conn, mode="all"):
+    if mode == "evaluation":
+        q = ("SELECT * FROM pilot_deployments WHERE status='COMPLETED' "
+             "ORDER BY updated_at DESC")
+        args = ()
+    elif mode == "overdue":
+        q = ("SELECT * FROM pilot_deployments WHERE status IN "
+             "('PLANNED','ACTIVE') ORDER BY target_end_date ASC")
+        args = ()
+    else:
+        q = "SELECT * FROM pilot_deployments ORDER BY updated_at DESC"
+        args = ()
+    return [hydrate_pilot(conn, r)
+            for r in conn.execute(q, args).fetchall()]
+
+
+def list_pilots_for_university(conn, university_id):
+    rows = conn.execute(
+        "SELECT pd.* FROM pilot_deployments pd JOIN projects p "
+        "ON p.id=pd.project_id WHERE p.university_id=? "
+        "ORDER BY pd.updated_at DESC", (university_id,)).fetchall()
+    return [hydrate_pilot(conn, r) for r in rows]
+
+
+def list_pilots_for_org(conn, org_id):
+    rows = conn.execute(
+        "SELECT pd.* FROM pilot_deployments pd "
+        "JOIN project_collaborations pc ON pc.project_id=pd.project_id "
+        "WHERE pc.organization_id=? AND pc.status IN ('CONNECTED','ACTIVE') "
+        "ORDER BY pd.updated_at DESC", (org_id,)).fetchall()
+    return [hydrate_pilot(conn, r) for r in rows]
+
+
+def count_pilots_needing_evaluation(conn):
+    return conn.execute(
+        "SELECT COUNT(*) c FROM pilot_deployments WHERE status='COMPLETED'"
+    ).fetchone()["c"]
+
+
+def count_pilots_overdue(conn):
+    return conn.execute(
+        "SELECT COUNT(*) c FROM pilot_deployments WHERE status IN "
+        + _sql_in(("PLANNED", "ACTIVE"))
+        + " AND target_end_date IS NOT NULL AND target_end_date < ?",
+        (*("PLANNED", "ACTIVE"), _now().date().isoformat())).fetchone()["c"]
+
+
+def list_pilot_eligible_projects(conn):
+    """Live projects (born from APPROVED proposals) with both an APPROVED
+    prototype and an APPROVED testing report and no pilot record yet — the
+    only projects a government user may open a pilot for."""
+    rows = conn.execute(
+        "SELECT p.* FROM projects p JOIN proposals pr ON pr.id=p.proposal_id "
+        "JOIN project_prototypes prot ON prot.project_id=p.id "
+        "JOIN testing_reports tr ON tr.project_id=p.id "
+        "WHERE pr.status='APPROVED' AND p.status IN ('CREATED','ACTIVE') "
+        "AND prot.status='APPROVED' AND tr.status='APPROVED' "
+        "AND NOT EXISTS (SELECT 1 FROM pilot_deployments pd "
+        "               WHERE pd.project_id=p.id) "
+        "ORDER BY p.created_at DESC").fetchall()
+    return [hydrate_project(conn, r) for r in rows]

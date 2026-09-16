@@ -1,0 +1,36 @@
+{% extends "app_base.html" %}
+{% set active = 'notifications' %}
+{% block title %}{{ t('notifications_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="topbar">
+  <div>
+    <h1>{{ t('notifications_title') }}</h1>
+    <p class="hint" style="margin:0; max-width:64ch;">{{ t('notifications_sub') }}</p>
+  </div>
+  <form method="POST" action="{{ url_for('notifications_read_all') }}">
+    <button type="submit" class="btn btn-ghost">{{ t('notif_mark_all_read') }}</button>
+  </form>
+</div>
+
+{% if notifications %}
+<div class="card">
+  {% for n in notifications %}
+  <div style="display:flex; gap:12px; padding:14px 0; border-bottom:1px solid var(--line);">
+    <div style="flex:none; margin-top:5px; width:10px; height:10px; border-radius:50%; {% if not n.is_read %}background:var(--red);{% else %}background:#D8D3C4;{% endif %}"></div>
+    <div style="flex:1; min-width:0;">
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:baseline;">
+        <strong style="font-size:.92rem;">{{ t(n.title) }}</strong>
+        {% if not n.is_read %}<span class="badge badge-overdue">{{ t('notif_new') }}</span>{% endif %}
+      </div>
+      {% if n.body %}<p style="font-size:.86rem; color:var(--ink-soft); margin:3px 0 0;">{{ n.body }}</p>{% endif %}
+      <div class="hint" style="margin:4px 0 0;">{{ n.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">{{ t('notif_no_items') }}</div>
+{% endif %}
+
+{% endblock %}

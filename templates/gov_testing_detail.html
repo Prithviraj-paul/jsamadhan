@@ -1,0 +1,100 @@
+{% extends "app_base.html" %}
+{% set active = 'command-center' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('p6_testing_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('command_center') }}">{{ t('cmd_center') }}</a> / <a href="{{ url_for('gov_testing') }}">{{ t('p6_testing_title') }}</a> / {{ report.project.title[:60] }}
+</div>
+
+<div class="topbar" style="flex-wrap:wrap;">
+  <div>
+    <h1>{{ report.project.title }}</h1>
+    <div class="meta" style="font-size:.84rem; color:var(--ink-soft); margin-top:8px;">
+      {{ t('p6_submitted_by') }}: {{ report.submitter.name }}
+      {% if report.submitted_at %} · {{ t('p6_submitted_at') }} {{ report.submitted_at.strftime('%d %b %Y, %H:%M') }}{% endif %}
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    {{ m.testing_status_badge(report) }}
+    <span class="badge badge-overdue">{{ t('p6_test_result_' ~ report.test_result) }}</span>
+  </div>
+</div>
+
+<div class="grid grid-2" style="align-items:start;">
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('p6_test_objective') }}</h2>
+    <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ report.objective }}</p>
+
+    <div class="ai-meta-grid" style="margin-top:14px; grid-template-columns:1fr 1fr;">
+      <div>
+        <div class="l">{{ t('p6_test_expected') }}</div>
+        <div class="v" style="white-space:pre-wrap;">{{ report.expected_result }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('p6_test_actual') }}</div>
+        <div class="v" style="white-space:pre-wrap;">{{ report.actual_result }}</div>
+      </div>
+    </div>
+
+    <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p6_test_description') }}</h2>
+    <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ report.test_description }}</p>
+
+    {% if report.issues_findings %}
+    <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p6_test_issues') }}</h2>
+    <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ report.issues_findings }}</p>
+    {% endif %}
+
+    <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p6_proto_evidence') }}</h2>
+    {% if report.evidence %}
+    <div class="table-scroll" style="margin-top:6px;">
+      <table>
+        <thead><tr><th>{{ t('p6_proto_evidence') }}</th><th></th></tr></thead>
+        <tbody>
+        {% for ev in report.evidence %}
+        <tr>
+          <td>{{ ev.name }}</td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('uploaded_file', filename=ev.path) }}" target="_blank">{{ t('ind_view') }} →</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:6px 0 0;">{{ t('p6_evidence_none') }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('gov_verdict') }}</h2>
+
+    {% if report.status == 'SUBMITTED' or report.status == 'REVISION_REQUESTED' %}
+    <form method="POST" action="{{ url_for('gov_testing_review', report_id=report.id) }}">
+      <p class="hint" style="margin:0 0 10px;">{{ t('p6_begin_review_btn') }}: {{ report.project.title[:40] }}</p>
+      <button type="submit" class="btn btn-forest">{{ t('p6_begin_review_btn') }}</button>
+    </form>
+
+    {% elif report.status == 'UNDER_REVIEW' %}
+    <form method="POST" action="{{ url_for('gov_testing_verdict', report_id=report.id) }}">
+      <label for="review_comment">{{ t('p6_review_comment') }}</label>
+      <textarea id="review_comment" name="review_comment" rows="3" placeholder="{{ t('p6_review_comment_ph') }}"></textarea>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+        <button class="btn btn-forest" name="decision" value="APPROVED">{{ t('p6_approve_btn') }}</button>
+        <button class="btn btn-ghost" name="decision" value="REVISION_REQUESTED">{{ t('p6_revision_btn') }}</button>
+      </div>
+    </form>
+
+    {% else %}
+    <p class="hint" style="margin:0;">{{ t('p6_review_comment') }}: {{ report.reviewer.name if report.reviewer else t('not_assigned') }}</p>
+    {% if report.reviewed_at %}<p class="hint" style="margin-top:8px;">{{ t('p6_reviewed_at') }}: {{ report.reviewed_at.strftime('%d %b %Y, %H:%M') }}</p>{% endif %}
+    {% endif %}
+
+    <div style="margin-top:20px;">
+      <a class="btn btn-sm btn-ghost" href="{{ url_for('gov_testing') }}">{{ t('p6_back') }}</a>
+      <a class="btn btn-sm btn-ghost" href="{{ url_for('project_details', project_id=report.project.id) }}" style="margin-left:6px;">{{ t('p6_view_project') }} →</a>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

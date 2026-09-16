@@ -23,7 +23,8 @@
   <div class="demo-creds" style="margin:10px 0 4px;">
     <strong>{{ t('demo_logins') }}</strong> {{ t('demo_role_creds_note') }}<br>
     Citizen: <code>citizen@example.com / citizen123</code> · Officer: <code>officer1@jsamadhan.gov / officer123</code><br>
-    University: <code>university1@jsamadhan.demo / university123</code> · Faculty: <code>faculty1@jsamadhan.demo / faculty123</code> · Student: <code>student1@jsamadhan.demo / student123</code>
+    University: <code>university1@jsamadhan.demo / university123</code> · Faculty: <code>faculty1@jsamadhan.demo / faculty123</code> · Student: <code>student1@jsamadhan.demo / student123</code><br>
+    {{ t('demo_industry_creds') }}
   </div>
   <div class="role-grid login-choice">
     <a class="role-card" href="{{ url_for('login', role='citizen') }}">
@@ -54,6 +55,11 @@
     <a class="role-card" href="{{ url_for('login', role='student') }}">
       <h3>{{ t('role_student') }}</h3>
       <p>{{ t('role_student_desc') }}</p>
+      <span class="choice-arrow" aria-hidden="true">→</span>
+    </a>
+    <a class="role-card" href="{{ url_for('login', role='industry') }}">
+      <h3>{{ t('role_industry') }}</h3>
+      <p>{{ t('role_industry_desc') }}</p>
       <span class="choice-arrow" aria-hidden="true">→</span>
     </a>
   </div>

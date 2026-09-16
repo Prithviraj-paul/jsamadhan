@@ -1,0 +1,65 @@
+{% extends "app_base.html" %}
+{% set active = 'discover' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('ind_projects_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('industry_dashboard') }}">{{ t('nav_industry_dashboard') }}</a> / {{ t('ind_projects_title') }}</div>
+
+<h1>{{ t('ind_projects_title') }}</h1>
+<p class="hint" style="margin-top:0;">{{ t('ind_projects_sub') }}</p>
+
+{% if not org.is_verified %}
+<div class="banner banner-warn">{{ t('ind_verification_pending_banner') }}</div>
+{% endif %}
+
+{% if projects %}
+<div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('ind_th_project') }}</th>
+        <th>{{ t('ind_th_institution') }}</th>
+        <th>{{ t('ind_th_faculty') }}</th>
+        <th>{{ t('ind_th_fit') }}</th>
+        <th>{{ t('ind_th_status') }}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in projects %}
+      <tr>
+        <td>
+          <span style="font-weight:600; color:var(--forest);">{{ p.title[:70] }}</span>
+          {% if p.challenge %}<div style="font-size:.75rem; color:var(--ink-soft);">{{ t('ind_challenge') }}: {{ p.challenge.code }}</div>{% endif %}
+          <div style="font-size:.75rem; color:var(--ink-soft);">{{ t('ind_district') }}: {{ dist_label(p.challenge.district) }}</div>
+        </td>
+        <td style="font-size:.78rem;">{{ p.university.short_name or p.university.name }}</td>
+        <td style="font-size:.78rem;">{{ p.faculty_lead or t('not_assigned') }}</td>
+        <td>
+          <div style="display:flex; align-items:center; gap:8px;">
+            {{ m.fit_badge(p.fit_level) }}
+            <span class="conf-pill conf-{{ p.fit_level }}"><span class="n" style="font-size:.85rem;">{{ "%.0f"|format(p.fit_score) }}%</span></span>
+          </div>
+          <div class="hint" style="margin:4px 0 0; max-width:220px;">
+            {% if p.fit_signals %}{{ p.fit_signals[:2]|join(' · ') }}{% else %}{{ t('ind_no_fit') }}{% endif %}
+          </div>
+        </td>
+        <td>{{ m.project_status_badge(p) }}</td>
+        <td>
+          {% if org.is_verified %}
+          <a class="btn btn-sm btn-ghost" href="{{ url_for('industry_project_detail', project_id=p.id) }}">{{ t('ind_view') }} →</a>
+          {% else %}
+          <span class="badge badge-pending" title="{{ t('ind_eligibility_blocked') }}">{{ t('gov_org_verification_status_PENDING') }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card">{{ t('ind_no_projects') }}</div>
+{% endif %}
+
+{% endblock %}

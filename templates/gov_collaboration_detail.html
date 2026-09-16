@@ -1,0 +1,163 @@
+{% extends "app_base.html" %}
+{% set active = 'command-center' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('gov_collab_detail_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('command_center') }}">{{ t('cmd_center') }}</a> / <a href="{{ url_for('gov_collaborations') }}">{{ t('gov_collabs_title') }}</a> / {{ collab.title[:60] }}
+</div>
+
+<div class="topbar" style="flex-wrap:wrap;">
+  <div>
+    <h1>{{ collab.title }}</h1>
+    <div class="meta" style="font-size:.84rem; color:var(--ink-soft); margin-top:8px;">
+      {{ t('ind_industry_partner') }}: <strong>{{ collab.organization.name }}</strong> ·
+      {{ t('ind_th_project') }}: {{ collab.project.title[:56] }}
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    {{ m.collab_status_badge(collab) }}
+    {{ m.collab_type_badge(collab) }}
+    {% if funding %}{{ m.funding_status_badge(funding) }}{% endif %}
+    <span class="badge badge-aiverified">{{ t('ind_readiness_academic') }}</span>
+  </div>
+</div>
+
+<div class="grid grid-2" style="align-items:start;">
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('gov_org_detail_title') }}</h2>
+    <div class="ai-meta-grid" style="margin-top:10px; grid-template-columns:1fr 1fr;">
+      <div>
+        <div class="l">{{ t('gov_th_type') }}</div>
+        <div class="v">{{ m.org_type_badge(collab.organization) }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('gov_th_status') }}</div>
+        <div class="v">{{ m.org_verification_badge(collab.organization) }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('ind_field_sector') }}</div>
+        <div class="v">{{ collab.organization.sector or t('not_assigned') }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('ind_field_district') }}</div>
+        <div class="v">{{ dist_label(collab.organization.district) }}</div>
+      </div>
+    </div>
+    {% if collab.organization.core_expertise %}
+    <p class="hint" style="margin:12px 0 0;">{{ collab.organization.core_expertise }}</p>
+    {% endif %}
+
+    <h2 style="font-size:.95rem; margin-top:22px;">{{ t('ind_interest_title') }}</h2>
+    <p style="font-size:.9rem; margin:6px 0 0;">{{ collab.description }}</p>
+
+    <div class="ai-meta-grid" style="margin-top:14px; grid-template-columns:1fr 1fr;">
+      <div>
+        <div class="l">{{ t('ind_field_support') }}</div>
+        <div class="v">{{ collab.expected_support or t('not_assigned') }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('ind_amount') }}</div>
+        <div class="v">
+          {% if collab.funding_type %}{{ t('funding_type_' ~ collab.funding_type) }}{% endif %}
+          {% if collab.proposed_amount %} · ₹ {{ "{:,.0f}".format(collab.proposed_amount) }}{% endif %}
+          {% if not collab.funding_type and not collab.proposed_amount %}{{ t('not_assigned') }}{% endif %}
+        </div>
+      </div>
+    </div>
+    {% if collab.review_comment %}
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
+      <h2 style="font-size:.9rem;">{{ t('ind_review_comment') }}</h2>
+      <p style="font-size:.88rem; margin:6px 0 0;">{{ collab.review_comment }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    <!-- Government actions -->
+    <div class="card" style="margin-bottom:16px;">
+      <h2 style="font-size:.95rem; margin-top:0;">{{ t('gov_verdict') }}</h2>
+      {% if collab.status == 'SUBMITTED' %}
+      <form method="POST" action="{{ url_for('gov_collaboration_review', request_id=collab.id) }}">
+        <p class="hint" style="margin:0 0 10px;">{{ t('gov_funding_no_line') }}</p>
+        <button type="submit" class="btn btn-forest">{{ t('gov_begin_review') }}</button>
+      </form>
+      {% elif collab.status == 'UNDER_REVIEW' %}
+      <form method="POST" action="{{ url_for('gov_collaboration_verdict', request_id=collab.id) }}">
+        <label for="review_comment">{{ t('gov_review_comment_ph') }}</label>
+        <textarea id="review_comment" name="review_comment" rows="3"></textarea>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+          <button class="btn btn-forest" name="decision" value="ACCEPTED">{{ t('gov_verdict_accept') }}</button>
+          <button class="btn btn-ghost" name="decision" value="REVISION_REQUESTED">{{ t('gov_verdict_revision') }}</button>
+          <button class="btn btn-red" name="decision" value="REJECTED">{{ t('gov_verdict_reject') }}</button>
+        </div>
+      </form>
+      {% else %}
+      <p class="hint" style="margin:0;">{{ t('gov_funding_no_line') }}</p>
+      {% if collab.reviewer %}<p class="hint" style="margin-top:8px;">{{ t('gov_review_comment_ph') }}: {{ collab.reviewer.name }}</p>{% endif %}
+      {% endif %}
+    </div>
+
+    <!-- Funding line -->
+    <div class="card">
+      <h2 style="font-size:.95rem; margin-top:0;">{{ t('gov_funding_title') }}</h2>
+      {% if funding %}
+      <div class="ai-meta-grid" style="margin-top:10px; grid-template-columns:1fr 1fr;">
+        <div>
+          <div class="l">{{ t('ind_amount') }}</div>
+          <div class="v">₹ {{ "{:,.0f}".format(funding.approved_amount or 0) }}</div>
+        </div>
+        <div>
+          <div class="l">{{ t('ind_funding_status_label') }}</div>
+          <div class="v">{{ m.funding_status_badge(funding) }}</div>
+        </div>
+      </div>
+      <form method="POST" action="{{ url_for('gov_collaboration_funding', request_id=collab.id) }}" style="margin-top:14px;">
+        <label for="funding_status">{{ t('ind_funding_status_label') }}</label>
+        <select id="funding_status" name="funding_status">
+          {% set active_choice = funding.funding_status %}
+          {% for fs in funding_statuses %}
+          {% if fs != 'PROPOSED' %}
+          <option value="{{ fs }}" {% if fs == active_choice %}selected{% endif %}>{{ t('funding_status_' ~ fs) }}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+        <label for="funding_comment" style="margin-top:10px;">{{ t('gov_funding_comment_ph') }}</label>
+        <input type="text" id="funding_comment" name="funding_comment">
+        <div style="margin-top:12px;">
+          <button type="submit" class="btn btn-ghost">{{ t('gov_set_funding') }}</button>
+        </div>
+      </form>
+      <p class="hint" style="margin-top:10px;">{{ t('p5_funding_rep_note') }}</p>
+      {% else %}
+      <p class="hint" style="margin:0;">{{ t('gov_no_funding_line') }}</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <h2 style="font-size:.95rem; margin-top:0;">{{ t('ind_timeline') }}</h2>
+  {% if collab.logs %}
+  <ul class="timeline">
+    {% for log in collab.logs %}
+    <li>
+      <div class="t-status">
+        {% if log.new_status in ('INTERESTED','SUBMITTED','UNDER_REVIEW','ACCEPTED','REVISION_REQUESTED','REJECTED') %}
+        {{ t('collab_status_' ~ log.new_status) }} · {{ t('gov_collab_detail_title') }}
+        {% else %}
+        {{ log.new_status }}
+        {% endif %}
+      </div>
+      <div class="hint" style="margin:2px 0 0;">{{ log.comment }}</div>
+      <div class="hint">{{ log.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('not_assigned') }}</p>
+  {% endif %}
+</div>
+
+{% endblock %}

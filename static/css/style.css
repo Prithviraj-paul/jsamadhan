@@ -520,3 +520,8 @@ tr.row-link:hover{ background:#FBF9F3; cursor:pointer; }
 .dup-signals{ font-size:.78rem; }
 .dup-signals .signal{ display:inline-block; background:#EFEAD9; border-radius:999px; padding:1px 9px; margin:1px 3px 1px 0; color:var(--ink-soft); }
 .dup-actions{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+
+@media (max-width:640px){
+  .appbar{ flex-wrap:wrap; row-gap:10px; }
+  .appbar nav{ flex-wrap:wrap; gap:10px 14px; }
+}

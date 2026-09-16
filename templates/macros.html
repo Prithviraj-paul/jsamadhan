@@ -183,3 +183,118 @@
   <span class="badge badge-pending">{{ t('project_status_' ~ s) }}</span>
 {% endif %}
 {%- endmacro %}
+
+{% macro org_type_badge(org) -%}
+  <span class="badge badge-aiverified">{{ t('org_type_' ~ org.org_type) }}</span>
+{%- endmacro %}
+
+{% macro org_verification_badge(org) -%}
+{% if org.is_verified %}
+  <span class="badge badge-resolved">{{ t('gov_org_verification_status_VERIFIED') }}</span>
+{% elif org.is_rejected %}
+  <span class="badge badge-rejected">{{ t('gov_org_verification_status_REJECTED') }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('gov_org_verification_status_PENDING') }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro collab_status_badge(c) -%}
+{% set s = c.status %}
+{% if s == 'ACCEPTED' %}
+  <span class="badge badge-resolved">{{ t('collab_status_' ~ s) }}</span>
+{% elif s in ('SUBMITTED', 'UNDER_REVIEW') %}
+  <span class="badge badge-aiverified">{{ t('collab_status_' ~ s) }}</span>
+{% elif s == 'REVISION_REQUESTED' %}
+  <span class="badge badge-reopened">{{ t('collab_status_' ~ s) }}</span>
+{% elif s == 'REJECTED' %}
+  <span class="badge badge-rejected">{{ t('collab_status_' ~ s) }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('collab_status_' ~ s) }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro collab_type_badge(c) -%}
+  <span class="badge badge-accepted">{{ t('collab_type_' ~ c.collaboration_type) }}</span>
+{%- endmacro %}
+
+{% macro funding_status_badge(f) -%}
+{% if f.funding_status == 'APPROVED' %}
+  <span class="badge badge-resolved">{{ t('funding_status_APPROVED') }}</span>
+{% elif f.funding_status == 'DECLINED' %}
+  <span class="badge badge-rejected">{{ t('funding_status_DECLINED') }}</span>
+{% elif f.funding_status == 'DISBURSEMENT_PENDING' %}
+  <span class="badge badge-overdue">{{ t('funding_status_DISBURSEMENT_PENDING') }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('funding_status_PROPOSED') }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro fit_badge(fit) -%}
+{% set lvl = fit.level if fit is mapping else fit %}
+{% if lvl == 'strong' or lvl == 'very strong' %}
+  <span class="badge badge-resolved">{{ t('match_level_strong') }}</span>
+{% elif lvl == 'good' %}
+  <span class="badge badge-aiverified">{{ t('match_level_good') }}</span>
+{% elif lvl == 'possible' %}
+  <span class="badge badge-pending">{{ t('match_level_possible') }}</span>
+{% else %}
+  <span class="badge badge-rejected">{{ t('match_level_low') }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro readiness_badge(label) -%}
+{% if label == 'industry_connected' %}
+  <span class="badge badge-resolved">{{ t('ind_readiness_connected') }}</span>
+{% elif label == 'academic_ready' %}
+  <span class="badge badge-aiverified">{{ t('ind_readiness_academic') }}</span>
+{% elif label == 'prototype_ready' %}
+  <span class="badge badge-accepted">{{ t('ind_readiness_prototype') }}</span>
+{% elif label == 'testing_completed' %}
+  <span class="badge badge-resolved">{{ t('ind_readiness_testing') }}</span>
+{% elif label in ('pilot_active', 'pilot_completed') %}
+  <span class="badge badge-overdue">{{ t('ind_readiness_pilot') }}</span>
+{% elif label == 'deployed' %}
+  <span class="badge badge-resolved" style="background:var(--gold);">{{ t('ind_readiness_deployed') }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('readiness_not_ready') }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro prototype_status_badge(p) -%}
+{% set s = p.status %}
+{% if s == 'APPROVED' %}
+  <span class="badge badge-resolved">{{ t('prototype_status_' ~ s) }}</span>
+{% elif s == 'SUBMITTED' or s == 'UNDER_REVIEW' %}
+  <span class="badge badge-aiverified">{{ t('prototype_status_' ~ s) }}</span>
+{% elif s == 'REVISION_REQUESTED' %}
+  <span class="badge badge-reopened">{{ t('prototype_status_' ~ s) }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('prototype_status_' ~ s) }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro testing_status_badge(r) -%}
+{% set s = r.status %}
+{% if s == 'APPROVED' %}
+  <span class="badge badge-resolved">{{ t('testing_status_' ~ s) }}</span>
+{% elif s == 'SUBMITTED' or s == 'UNDER_REVIEW' %}
+  <span class="badge badge-aiverified">{{ t('testing_status_' ~ s) }}</span>
+{% elif s == 'REVISION_REQUESTED' %}
+  <span class="badge badge-reopened">{{ t('testing_status_' ~ s) }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('testing_status_' ~ s) }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro pilot_status_badge(p) -%}
+{% set s = p.status %}
+{% if s == 'DEPLOYED' %}
+  <span class="badge badge-resolved" style="background:var(--gold);">{{ t('pilot_status_' ~ s) }}</span>
+{% elif s == 'COMPLETED' %}
+  <span class="badge badge-resolved">{{ t('pilot_status_' ~ s) }}</span>
+{% elif s == 'ACTIVE' %}
+  <span class="badge badge-overdue">{{ t('pilot_status_' ~ s) }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('pilot_status_' ~ s) }}</span>
+{% endif %}
+{%- endmacro %}

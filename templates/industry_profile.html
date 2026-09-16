@@ -1,0 +1,120 @@
+{% extends "app_base.html" %}
+{% set active = 'dashboard' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('ind_profile_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="topbar">
+  <div>
+    <h1>{{ t('ind_profile_title') }}</h1>
+    <p class="hint" style="margin:0; max-width:64ch;">{{ t('ind_profile_sub') }}</p>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    {{ m.org_verification_badge(org) }}
+    <a class="btn btn-ghost" href="{{ url_for('industry_dashboard') }}">{{ t('nav_industry_dashboard') }}</a>
+  </div>
+</div>
+
+{% if org.is_pending %}
+<div class="banner banner-warn">{{ t('ind_verification_pending_banner') }}</div>
+{% elif org.is_verified %}
+<div class="banner banner-ok">{{ t('ind_verification_verified_banner') }}</div>
+{% else %}
+<div class="banner banner-danger">{{ t('ind_verification_rejected_banner') }}</div>
+{% endif %}
+
+{% if org.verification_note %}
+<div class="card" style="background:#FBFAF5;">
+  <h2 style="font-size:.9rem; margin-top:0;">{{ t('gov_note_ph') }}</h2>
+  <p style="font-size:.88rem; margin:0;">{{ org.verification_note }}</p>
+</div>
+{% endif %}
+
+<div class="card">
+  <form method="POST">
+    <div class="field-row">
+      <div style="flex:2;">
+        <label for="name">{{ t('ind_field_name') }}</label>
+        <input type="text" id="name" name="name" value="{{ org.name }}" required>
+      </div>
+      <div>
+        <label for="short_name">{{ t('ind_field_short_name') }}</label>
+        <input type="text" id="short_name" name="short_name" value="{{ org.short_name or '' }}">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div>
+        <label for="legal_entity_name">{{ t('ind_field_legal_name') }}</label>
+        <input type="text" id="legal_entity_name" name="legal_entity_name" value="{{ org.legal_entity_name or '' }}">
+      </div>
+      <div>
+        <label for="org_type">{{ t('ind_field_type') }}</label>
+        <select id="org_type" name="org_type">
+          <option value="">{{ t('ind_org_type_ph') }}</option>
+          {% for ot in org_types %}
+          <option value="{{ ot }}" {% if ot == org.org_type %}selected{% endif %}>{{ t('org_type_' ~ ot) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <label for="sector">{{ t('ind_field_sector') }}</label>
+    <input type="text" id="sector" name="sector" value="{{ org.sector or '' }}">
+
+    <label for="core_expertise">{{ t('ind_field_expertise') }}</label>
+    <input type="text" id="core_expertise" name="core_expertise" value="{{ org.core_expertise or '' }}" placeholder="{{ t('ind_field_expertise_ph') }}">
+
+    <label for="technologies">{{ t('ind_field_tech') }}</label>
+    <input type="text" id="technologies" name="technologies" value="{{ org.technologies or '' }}" placeholder="{{ t('ind_field_tech_ph') }}">
+
+    <label for="capabilities">{{ t('ind_field_capabilities') }}</label>
+    <input type="text" id="capabilities" name="capabilities" value="{{ org.capabilities or '' }}">
+
+    <div class="field-row">
+      <div>
+        <label for="email">{{ t('ind_field_email') }}</label>
+        <input type="email" id="email" name="email" value="{{ org.email or '' }}">
+      </div>
+      <div>
+        <label for="phone">{{ t('ind_field_phone') }}</label>
+        <input type="text" id="phone" name="phone" value="{{ org.phone or '' }}">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div style="flex:2;">
+        <label for="address">{{ t('ind_field_address') }}</label>
+        <input type="text" id="address" name="address" value="{{ org.address or '' }}">
+      </div>
+      <div>
+        <label for="district">{{ t('ind_field_district') }}</label>
+        <select id="district" name="district">
+          {% for d in districts %}
+          <option value="{{ d }}" {% if d == org.district %}selected{% endif %}>{{ dist_label(d) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div>
+        <label for="city">{{ t('ind_field_city') }}</label>
+        <input type="text" id="city" name="city" value="{{ org.city or '' }}">
+      </div>
+      <div>
+        <label for="website">{{ t('ind_field_website') }}</label>
+        <input type="url" id="website" name="website" value="{{ org.website or '' }}">
+      </div>
+    </div>
+
+    <label for="description">{{ t('ind_field_description') }}</label>
+    <textarea id="description" name="description" rows="4">{{ org.description or '' }}</textarea>
+
+    <div style="margin-top:22px;">
+      <button type="submit" class="btn btn-primary">{{ t('ind_profile_save') }}</button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

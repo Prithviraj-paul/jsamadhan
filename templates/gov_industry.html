@@ -1,0 +1,110 @@
+{% extends "app_base.html" %}
+{% set active = 'command-center' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('gov_industry_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('command_center') }}">{{ t('cmd_center') }}</a> / {{ t('gov_industry_title') }}</div>
+
+<h1>{{ t('gov_industry_title') }}</h1>
+<p class="hint" style="margin-top:0;">{{ t('gov_industry_sub') }}</p>
+
+<div class="kpi-grid-inline">
+  <div class="kpi"><div class="n">{{ kpis.orgs_total }}</div><div class="l">{{ t('kpi_industry_organizations') }}</div></div>
+  <div class="kpi"><div class="n">{{ kpis.orgs_verified }}</div><div class="l">{{ t('kpi_industry_verified') }}</div></div>
+  <div class="kpi {% if kpis.orgs_pending %}kpi-hot{% endif %}"><div class="n">{{ kpis.orgs_pending }}</div><div class="l">{{ t('kpi_industry_pending') }}</div></div>
+  <div class="kpi"><div class="n">{{ kpis.orgs_rejected }}</div><div class="l">{{ t('gov_org_verification_status_REJECTED') }}</div></div>
+</div>
+
+<!-- Pending verification -->
+<div class="card" style="margin-top:22px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:1rem;">{{ t('gov_industry_pending') }} ({{ pending|length }})</h2>
+    </div>
+  </div>
+  {% if pending %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('gov_th_org') }}</th>
+          <th>{{ t('gov_th_type') }}</th>
+          <th>{{ t('gov_th_district') }}</th>
+          <th>{{ t('gov_industry_sub') }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for org in pending %}
+        <tr>
+          <td>
+            <span style="font-weight:600; color:var(--forest);">{{ org.name }}</span>
+            <div style="font-size:.75rem; color:var(--ink-soft);">{{ org.short_name or org.legal_entity_name or '' }}</div>
+          </td>
+          <td>{{ m.org_type_badge(org) }}</td>
+          <td style="font-size:.8rem;">{{ dist_label(org.district) }}</td>
+          <td style="font-size:.78rem; max-width:260px;">
+            {% if org.core_expertise %}{{ org.core_expertise }}{% endif %}
+            {% if org.sector %}<div class="hint">{{ org.sector }}</div>{% endif %}
+          </td>
+          <td>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <form method="POST" action="{{ url_for('gov_industry_verify', org_id=org.id) }}">
+                <input type="text" name="note" placeholder="{{ t('gov_note_ph') }}" style="margin-bottom:6px;">
+                <button class="btn btn-sm btn-forest">{{ t('gov_verify') }}</button>
+              </form>
+              <form method="POST" action="{{ url_for('gov_industry_reject', org_id=org.id) }}">
+                <button class="btn btn-sm btn-ghost">{{ t('gov_reject') }}</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('gov_no_pending') }}</p>
+  {% endif %}
+</div>
+
+<!-- All organisations -->
+<div class="card" style="margin-top:22px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:1rem;">{{ t('gov_industry_all') }} ({{ organizations|length }})</h2>
+    </div>
+  </div>
+  {% if organizations %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('gov_th_org') }}</th>
+          <th>{{ t('gov_th_type') }}</th>
+          <th>{{ t('gov_th_district') }}</th>
+          <th>{{ t('gov_th_status') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for org in organizations %}
+        <tr>
+          <td>
+            <span style="font-weight:600; color:var(--forest);">{{ org.name }}</span>
+            <div class="hint">{{ org.email or '' }}</div>
+          </td>
+          <td>{{ m.org_type_badge(org) }}</td>
+          <td style="font-size:.8rem;">{{ dist_label(org.district) }}</td>
+          <td>{{ m.org_verification_badge(org) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('gov_no_pending') }}</p>
+  {% endif %}
+</div>
+
+{% endblock %}

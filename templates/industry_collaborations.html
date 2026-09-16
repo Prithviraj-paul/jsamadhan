@@ -1,0 +1,68 @@
+{% extends "app_base.html" %}
+{% set active = 'collaborations' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('ind_collabs_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="topbar">
+  <div>
+    <h1>{{ t('ind_collabs_title') }}</h1>
+    <p class="hint" style="margin:0; max-width:64ch;">{{ t('ind_collabs_sub') }}</p>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a class="btn btn-forest" href="{{ url_for('industry_projects') }}">{{ t('nav_industry_projects') }} →</a>
+  </div>
+</div>
+
+{% if requests %}
+<div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('ind_th_request') }}</th>
+        <th>{{ t('ind_th_project') }}</th>
+        <th>{{ t('ind_th_type') }}</th>
+        <th>{{ t('ind_th_status') }}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in requests %}
+      <tr>
+        <td>
+          <a href="{{ url_for('industry_collaboration_detail', request_id=c.id) }}" style="font-weight:600; color:var(--forest);">{{ c.title[:60] }}</a>
+          <div class="hint" style="margin:2px 0 0;">{{ c.created_at.strftime('%d %b %Y') }}</div>
+        </td>
+        <td style="font-size:.78rem;">
+          {{ c.project.title[:40] }}
+          {% if c.project.challenge %}<div class="hint">{{ c.project.challenge.code }}</div>{% endif %}
+        </td>
+        <td>
+          {{ m.collab_type_badge(c) }}
+          {% if c.funding_type %}<div class="hint">{{ t('funding_type_' ~ c.funding_type) }}</div>{% endif %}
+        </td>
+        <td>
+          {{ m.collab_status_badge(c) }}
+          {% if c.collaboration %}<div class="hint" style="margin-top:4px;">{{ m.funding_status_badge(c.collaboration) }}</div>{% endif %}
+        </td>
+        <td>
+          {% if c.is_interested or c.status == 'REVISION_REQUESTED' %}
+          <form method="POST" action="{{ url_for('industry_collaboration_submit', request_id=c.id) }}">
+            <button class="btn btn-sm btn-forest">{{ t('ind_submit') }}</button>
+          </form>
+          {% else %}
+          <a class="btn btn-sm btn-ghost" href="{{ url_for('industry_collaboration_detail', request_id=c.id) }}">{{ t('ind_view') }} →</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card">
+  <p class="hint" style="margin:0;">{{ t('ind_no_collabs') }} <a href="{{ url_for('industry_projects') }}" style="color:var(--forest);">{{ t('nav_industry_projects') }} →</a></p>
+</div>
+{% endif %}
+
+{% endblock %}

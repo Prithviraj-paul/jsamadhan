@@ -27,8 +27,14 @@
   <div class="kpi {% if kpis.uni_recommendations %}kpi-hot{% endif %}"><div class="n">{{ kpis.uni_recommendations }}</div><div class="l">{{ t('kpi_uni_recommendations') }}</div></div>
   <div class="kpi {% if kpis.duplicate_alerts %}kpi-hot{% endif %}"><div class="n">{{ kpis.duplicate_alerts }}</div><div class="l">{{ t('kpi_duplicate_alerts') }}</div></div>
   <div class="kpi"><div class="n">{{ kpis.active_projects }}</div><div class="l">{{ t('kpi_active_projects') }}</div></div>
+  <div class="kpi {% if kpis.prototype_reviews %}kpi-hot{% endif %}"><div class="n">{{ kpis.prototype_reviews }}</div><div class="l">{{ t('kpi_prototype_reviews') }}</div></div>
+  <div class="kpi {% if kpis.testing_reviews %}kpi-hot{% endif %}"><div class="n">{{ kpis.testing_reviews }}</div><div class="l">{{ t('kpi_testing_reviews') }}</div></div>
   <div class="kpi"><div class="n">{{ kpis.pilot_projects }}</div><div class="l">{{ t('kpi_pilot_projects') }}</div></div>
   <div class="kpi"><div class="n">{{ kpis.deployed_solutions }}</div><div class="l">{{ t('kpi_deployed') }}</div></div>
+  <div class="kpi"><div class="n">{{ kpis.industry_organizations }}</div><div class="l">{{ t('kpi_industry_organizations') }}</div></div>
+  <div class="kpi"><div class="n">{{ kpis.industry_verified }}</div><div class="l">{{ t('kpi_industry_verified') }}</div></div>
+  <div class="kpi {% if kpis.collab_reviews %}kpi-hot{% endif %}"><div class="n">{{ kpis.collab_reviews }}</div><div class="l">{{ t('kpi_collab_reviews') }}</div></div>
+  <div class="kpi"><div class="n">{{ kpis.collab_accepted }}</div><div class="l">{{ t('kpi_collab_accepted') }}</div></div>
 </div>
 
 <!-- Action required -->
@@ -80,15 +86,47 @@
         <span class="action-count">{{ actions.proposals_needing_approval }}</span>
       </a>
     </li>
-    <li class="future">
-      <span class="action-dot"></span>
-      <span>{{ t('act_projects_overdue') }}</span>
-      <span class="action-count">{{ actions.projects_overdue }}</span>
+    <li>
+      <a href="{{ url_for('gov_industry') }}" class="action-item {% if actions.industry_verifications_pending %}action-live{% endif %}">
+        <span class="action-dot {% if actions.industry_verifications_pending %}dot-live{% endif %}"></span>
+        <span>{{ t('act_industry_verifications') }}</span>
+        <span class="action-count">{{ actions.industry_verifications_pending }}</span>
+      </a>
     </li>
-    <li class="future">
-      <span class="action-dot"></span>
-      <span>{{ t('act_pilots_eval') }}</span>
-      <span class="action-count">{{ actions.pilots_needing_evaluation }}</span>
+    <li>
+      <a href="{{ url_for('gov_collaborations') }}" class="action-item {% if actions.collab_requests_review %}action-live{% endif %}">
+        <span class="action-dot {% if actions.collab_requests_review %}dot-live{% endif %}"></span>
+        <span>{{ t('act_collab_requests_review') }}</span>
+        <span class="action-count">{{ actions.collab_requests_review }}</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('gov_prototypes') }}" class="action-item {% if actions.prototypes_needing_review %}action-live{% endif %}">
+        <span class="action-dot {% if actions.prototypes_needing_review %}dot-live{% endif %}"></span>
+        <span>{{ t('act_prototypes_review') }}</span>
+        <span class="action-count">{{ actions.prototypes_needing_review }}</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('gov_testing') }}" class="action-item {% if actions.testing_needing_review %}action-live{% endif %}">
+        <span class="action-dot {% if actions.testing_needing_review %}dot-live{% endif %}"></span>
+        <span>{{ t('act_testing_review') }}</span>
+        <span class="action-count">{{ actions.testing_needing_review }}</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('gov_pilots') }}" class="action-item {% if actions.pilots_needing_evaluation %}action-live{% endif %}">
+        <span class="action-dot {% if actions.pilots_needing_evaluation %}dot-live{% endif %}"></span>
+        <span>{{ t('act_pilots_eval') }}</span>
+        <span class="action-count">{{ actions.pilots_needing_evaluation }}</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('gov_pilots') }}" class="action-item {% if actions.pilots_overdue %}action-live{% endif %}">
+        <span class="action-dot {% if actions.pilots_overdue %}dot-live{% endif %}"></span>
+        <span>{{ t('act_pilots_overdue') }}</span>
+        <span class="action-count">{{ actions.pilots_overdue }}</span>
+      </a>
     </li>
   </ul>
 </div>

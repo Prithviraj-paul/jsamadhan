@@ -1,0 +1,105 @@
+{% extends "app_base.html" %}
+{% set active = 'command-center' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('p6_proto_detail_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('command_center') }}">{{ t('cmd_center') }}</a> / <a href="{{ url_for('gov_prototypes') }}">{{ t('p6_prototypes_title') }}</a> / {{ prototype.project.title[:60] }}
+</div>
+
+<div class="topbar" style="flex-wrap:wrap;">
+  <div>
+    <h1>{{ prototype.project.title }}</h1>
+    <div class="meta" style="font-size:.84rem; color:var(--ink-soft); margin-top:8px;">
+      {{ t('p6_proto_version') }}: <strong>{{ prototype.version }}</strong> ·
+      {{ t('p6_submitted_by') }}: {{ prototype.submitter.name }}
+      {% if prototype.submitted_at %} · {{ t('p6_submitted_at') }} {{ prototype.submitted_at.strftime('%d %b %Y, %H:%M') }}{% endif %}
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    {{ m.prototype_status_badge(prototype) }}
+  </div>
+</div>
+
+<div class="grid grid-2" style="align-items:start;">
+  <div>
+    <div class="card" style="margin-bottom:16px;">
+      <h2 style="font-size:.95rem; margin-top:0;">{{ t('p6_proto_desc') }}</h2>
+      <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ prototype.description }}</p>
+
+      {% if prototype.progress_update %}
+      <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p6_proto_update') }}</h2>
+      <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ prototype.progress_update }}</p>
+      {% endif %}
+
+      <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p6_proto_evidence') }}</h2>
+      {% if prototype.evidence %}
+      <div class="table-scroll" style="margin-top:6px;">
+        <table>
+          <thead><tr><th>{{ t('p6_proto_evidence') }}</th><th></th></tr></thead>
+          <tbody>
+          {% for ev in prototype.evidence %}
+          <tr>
+            <td>{{ ev.name }}</td>
+            <td><a class="btn btn-sm btn-ghost" href="{{ url_for('uploaded_file', filename=ev.path) }}" target="_blank">{{ t('ind_view') }} →</a></td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="hint" style="margin:6px 0 0;">{{ t('p6_evidence_none') }}</p>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2 style="font-size:.95rem; margin-top:0;">{{ t('ind_timeline') }}</h2>
+      {% if prototype.logs %}
+      <ul class="timeline">
+        {% for log in prototype.logs %}
+        <li>
+          <div class="t-status">{{ log.action }} — {{ log.old_status }} → {{ log.new_status }}</div>
+          {% if log.comment %}<div class="hint" style="margin:2px 0 0;">{{ log.comment }}</div>{% endif %}
+          <div class="hint">{{ log.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="hint" style="margin:0;">{{ t('not_assigned') }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('gov_verdict') }}</h2>
+
+    {% if prototype.status == 'SUBMITTED' or prototype.status == 'REVISION_REQUESTED' %}
+    <form method="POST" action="{{ url_for('gov_prototype_review', prototype_id=prototype.id) }}">
+      <p class="hint" style="margin:0 0 10px;">{{ t('p6_begin_review_btn') }}: {{ prototype.project.title[:40] }}</p>
+      <button type="submit" class="btn btn-forest">{{ t('p6_begin_review_btn') }}</button>
+    </form>
+
+    {% elif prototype.status == 'UNDER_REVIEW' %}
+    <form method="POST" action="{{ url_for('gov_prototype_verdict', prototype_id=prototype.id) }}">
+      <label for="review_comment">{{ t('p6_review_comment') }}</label>
+      <textarea id="review_comment" name="review_comment" rows="3" placeholder="{{ t('p6_review_comment_ph') }}"></textarea>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+        <button class="btn btn-forest" name="decision" value="APPROVED">{{ t('p6_approve_btn') }}</button>
+        <button class="btn btn-ghost" name="decision" value="REVISION_REQUESTED">{{ t('p6_revision_btn') }}</button>
+      </div>
+    </form>
+
+    {% else %}
+    <p class="hint" style="margin:0;">{{ t('p6_review_comment') }}: {{ prototype.reviewer.name if prototype.reviewer else t('not_assigned') }}</p>
+    {% if prototype.reviewed_at %}<p class="hint" style="margin-top:8px;">{{ t('p6_reviewed_at') }}: {{ prototype.reviewed_at.strftime('%d %b %Y, %H:%M') }}</p>{% endif %}
+    {% endif %}
+
+    <div style="margin-top:20px;">
+      <a class="btn btn-sm btn-ghost" href="{{ url_for('gov_prototypes') }}">{{ t('p6_back') }}</a>
+      <a class="btn btn-sm btn-ghost" href="{{ url_for('project_details', project_id=prototype.project.id) }}" style="margin-left:6px;">{{ t('p6_view_project') }} →</a>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

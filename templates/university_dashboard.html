@@ -109,6 +109,43 @@
   {% endif %}
 </div>
 
+<!-- Industry collaborations -->
+{% if collaborations %}
+<div class="card" style="margin-top:22px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:1rem;">{{ t('nav_industry_collaborations') }} ({{ collaborations|length }})</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('gov_collabs_sub') }}</p>
+    </div>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('ind_industry_partner') }}</th>
+          <th>{{ t('ind_th_project') }}</th>
+          <th>{{ t('ind_th_type') }}</th>
+          <th>{{ t('ind_th_status') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in collaborations %}
+        <tr>
+          <td style="font-size:.85rem;"><strong style="color:var(--forest);">{{ c.organization.name }}</strong></td>
+          <td style="font-size:.85rem;">{{ c.project.title[:48] }}</td>
+          <td>{{ m.collab_type_badge(c) }}</td>
+          <td>
+            {{ m.collab_status_badge(c) }}
+            {% if c.collaboration %}<div class="hint" style="margin-top:4px;">{{ m.funding_status_badge(c.collaboration) }}</div>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 <!-- Proposals + projects -->
 {% if proposals or projects %}
 <div class="grid grid-2" style="margin-top:22px; align-items:start;">

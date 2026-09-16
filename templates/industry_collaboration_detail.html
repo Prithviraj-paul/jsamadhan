@@ -1,0 +1,117 @@
+{% extends "app_base.html" %}
+{% set active = 'collaborations' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('ind_collab_detail_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('industry_collaborations') }}">{{ t('nav_industry_collaborations') }}</a> / {{ collab.title[:60] }}
+</div>
+
+<div class="topbar" style="flex-wrap:wrap;">
+  <div>
+    <h1>{{ collab.title }}</h1>
+    <div class="meta" style="font-size:.84rem; color:var(--ink-soft); margin-top:8px;">
+      {{ t('ind_th_project') }}: <a href="{{ url_for('industry_project_detail', project_id=collab.project.id) }}" style="color:var(--forest); font-weight:600;">{{ collab.project.title[:56] }}</a> ·
+      {{ t('ind_uni_short') }}: {{ collab.project.university.short_name or collab.project.university.name }}
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    {{ m.collab_status_badge(collab) }}
+    {{ m.collab_type_badge(collab) }}
+  </div>
+</div>
+
+{% if collab.status == 'INTERESTED' %}
+<div class="banner banner-warn">{{ t('ind_interest_saved_hint') }}
+  <form method="POST" action="{{ url_for('industry_collaboration_submit', request_id=collab.id) }}" style="display:inline-block; margin-left:10px;">
+    <button class="btn btn-sm btn-forest">{{ t('ind_submit') }}</button>
+  </form>
+</div>
+{% elif collab.status == 'ACCEPTED' %}
+<div class="banner banner-ok">{{ t('ind_accepted_banner') }}</div>
+{% elif collab.status == 'REVISION_REQUESTED' %}
+<div class="banner banner-warn">{{ t('ind_revision_banner') }}
+  <form method="POST" action="{{ url_for('industry_collaboration_submit', request_id=collab.id) }}" style="display:inline-block; margin-left:10px;">
+    <button class="btn btn-sm btn-forest">{{ t('ind_submit') }}</button>
+  </form>
+</div>
+{% elif collab.status == 'REJECTED' %}
+<div class="banner banner-danger">{{ t('ind_rejected_banner') }}</div>
+{% elif collab.status == 'UNDER_REVIEW' %}
+<div class="banner banner-ai">{{ t('collab_status_UNDER_REVIEW') }}</div>
+{% endif %}
+
+<div class="grid grid-2" style="align-items:start;">
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('ind_interest_title') }}</h2>
+    <p style="font-size:.9rem; margin:0;">{{ collab.description }}</p>
+
+    <div class="ai-meta-grid" style="margin-top:16px; grid-template-columns:repeat(2,1fr);">
+      <div>
+        <div class="l">{{ t('ind_requested_by') }}</div>
+        <div class="v">{{ collab.organization.name }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('ind_created_on') }}</div>
+        <div class="v">{{ collab.created_at.strftime('%d %b %Y') }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('ind_field_support') }}</div>
+        <div class="v">{{ collab.expected_support or t('not_assigned') }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('ind_funding_status_label') }}</div>
+        <div class="v">
+          {% if collab.funding_type %}{{ t('funding_type_' ~ collab.funding_type) }} · {% endif %}
+          {% if collab.proposed_amount %}₹ {{ "{:,.0f}".format(collab.proposed_amount) }}{% else %}{{ t('not_assigned') }}{% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if collab.review_comment %}
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
+      <h2 style="font-size:.9rem;">{{ t('ind_review_comment') }}</h2>
+      <p style="font-size:.88rem; margin:6px 0 0;">{{ collab.review_comment }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('ind_funding_line') }}</h2>
+    {% if collab.collaboration %}
+    <div class="ai-meta-grid" style="margin-top:10px; grid-template-columns:1fr 1fr;">
+      <div>
+        <div class="l">{{ t('ind_amount') }}</div>
+        <div class="v">₹ {{ "{:,.0f}".format(collab.collaboration.approved_amount or 0) }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('ind_funding_status_label') }}</div>
+        <div class="v">{{ m.funding_status_badge(collab.collaboration) }}</div>
+      </div>
+    </div>
+    <p class="hint" style="margin:10px 0 0;">{{ t('p5_funding_rep_note') }}</p>
+    {% else %}
+    <p class="hint" style="margin:0;">{{ t('ind_no_funding_yet') }}</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <h2 style="font-size:.95rem; margin-top:0;">{{ t('ind_timeline') }}</h2>
+  {% if collab.logs %}
+  <ul class="timeline">
+    {% for log in collab.logs %}
+    <li>
+      <div class="t-status">{{ t('collab_status_' ~ log.new_status) if log.new_status in ('INTERESTED','SUBMITTED','UNDER_REVIEW','ACCEPTED','REVISION_REQUESTED','REJECTED') else log.new_status }}</div>
+      <div class="hint" style="margin:2px 0 0;">{{ log.comment }}</div>
+      <div class="hint">{{ log.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('not_assigned') }}</p>
+  {% endif %}
+</div>
+
+{% endblock %}

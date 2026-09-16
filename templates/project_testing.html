@@ -1,0 +1,182 @@
+{% extends "app_base.html" %}
+{% set active = 'teams' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('p6_testing_submit_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('project_details', project_id=project.id) }}">{{ project.title[:60] }}</a> / {{ t('p6_testing_title') }}
+</div>
+
+<div class="topbar" style="flex-wrap:wrap;">
+  <div>
+    <h1>{{ t('p6_testing_submit_title') }}</h1>
+    <p class="hint" style="margin-top:0;">{{ t('p6_testing_submit_sub') }}</p>
+  </div>
+  {% if testing %}
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    {{ m.testing_status_badge(testing) }}
+    {% if testing.test_result %}<span class="badge badge-pending">{{ t('p6_test_result_' ~ testing.test_result) }}</span>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if prototype and not prototype.is_approved %}
+<div class="banner banner-warn" style="margin-bottom:16px;">{{ t('p6_no_testing') }} — {{ t('p6_pilot_open_sub') }}</div>
+{% endif %}
+
+<div class="card" style="max-width:760px;">
+{% if not testing %}
+  <!-- First submission; only possible once the prototype is approved -->
+  {% if prototype and prototype.is_approved %}
+  <form method="POST" action="{{ url_for('project_testing_submit', project_id=project.id) }}" enctype="multipart/form-data">
+    <label for="objective">{{ t('p6_test_objective') }} <span style="color:var(--danger,#c0392b);">*</span></label>
+    <textarea id="objective" name="objective" rows="3" required placeholder="{{ t('p6_test_objective_ph') }}"></textarea>
+
+    <label for="test_description">{{ t('p6_test_description') }} <span style="color:var(--danger,#c0392b);">*</span></label>
+    <textarea id="test_description" name="test_description" rows="4" required placeholder="{{ t('p6_test_description_ph') }}"></textarea>
+
+    <div class="grid grid-2">
+      <div>
+        <label for="expected_result">{{ t('p6_test_expected') }} <span style="color:var(--danger,#c0392b);">*</span></label>
+        <textarea id="expected_result" name="expected_result" rows="3" required placeholder="{{ t('p6_test_expected_ph') }}"></textarea>
+      </div>
+      <div>
+        <label for="actual_result">{{ t('p6_test_actual') }} <span style="color:var(--danger,#c0392b);">*</span></label>
+        <textarea id="actual_result" name="actual_result" rows="3" required placeholder="{{ t('p6_test_actual_ph') }}"></textarea>
+      </div>
+    </div>
+
+    <label for="test_result">{{ t('p6_test_result') }}</label>
+    <select id="test_result" name="test_result">
+      {% for r in testing_results %}
+      <option value="{{ r }}">{{ t('p6_test_result_' ~ r) }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="issues_findings">{{ t('p6_test_issues') }}</label>
+    <textarea id="issues_findings" name="issues_findings" rows="3" placeholder="{{ t('p6_test_issues_ph') }}"></textarea>
+
+    <label for="evidence">{{ t('p6_proto_evidence') }}</label>
+    <input type="file" id="evidence" name="evidence" multiple>
+    <p class="hint" style="margin-top:4px;">{{ t('p6_proto_evidence_ph') }}</p>
+
+    <div style="margin-top:16px;">
+      <button type="submit" class="btn btn-forest">{{ t('p6_test_submit_btn') }}</button>
+      <a class="btn btn-ghost" href="{{ url_for('project_details', project_id=project.id) }}" style="margin-left:8px;">{{ t('p6_back') }}</a>
+    </div>
+  </form>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('p6_no_testing') }}</p>
+  <a class="btn btn-sm btn-ghost" href="{{ url_for('project_details', project_id=project.id) }}" style="margin-top:12px;">{{ t('p6_back') }}</a>
+  {% endif %}
+
+{% elif testing.status == 'REVISION_REQUESTED' %}
+  <!-- Revision editing for REVISION_REQUESTED -->
+  {% if testing.reviewer_comment %}
+  <div style="margin-bottom:16px; padding:12px; background:var(--bg, #f5f4ef); border-left:3px solid var(--gold,#d9a520);">
+    <div class="l" style="font-size:.75rem; text-transform:uppercase; letter-spacing:.04em;">{{ t('gov_review_comment_ph') }}</div>
+    <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ testing.reviewer_comment }}</p>
+  </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('project_testing_update', project_id=project.id) }}" enctype="multipart/form-data" style="margin-bottom:20px;">
+    <label for="objective">{{ t('p6_test_objective') }}</label>
+    <textarea id="objective" name="objective" rows="3" required>{{ testing.objective }}</textarea>
+
+    <label for="test_description">{{ t('p6_test_description') }}</label>
+    <textarea id="test_description" name="test_description" rows="4" required>{{ testing.test_description }}</textarea>
+
+    <div class="grid grid-2">
+      <div>
+        <label for="expected_result">{{ t('p6_test_expected') }}</label>
+        <textarea id="expected_result" name="expected_result" rows="3" required>{{ testing.expected_result }}</textarea>
+      </div>
+      <div>
+        <label for="actual_result">{{ t('p6_test_actual') }}</label>
+        <textarea id="actual_result" name="actual_result" rows="3" required>{{ testing.actual_result }}</textarea>
+      </div>
+    </div>
+
+    <label for="test_result">{{ t('p6_test_result') }}</label>
+    <select id="test_result" name="test_result">
+      {% for r in testing_results %}
+      <option value="{{ r }}" {% if r == testing.test_result %}selected{% endif %}>{{ t('p6_test_result_' ~ r) }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="issues_findings">{{ t('p6_test_issues') }}</label>
+    <textarea id="issues_findings" name="issues_findings" rows="3">{{ testing.issues_findings }}</textarea>
+
+    <label for="evidence">{{ t('p6_proto_evidence') }}</label>
+    <input type="file" id="evidence" name="evidence" multiple>
+    <p class="hint" style="margin-top:4px;">{{ t('p6_proto_evidence_ph') }}</p>
+
+    {% if testing.evidence %}
+    <div class="table-scroll" style="margin-top:6px;">
+      <table>
+        <thead><tr><th>{{ t('p6_proto_evidence') }}</th><th></th></tr></thead>
+        <tbody>
+        {% for ev in testing.evidence %}
+        <tr>
+          <td>{{ ev.name }}</td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('uploaded_file', filename=ev.path) }}" target="_blank">{{ t('ind_view') }} →</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:6px 0 0;">{{ t('p6_evidence_none') }}</p>
+    {% endif %}
+
+    <div style="margin-top:16px;">
+      <button type="submit" class="btn btn-forest">{{ t('p6_proto_save_btn') }}</button>
+      <a class="btn btn-ghost" href="{{ url_for('project_details', project_id=project.id) }}" style="margin-left:8px;">{{ t('p6_back') }}</a>
+    </div>
+  </form>
+
+  <div style="padding-top:14px; border-top:1px solid var(--line);">
+    <form method="POST" action="{{ url_for('project_testing_resubmit', project_id=project.id) }}">
+      <button type="submit" class="btn btn-forest">{{ t('p6_test_submit_btn') }} →</button>
+    </form>
+  </div>
+
+{% else %}
+  <!-- Read-only after submission / under review / approved -->
+  <h2 style="font-size:.95rem; margin-top:0;">{{ t('p6_test_objective') }}</h2>
+  <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ testing.objective }}</p>
+
+  <div class="ai-meta-grid" style="margin-top:14px; grid-template-columns:1fr 1fr;">
+    <div>
+      <div class="l">{{ t('p6_test_expected') }}</div>
+      <div class="v" style="white-space:pre-wrap;">{{ testing.expected_result }}</div>
+    </div>
+    <div>
+      <div class="l">{{ t('p6_test_actual') }}</div>
+      <div class="v" style="white-space:pre-wrap;">{{ testing.actual_result }}</div>
+    </div>
+  </div>
+
+  <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p6_test_description') }}</h2>
+  <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ testing.test_description }}</p>
+
+  {% if testing.issues_findings %}
+  <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p6_test_issues') }}</h2>
+  <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ testing.issues_findings }}</p>
+  {% endif %}
+
+  {% if testing.reviewer_comment %}
+  <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
+    <h2 style="font-size:.9rem;">{{ t('gov_review_comment_ph') }}</h2>
+    <p style="font-size:.9rem; margin:4px 0 0; white-space:pre-wrap;">{{ testing.reviewer_comment }}</p>
+  </div>
+  {% endif %}
+
+  <div style="margin-top:18px;">
+    <a class="btn btn-sm btn-ghost" href="{{ url_for('project_details', project_id=project.id) }}">{{ t('p6_back') }}</a>
+  </div>
+{% endif %}
+</div>
+
+{% endblock %}

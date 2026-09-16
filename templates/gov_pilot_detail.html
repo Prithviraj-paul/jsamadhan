@@ -1,0 +1,118 @@
+{% extends "app_base.html" %}
+{% set active = 'command-center' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('p6_pilot_detail_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('command_center') }}">{{ t('cmd_center') }}</a> / <a href="{{ url_for('gov_pilots') }}">{{ t('p6_pilots_title') }}</a> / {{ pilot.project.title[:60] }}
+</div>
+
+<div class="topbar" style="flex-wrap:wrap;">
+  <div>
+    <h1>{{ pilot.project.title }}</h1>
+    <div class="meta" style="font-size:.84rem; color:var(--ink-soft); margin-top:8px;">
+      {{ t('p6_pilot_district') }}: <strong>{{ dist_label(pilot.district) }}</strong>
+      {% if pilot.location %} · {{ pilot.location }}{% endif %}
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    {{ m.pilot_status_badge(pilot) }}
+    {% if pilot.is_overdue %}<span class="badge badge-overdue">{{ t('act_pilots_overdue') }}</span>{% endif %}
+  </div>
+</div>
+
+<div class="grid grid-2" style="align-items:start;">
+  <div class="card">
+    <div class="ai-meta-grid" style="margin-top:6px; grid-template-columns:1fr 1fr;">
+      <div>
+        <div class="l">{{ t('p6_pilot_start') }}</div>
+        <div class="v">{{ pilot.start_date.strftime('%d %b %Y') if pilot.start_date else t('not_assigned') }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('p6_pilot_target_end') }}</div>
+        <div class="v">{{ pilot.target_end_date.strftime('%d %b %Y') if pilot.target_end_date else t('not_assigned') }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('p6_pilot_community') }}</div>
+        <div class="v">{{ pilot.target_community or t('not_assigned') }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('p6_pilot_org') }}</div>
+        <div class="v">{{ pilot.responsible_org or t('not_assigned') }}</div>
+      </div>
+    </div>
+
+    {% if pilot.objectives %}
+    <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p6_pilot_objectives') }}</h2>
+    <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ pilot.objectives }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('p6_pilot_progress') }}</h2>
+    {% if pilot.updates %}
+    <ul class="timeline">
+      {% for u in pilot.updates %}
+      <li>
+        <div class="t-status">{{ u.by }}</div>
+        <div class="hint" style="margin:2px 0 0;">{{ u.text }}</div>
+        <div class="hint">{{ u.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="hint" style="margin:0;">{{ t('p6_no_updates') }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('gov_pilot_progress', pilot_id=pilot.id) }}" style="margin-top:14px;">
+      <label for="progress_text">{{ t('p6_pilot_progress') }}</label>
+      <textarea id="progress_text" name="progress_text" rows="2" placeholder="{{ t('p6_pilot_progress_ph') }}"></textarea>
+      <div style="margin-top:10px;">
+        <button type="submit" class="btn btn-sm btn-ghost">{{ t('p6_pilot_progress_btn') }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <h2 style="font-size:.95rem; margin-top:0;">{{ t('gov_verdict') }}</h2>
+
+  {% if pilot.status != 'DEPLOYED' %}
+  <form method="POST" action="{{ url_for('gov_pilot_status', pilot_id=pilot.id) }}">
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <select name="status" style="max-width:260px; width:100%;">
+        {% set nxt = {'PLANNED':'ACTIVE','ACTIVE':'COMPLETED','COMPLETED':'DEPLOYED'}[pilot.status] %}
+        <option value="{{ nxt }}" selected>{{ t('pilot_status_' ~ nxt) }}</option>
+      </select>
+      <input type="text" name="review_comment" placeholder="{{ t('p6_review_comment_ph') }}" style="flex:1; min-width:220px;">
+      <button type="submit" class="btn btn-forest">{{ t('p6_review_btn') }}</button>
+    </div>
+  </form>
+  {% if pilot.status == 'COMPLETED' %}
+  <p class="hint" style="margin-top:10px;">{{ t('p6_pilot_deploy_sub') }}<br>{{ t('p6_deployment_note') }}</p>
+  {% endif %}
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('p6_deployment_note') }}</p>
+  <div class="ai-meta-grid" style="margin-top:12px; grid-template-columns:1fr 1fr;">
+    <div>
+      <div class="l">{{ t('p6_reviewed_at') }}</div>
+      <div class="v">{{ pilot.reviewed_at.strftime('%d %b %Y, %H:%M') if pilot.reviewed_at else t('not_assigned') }}</div>
+    </div>
+    <div>
+      <div class="l">{{ t('p6_th_reviewer') }}</div>
+      <div class="v">{{ pilot.reviewer.name if pilot.reviewer else t('not_assigned') }}</div>
+    </div>
+  </div>
+  {% if pilot.review_comment %}
+  <p style="font-size:.9rem; margin:12px 0 0; white-space:pre-wrap;">{{ pilot.review_comment }}</p>
+  {% endif %}
+  {% endif %}
+
+  <div style="margin-top:18px;">
+    <a class="btn btn-sm btn-ghost" href="{{ url_for('gov_pilots') }}">{{ t('p6_back') }}</a>
+    <a class="btn btn-sm btn-ghost" href="{{ url_for('project_details', project_id=pilot.project.id) }}" style="margin-left:6px;">{{ t('p6_view_project') }} →</a>
+  </div>
+</div>
+
+{% endblock %}

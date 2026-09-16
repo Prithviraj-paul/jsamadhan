@@ -1,0 +1,67 @@
+{% extends "app_base.html" %}
+{% set active = 'command-center' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('p6_pilot_open_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('command_center') }}">{{ t('cmd_center') }}</a> / <a href="{{ url_for('gov_pilots') }}">{{ t('p6_pilots_title') }}</a> / {{ t('p6_pilot_open_title') }}
+</div>
+
+<h1>{{ t('p6_pilot_open_title') }}</h1>
+<p class="hint" style="margin-top:0;">{{ t('p6_pilot_open_sub') }}</p>
+
+{% if eligible %}
+<div class="card" style="max-width:760px;">
+  <form method="POST">
+    <label for="project_id">{{ t('p6_th_project') }}</label>
+    <select id="project_id" name="project_id" required>
+      {% for p in eligible %}
+      <option value="{{ p.id }}">{{ p.title[:70] }}</option>
+      {% endfor %}
+    </select>
+
+    <div class="grid grid-2" style="margin-top:12px;">
+      <div>
+        <label for="district">{{ t('p6_pilot_district') }}</label>
+        <select id="district" name="district" required>
+          {% for d in districts %}
+          <option value="{{ d }}">{{ dist_label(d) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="start_date">{{ t('p6_pilot_start') }}</label>
+        <input type="date" id="start_date" name="start_date">
+      </div>
+    </div>
+
+    <label for="location" style="margin-top:12px;">{{ t('p6_pilot_location') }}</label>
+    <input type="text" id="location" name="location" placeholder="{{ t('p6_pilot_location_ph') }}">
+
+    <label for="target_community" style="margin-top:12px;">{{ t('p6_pilot_community') }}</label>
+    <input type="text" id="target_community" name="target_community">
+
+    <label for="target_end_date" style="margin-top:12px;">{{ t('p6_pilot_target_end') }}</label>
+    <input type="date" id="target_end_date" name="target_end_date">
+
+    <label for="objectives" style="margin-top:12px;">{{ t('p6_pilot_objectives') }}</label>
+    <textarea id="objectives" name="objectives" rows="3" placeholder="{{ t('p6_pilot_objectives_ph') }}"></textarea>
+
+    <label for="responsible_org" style="margin-top:12px;">{{ t('p6_pilot_org') }}</label>
+    <input type="text" id="responsible_org" name="responsible_org">
+
+    <div style="margin-top:16px;">
+      <button type="submit" class="btn btn-forest">{{ t('p6_pilot_open_btn') }}</button>
+      <a class="btn btn-ghost" href="{{ url_for('gov_pilots') }}" style="margin-left:8px;">{{ t('p6_back') }}</a>
+    </div>
+  </form>
+</div>
+{% else %}
+<div class="card">
+  <p class="hint" style="margin:0;">{{ t('p6_no_projects_eligible') }}</p>
+  <a class="btn btn-sm btn-ghost" href="{{ url_for('gov_pilots') }}" style="margin-top:12px;">{{ t('p6_back') }}</a>
+</div>
+{% endif %}
+
+{% endblock %}

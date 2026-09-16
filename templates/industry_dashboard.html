@@ -1,0 +1,138 @@
+{% extends "app_base.html" %}
+{% set active = 'dashboard' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('ind_dashboard_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="topbar">
+  <div>
+    <h1>{{ t('ind_dashboard_title') }}</h1>
+    <p class="hint" style="margin:0; max-width:64ch;">{{ t('ind_dashboard_sub') }}</p>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a class="btn btn-ghost" href="{{ url_for('industry_profile') }}">{{ t('ind_profile_title') }}</a>
+    <a class="btn btn-ghost" href="{{ url_for('industry_collaborations') }}">{{ t('nav_industry_collaborations') }}</a>
+    <a class="btn btn-forest" href="{{ url_for('industry_projects') }}">{{ t('nav_industry_projects') }} →</a>
+  </div>
+</div>
+
+{% if org.is_pending %}
+<div class="banner banner-warn">{{ t('ind_org_status_pending') }}</div>
+{% elif org.is_verified %}
+<div class="banner banner-ok">{{ t('ind_org_status_verified') }}</div>
+{% else %}
+<div class="banner banner-danger">{{ t('ind_org_status_rejected') }}</div>
+{% endif %}
+
+<div class="card" style="margin-bottom:2px;">
+  <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center;">
+    <div>
+      <h2 style="font-size:1rem; margin:0 0 4px;">{{ org.name }}</h2>
+      <div class="meta" style="font-size:.8rem; color:var(--ink-soft);">
+        {{ m.org_type_badge(org) }}
+        {% if org.sector %}<span>{{ org.sector }}</span>{% endif %}
+        {% if org.district %}<span>· {{ dist_label(org.district) }}</span>{% endif %}
+        {{ m.org_verification_badge(org) }}
+      </div>
+      {% if org.core_expertise %}<p class="hint" style="margin:8px 0 0;">{{ org.core_expertise }}</p>{% endif %}
+      {% if not org.is_verified %}
+      <p class="hint" style="margin:8px 0 0;">
+        <a href="{{ url_for('industry_profile') }}" style="color:var(--forest);">{{ t('ind_profile_title') }} →</a>
+      </p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="kpi-grid-inline" style="margin-top:18px;">
+  <div class="kpi"><div class="n">{{ projects|length }}</div><div class="l">{{ t('ind_kpi_open_projects') }}</div></div>
+  <div class="kpi"><div class="n">{{ kpis.orgs_verified }}</div><div class="l">{{ t('ind_kpi_verified') }}</div></div>
+  <div class="kpi {% if kpis.collab_connected %}kpi-hot{% endif %}"><div class="n">{{ kpis.collab_connected }}</div><div class="l">{{ t('ind_kpi_active_collab') }}</div></div>
+  <div class="kpi"><div class="n">₹ {{ "{:,.0f}".format(kpis.funding_approved + kpis.funding_proposed) }}</div><div class="l">{{ t('ind_kpi_funding_proposed') }}</div></div>
+</div>
+
+<!-- Open projects preview -->
+<div class="card" style="margin-top:22px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:1rem;">{{ t('ind_open_projects_title') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('ind_open_projects_sub') }}</p>
+    </div>
+    <a href="{{ url_for('industry_projects') }}" class="btn btn-sm btn-ghost">{{ t('ind_go_discover') }} →</a>
+  </div>
+  {% if projects %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('ind_th_project') }}</th>
+          <th>{{ t('ind_th_institution') }}</th>
+          <th>{{ t('ind_th_faculty') }}</th>
+          <th>{{ t('ind_th_status') }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in projects[:6] %}
+        <tr>
+          <td>
+            <span style="font-weight:600; color:var(--forest);">{{ p.title[:64] }}</span>
+            {% if p.challenge %}<div style="font-size:.75rem; color:var(--ink-soft);">{{ t('ind_challenge') }}: {{ p.challenge.code }}</div>{% endif %}
+          </td>
+          <td style="font-size:.78rem;">{{ p.university.short_name or p.university.name }}</td>
+          <td style="font-size:.78rem;">{{ p.faculty_lead or t('not_assigned') }}</td>
+          <td>{{ m.project_status_badge(p) }}</td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('industry_projects') }}">{{ t('ind_view') }} →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('ind_no_projects') }}</p>
+  {% endif %}
+</div>
+
+<!-- My collaborations preview -->
+<div class="card" style="margin-top:22px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:1rem;">{{ t('nav_industry_collaborations') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('ind_collabs_sub') }}</p>
+    </div>
+    <a href="{{ url_for('industry_collaborations') }}" class="btn btn-sm btn-ghost">{{ t('ind_view') }} →</a>
+  </div>
+  {% if org.collaborations %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('ind_th_request') }}</th>
+          <th>{{ t('ind_th_project') }}</th>
+          <th>{{ t('ind_th_type') }}</th>
+          <th>{{ t('ind_th_status') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in org.collaborations[:6] %}
+        <tr>
+          <td>
+            <a href="{{ url_for('industry_collaboration_detail', request_id=c.id) }}" style="font-weight:600; color:var(--forest);">{{ c.title[:56] }}</a>
+            <div class="hint" style="margin:2px 0 0;">{{ c.created_at.strftime('%d %b %Y') }}</div>
+          </td>
+          <td style="font-size:.78rem;">{{ c.project.title[:40] }}</td>
+          <td>{{ m.collab_type_badge(c) }}</td>
+          <td>{{ m.collab_status_badge(c) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">
+    {% if org.is_verified %}{{ t('ind_no_collabs') }} <a href="{{ url_for('industry_projects') }}" style="color:var(--forest);">{{ t('nav_industry_projects') }} →</a>{% else %}{{ t('ind_org_status_pending') }}{% endif %}
+  </p>
+  {% endif %}
+</div>
+
+{% endblock %}

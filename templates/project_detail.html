@@ -53,4 +53,160 @@
   {% endif %}
 </div>
 
+<!-- Phase 5: industry collaboration & readiness -->
+<div class="card" style="margin-top:16px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:.95rem; margin:0;">{{ t('ind_field_type_label') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('gov_collabs_sub') }}</p>
+    </div>
+    <div>{{ m.readiness_badge(readiness.label) }}</div>
+  </div>
+
+  {% if connections %}
+  <div class="table-scroll" style="margin-top:8px;">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('ind_industry_partner') }}</th>
+          <th>{{ t('ind_th_type') }}</th>
+          <th>{{ t('ind_amount') }}</th>
+          <th>{{ t('ind_funding_status_label') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pc in connections %}
+        <tr>
+          <td style="font-size:.85rem;"><strong style="color:var(--forest);">{{ pc.organization.name }}</strong></td>
+          <td>{% if pc.request %}{{ m.collab_type_badge(pc.request) }}{% else %}{{ t('not_assigned') }}{% endif %}</td>
+          <td>₹ {{ "{:,.0f}".format(pc.approved_amount or 0) }}</td>
+          <td>{{ m.funding_status_badge(pc) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:8px 0 0;">{{ t('ind_no_collabs') }}</p>
+  {% endif %}
+
+  {% if collab_requests %}
+  <h2 style="font-size:.9rem; margin:18px 0 0;">{{ t('nav_industry_collaborations') }}</h2>
+  <div class="table-scroll" style="margin-top:6px;">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('ind_th_request') }}</th>
+          <th>{{ t('ind_field_type_label') }}</th>
+          <th>{{ t('ind_th_status') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in collab_requests %}
+        <tr>
+          <td style="font-size:.85rem;"><strong style="color:var(--forest);">{{ c.title[:56] }}</strong><div class="hint">{{ c.organization.name }}</div></td>
+          <td>{{ m.collab_type_badge(c) }}</td>
+          <td>{{ m.collab_status_badge(c) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Phase 6: prototype → testing → pilot stages -->
+<div class="grid grid-2" style="margin-top:16px; align-items:start;">
+  <div class="card" style="margin:0;">
+    <div class="cc-section-head">
+      <div>
+        <h2 style="font-size:.95rem; margin:0;">{{ t('p6_prototypes_title') }}</h2>
+      </div>
+      {% if readiness.prototype %}
+      {{ m.prototype_status_badge(readiness.prototype) }}
+      {% else %}
+      <span class="badge badge-pending">{{ t('readiness_not_ready') }}</span>
+      {% endif %}
+    </div>
+    {% if readiness.prototype %}
+    <p style="font-size:.9rem; margin:10px 0 0; white-space:pre-wrap;">{{ readiness.prototype.description[:240] }}</p>
+    <div class="hint" style="margin-top:6px;">{{ t('p6_proto_version') }}: {{ readiness.prototype.version }} · {{ t('p6_submitted_at') }}: {{ readiness.prototype.submitted_at.strftime('%d %b %Y') if readiness.prototype.submitted_at else t('not_assigned') }}</div>
+    <a class="btn btn-sm btn-ghost" href="{{ url_for('project_prototype', project_id=project.id) }}" style="margin-top:12px;">{{ t('p6_proto_save_btn') }} / {{ t('ind_view') }} →</a>
+    {% elif is_member %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p6_no_prototype') }}</p>
+    <a class="btn btn-sm btn-forest" href="{{ url_for('project_prototype', project_id=project.id) }}" style="margin-top:12px;">{{ t('p6_proto_submit_btn') }} →</a>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p6_no_prototype') }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card" style="margin:0;">
+    <div class="cc-section-head">
+      <div>
+        <h2 style="font-size:.95rem; margin:0;">{{ t('p6_testing_title') }}</h2>
+      </div>
+      {% if readiness.testing %}
+      {{ m.testing_status_badge(readiness.testing) }}
+      {% else %}
+      <span class="badge badge-pending">{{ t('readiness_not_ready') }}</span>
+      {% endif %}
+    </div>
+    {% if readiness.testing %}
+    <p style="font-size:.9rem; margin:10px 0 0; white-space:pre-wrap;">{{ readiness.testing.objective[:240] }}</p>
+    <div class="hint" style="margin-top:6px;">{{ t('p6_test_result') }}: {{ t('p6_test_result_' ~ readiness.testing.test_result) }}</div>
+    <a class="btn btn-sm btn-ghost" href="{{ url_for('project_testing', project_id=project.id) }}" style="margin-top:12px;">{{ t('ind_view') }} →</a>
+    {% elif is_member %}
+    {% if readiness.prototype_ready %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p6_no_testing') }}</p>
+    <a class="btn btn-sm btn-forest" href="{{ url_for('project_testing', project_id=project.id) }}" style="margin-top:12px;">{{ t('p6_test_submit_btn') }} →</a>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p6_no_testing') }}</p>
+    {% endif %}
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p6_no_testing') }}</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:.95rem; margin:0;">{{ t('p6_pilots_title') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('p6_pilot_open_sub') }}</p>
+    </div>
+    {% if readiness.pilot %}
+    {{ m.pilot_status_badge(readiness.pilot) }}
+    {% else %}
+    <span class="badge badge-pending">{{ t('readiness_not_ready') }}</span>
+    {% endif %}
+  </div>
+  {% if readiness.pilot %}
+  <div class="ai-meta-grid" style="margin-top:10px; grid-template-columns:1fr 1fr 1fr;">
+    <div>
+      <div class="l">{{ t('p6_pilot_district') }}</div>
+      <div class="v">{{ dist_label(readiness.pilot.district) }}</div>
+    </div>
+    <div>
+      <div class="l">{{ t('p6_pilot_start') }}</div>
+      <div class="v">{{ readiness.pilot.start_date.strftime('%d %b %Y') if readiness.pilot.start_date else t('not_assigned') }}</div>
+    </div>
+    <div>
+      <div class="l">{{ t('p6_pilot_target_end') }}</div>
+      <div class="v">{{ readiness.pilot.target_end_date.strftime('%d %b %Y') if readiness.pilot.target_end_date else t('not_assigned') }}</div>
+    </div>
+  </div>
+  {% if readiness.testing_completed and readiness.deployed %}
+  <p class="hint" style="margin-top:10px;">{{ t('p6_deployment_note') }}</p>
+  {% endif %}
+  {% if readiness.pilot.updates %}
+  <div class="hint" style="margin-top:10px;">{{ t('p6_updates') }}: {{ readiness.pilot.updates|length }}</div>
+  {% endif %}
+  {% elif is_gov %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('p6_no_pilot') }}</p>
+  <a class="btn btn-sm btn-forest" href="{{ url_for('gov_pilot_new') }}" style="margin-top:12px;">+ {{ t('p6_pilot_open_btn') }}</a>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('p6_no_pilot') }}</p>
+  {% endif %}
+</div>
+
 {% endblock %}

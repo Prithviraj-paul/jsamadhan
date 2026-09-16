@@ -1,0 +1,232 @@
+{% extends "app_base.html" %}
+{% set active = 'discover' %}
+{% import "macros.html" as m %}
+{% block title %}{{ project.title }} — {{ t('ind_project_title') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('industry_dashboard') }}">{{ t('nav_industry_dashboard') }}</a> / <a href="{{ url_for('industry_projects') }}">{{ t('ind_projects_title') }}</a> / {{ project.title[:60] }}
+</div>
+
+<div class="topbar" style="flex-wrap:wrap;">
+  <div>
+    <h1>{{ project.title }}</h1>
+    <div class="meta" style="font-size:.84rem; color:var(--ink-soft); margin-top:8px;">
+      {% if project.challenge %}{{ t('ind_challenge') }}: <strong>{{ project.challenge.code }}</strong> · {% endif %}
+      {{ t('ind_uni_short') }}: {{ project.university.short_name or project.university.name }} ·
+      {{ t('ind_team_name') }}: {{ project.team.name }}
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    {{ m.project_status_badge(project) }}
+    <span class="badge badge-aiverified">{{ t('ind_readiness_academic') }}</span>
+  </div>
+</div>
+
+<div class="banner banner-ok">{{ t('ind_eligibility_ok') }}</div>
+
+<div class="grid grid-2" style="align-items:start;">
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('ind_project_info') }}</h2>
+    <p style="font-size:.88rem; margin:8px 0 0;">{{ project.description or t('not_assigned') }}</p>
+
+    <div class="ai-meta-grid" style="margin-top:16px; grid-template-columns:repeat(2,1fr);">
+      <div>
+        <div class="l">{{ t('ind_team_name') }}</div>
+        <div class="v">{{ project.team.name }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('ind_faculty_lead') }}</div>
+        <div class="v">{{ faculty_lead or t('not_assigned') }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('ind_district') }}</div>
+        <div class="v">{{ dist_label(project.challenge.district) }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('p4_created') }}</div>
+        <div class="v">{{ project.start_date.strftime('%d %b %Y') if project.start_date else t('not_assigned') }}</div>
+      </div>
+    </div>
+
+    {% if project.target_end_date %}
+    <p style="margin-top:12px;" class="hint">
+      {{ t('p4_target_end') }}: {{ project.target_end_date.strftime('%d %b %Y') }}
+    </p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('ind_fit_score') }}</h2>
+    <div style="display:flex; align-items:center; gap:12px;">
+      {{ m.fit_badge(fit.level) }}
+      <span class="conf-pill conf-{{ fit.level }}" style="font-size:1.05rem;">{{ "%.0f"|format(fit.score) }}%</span>
+    </div>
+    {% if fit.signals %}
+    <p style="margin:14px 0 0; font-size:.85rem;">
+      <strong>{{ t('ind_fit_signals') }}:</strong>
+      {% for s in fit.signals %}<span class="badge badge-submitted">{{ s }}</span> {% endfor %}
+    </p>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('ind_no_fit') }}</p>
+    {% endif %}
+
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
+      <h2 style="font-size:.95rem;">{{ t('ind_prop_problem') }}</h2>
+      <p style="font-size:.88rem; margin:6px 0 0;">{{ project.proposal.problem_statement or t('not_assigned') }}</p>
+      <h2 style="font-size:.95rem; margin-top:16px;">{{ t('ind_prop_solution') }}</h2>
+      <p style="font-size:.88rem; margin:6px 0 0;">{{ project.proposal.proposed_solution or t('not_assigned') }}</p>
+    </div>
+
+    <p class="hint" style="margin:14px 0 0;">{{ t('ind_privacy_note') }}</p>
+  </div>
+</div>
+
+<!-- Existing requests on this project -->
+{% if existing %}
+<div class="card" style="margin-top:16px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:.95rem; margin:0;">{{ t('nav_industry_collaborations') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('ind_interest_existing_hint') }}</p>
+    </div>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('ind_th_request') }}</th>
+          <th>{{ t('ind_th_type') }}</th>
+          <th>{{ t('ind_th_status') }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in existing %}
+        <tr>
+          <td><a href="{{ url_for('industry_collaboration_detail', request_id=c.id) }}" style="font-weight:600; color:var(--forest);">{{ c.title[:60] }}</a></td>
+          <td>{{ m.collab_type_badge(c) }}</td>
+          <td>{{ m.collab_status_badge(c) }}</td>
+          <td>
+            {% if c.is_interested or c.status == 'REVISION_REQUESTED' %}
+            <form method="POST" action="{{ url_for('industry_collaboration_submit', request_id=c.id) }}">
+              <button class="btn btn-sm btn-forest">{{ t('ind_submit') }}</button>
+            </form>
+            {% else %}
+            <a class="btn btn-sm btn-ghost" href="{{ url_for('industry_collaboration_detail', request_id=c.id) }}">{{ t('ind_view') }} →</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<!-- Express interest -->
+<div class="card" style="margin-top:16px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:.95rem; margin:0;">{{ t('ind_interest_title') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('ind_interest_desc') }}</p>
+    </div>
+  </div>
+  <form method="POST" action="{{ url_for('industry_interest', project_id=project.id) }}">
+    <div class="field-row">
+      <div style="flex:2;">
+        <label for="title">{{ t('ind_th_request') }}</label>
+        <input type="text" id="title" name="title" required placeholder="{{ t('ind_interest_ph_title') }}">
+      </div>
+      <div>
+        <label for="collaboration_type">{{ t('ind_field_type_label') }}</label>
+        <select id="collaboration_type" name="collaboration_type">
+          {% for ct in COLLABORATION_TYPES %}
+          <option value="{{ ct }}">{{ t('collab_type_' ~ ct) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <label for="description">{{ t('ind_field_description') }}</label>
+    <textarea id="description" name="description" rows="3" required placeholder="{{ t('ind_interest_desc') }}"></textarea>
+
+    <label for="expected_support">{{ t('ind_field_support') }}</label>
+    <input type="text" id="expected_support" name="expected_support" placeholder="{{ t('ind_interest_ph_support') }}">
+
+    <div class="field-row">
+      <div>
+        <label for="proposed_amount">{{ t('ind_field_amount') }}</label>
+        <input type="number" id="proposed_amount" name="proposed_amount" min="0" step="0.01" placeholder="{{ t('ind_funding_ph') }}">
+      </div>
+      <div>
+        <label for="funding_type">{{ t('ind_field_funding_type') }}</label>
+        <select id="funding_type" name="funding_type">
+          <option value="">{{ t('ind_org_type_ph') }}</option>
+          {% for ft in FUNDING_TYPES %}
+          <option value="{{ ft }}">{{ t('funding_type_' ~ ft) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <label for="funding_description">{{ t('ind_funding_desc_ph') }}</label>
+    <textarea id="funding_description" name="funding_description" rows="2"></textarea>
+
+    <div style="margin-top:20px;">
+      <button type="submit" class="btn btn-primary">{{ t('ind_interest_btn') }}</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+<!-- Phase 6 lifecycle for accepted collaboration partners (project-level only) -->
+{% if is_partner %}
+<div class="card" style="margin-top:16px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:.95rem; margin:0;">{{ t('p6_prototypes_title') }} · {{ t('p6_testing_title') }} · {{ t('p6_pilots_title') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('p6_proto_submit_sub') }}</p>
+    </div>
+    {{ m.readiness_badge(readiness.label) }}
+  </div>
+
+  <div class="ai-meta-grid" style="margin-top:14px; grid-template-columns:1fr 1fr;">
+    <div>
+      <div class="l">{{ t('p6_prototypes_title') }}</div>
+      <div class="v">{{ m.prototype_status_badge(readiness.prototype) }}</div>
+    </div>
+    <div>
+      <div class="l">{{ t('p6_testing_title') }}</div>
+      <div class="v">{{ m.testing_status_badge(readiness.testing) }}</div>
+    </div>
+    <div>
+      <div class="l">{{ t('p6_pilots_title') }}</div>
+      <div class="v">
+        {% if readiness.pilot %}
+        {{ m.pilot_status_badge(readiness.pilot) }}
+        {% else %}
+        <span class="badge badge-pending">{{ t('readiness_not_ready') }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% if readiness.pilot %}
+    <div>
+      <div class="l">{{ t('p6_pilot_district') }}</div>
+      <div class="v">{{ dist_label(readiness.pilot.district) }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if readiness.testing %}
+  <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--line);">
+    <h2 style="font-size:.9rem;">{{ t('p6_test_objective') }}</h2>
+    <p style="font-size:.88rem; margin:6px 0 0;">{{ readiness.testing.objective }}</p>
+    <p style="margin-top:8px;" class="hint">
+      {{ t('p6_test_result') }}: <strong>{{ t('p6_test_result_' ~ readiness.testing.test_result) }}</strong>
+    </p>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

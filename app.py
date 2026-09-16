@@ -30,7 +30,7 @@ import i18n
 from ai_engine import (
     satellite_screen, compare_before_after, analyze_severity,
     verify_image_against_problem, detect_duplicates,
-    match_challenge_to_university,
+    match_challenge_to_university, industry_project_fit,
 )
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -206,6 +206,12 @@ def _close_db(exc):
 
 @app.context_processor
 def _inject_helpers():
+    nav_unread = 0
+    if g.get("user") is not None:
+        try:
+            nav_unread = db.unread_notification_count(db.get_db(), g.user.id)
+        except Exception:
+            nav_unread = 0
     return {
         "t": i18n.t,
         "cat_label": i18n.cat_label,
@@ -218,6 +224,10 @@ def _inject_helpers():
         "user": g.get("user"),
         "current_user": g.get("user"),
         "now": datetime.utcnow,
+        "nav_unread": nav_unread,
+        "INDUSTRY_ORG_TYPES": db.INDUSTRY_ORG_TYPES,
+        "COLLABORATION_TYPES": db.COLLABORATION_TYPES,
+        "FUNDING_TYPES": db.FUNDING_TYPES,
     }
 
 
@@ -319,6 +329,7 @@ def login():
                         or user.role == "university" and url_for("university_dashboard")
                         or user.role == "faculty" and url_for("faculty_dashboard")
                         or user.role == "student" and url_for("student_dashboard")
+                        or user.role == "industry" and url_for("industry_dashboard")
                         or url_for("admin_dashboard"))
 
     return render_template("login.html", role=request.args.get("role"))
@@ -1254,12 +1265,13 @@ def university_dashboard():
     teams = db.list_teams_for_university(conn, uni.id)
     proposals = db.list_proposals_for_university(conn, uni.id)
     projects = db.list_projects_for_university(conn, uni.id)
+    collaborations = db.list_collaborations_for_university(conn, uni.id)
     kpis["future_projects"] = len(projects)
     kpis["teams"] = len(teams)
     kpis["proposals"] = len(proposals)
     return render_template("university_dashboard.html", uni=uni, matches=matches,
                            teams=teams, proposals=proposals, projects=projects,
-                           kpis=kpis)
+                           kpis=kpis, collaborations=collaborations)
 
 
 @app.route("/university/profile", methods=["GET", "POST"])
@@ -1852,7 +1864,249 @@ def project_details(project_id):
         return redirect(url_for(_portal_back(g)))
     return render_template("project_detail.html", project=project,
                            is_gov=is_gov, is_lead_uni=is_admin,
-                           is_member=is_member)
+                           is_member=is_member,
+                           readiness=db.project_readiness(conn, project),
+                           connections=db.list_project_collaborations(
+                               conn, project_id=project.id),
+                           collab_requests=db.list_collaborations_for_project(
+                               conn, project.id))
+
+
+# ---------------------------------------------------------------------------
+# Phase 6 — team prototype / testing workflow (server-side gates)
+# ---------------------------------------------------------------------------
+
+def _project_guard(conn, project_id):
+    """Server-side gate for every project-level page (Phase 4 + 6): the
+    owning university's admin, active members of the project team, or
+    government readers. Citizens and every other institution are denied.
+    Never trusts URL or form IDs."""
+    project = db.get_project(conn, project_id)
+    if project is None:
+        return None
+    if g.user.role == "citizen":
+        return None
+    uni = _uni_context(conn)
+    is_gov = g.user.role in GOVERNMENT
+    is_own_uni = uni is not None and project.university_id == uni.id
+    is_admin = g.user.role == "university" and is_own_uni
+    member = None
+    if g.user.role in ("faculty", "student") and is_own_uni:
+        member = db.get_team_member(conn, project.team_id, g.user.id)
+    is_member = bool(member) and member["status"] == "ACTIVE"
+    if not (is_gov or is_admin or is_member):
+        return None
+    return {
+        "project": project, "uni": uni,
+        "is_gov": is_gov, "is_lead_uni": is_admin, "is_member": is_member,
+        "member": member,
+    }
+
+
+def _save_evidence_files(files):
+    """Persist uploaded evidence files into UPLOAD_DIR and return the
+    normalized [{"name": original_name, "path": saved_filename}] list."""
+    saved = []
+    for f in files or []:
+        if not f or not f.filename:
+            continue
+        safe = secure_filename(f.filename)
+        if not safe:
+            continue
+        name = "{}_{}".format(datetime.utcnow().strftime("%Y%m%d%H%M%S%f"),
+                              safe)
+        f.save(os.path.join(UPLOAD_DIR, name))
+        saved.append({"name": f.filename, "path": name})
+    return saved
+
+
+@app.route("/project/<int:project_id>/prototype")
+@login_required()
+def project_prototype(project_id):
+    conn = db.get_db()
+    ctx = _project_guard(conn, project_id)
+    if ctx is None:
+        flash("This project is not accessible to your account.", "error")
+        return redirect(url_for(_portal_back(g)))
+    ctx["prototype"] = db.get_prototype_for_project(conn, project_id)
+    return render_template("project_prototype.html", **ctx)
+
+
+@app.post("/project/<int:project_id>/prototype/submit")
+@login_required()
+def project_prototype_submit(project_id):
+    conn = db.get_db()
+    ctx = _project_guard(conn, project_id)
+    if ctx is None or not ctx["is_member"]:
+        flash("Only an active team member can submit a prototype.", "error")
+        return redirect(url_for(_portal_back(g)))
+    description = request.form.get("description", "").strip()
+    version = request.form.get("version", "").strip() or "v1"
+    progress_update = request.form.get("progress_update", "").strip()
+    if not description:
+        flash("A prototype description is required.", "error")
+        return redirect(url_for("project_prototype", project_id=project_id))
+    evidence = _save_evidence_files(request.files.getlist("evidence"))
+    try:
+        db.create_prototype(conn, project_id, description, version, g.user.id,
+                            progress_update=progress_update, evidence=evidence)
+        conn.commit()
+        flash("Prototype submitted to the government for review.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("project_prototype", project_id=project_id))
+
+
+@app.post("/project/<int:project_id>/prototype/update")
+@login_required()
+def project_prototype_update(project_id):
+    conn = db.get_db()
+    ctx = _project_guard(conn, project_id)
+    if ctx is None or not ctx["is_member"]:
+        flash("Only an active team member can edit the prototype.", "error")
+        return redirect(url_for(_portal_back(g)))
+    proto = db.get_prototype_for_project(conn, project_id)
+    if proto is None:
+        flash("Prototype not found.", "error")
+        return redirect(url_for("project_prototype", project_id=project_id))
+    new_files = _save_evidence_files(request.files.getlist("evidence"))
+    evidence = list(proto.evidence or []) + new_files
+    try:
+        db.update_prototype_details(
+            conn, proto.id,
+            description=request.form.get("description", "").strip(),
+            version=request.form.get("version", "").strip(),
+            progress_update=request.form.get("progress_update", "").strip(),
+            evidence=evidence)
+        conn.commit()
+        flash("Prototype draft updated.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("project_prototype", project_id=project_id))
+
+
+@app.post("/project/<int:project_id>/prototype/resubmit")
+@login_required()
+def project_prototype_resubmit(project_id):
+    conn = db.get_db()
+    ctx = _project_guard(conn, project_id)
+    if ctx is None or not ctx["is_member"]:
+        flash("Only an active team member can resubmit the prototype.", "error")
+        return redirect(url_for(_portal_back(g)))
+    proto = db.get_prototype_for_project(conn, project_id)
+    if proto is None:
+        flash("Prototype not found.", "error")
+        return redirect(url_for("project_prototype", project_id=project_id))
+    try:
+        db.resubmit_prototype(conn, proto.id, g.user.id)
+        conn.commit()
+        flash("Prototype resubmitted to the government for review.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("project_prototype", project_id=project_id))
+
+
+@app.route("/project/<int:project_id>/testing")
+@login_required()
+def project_testing(project_id):
+    conn = db.get_db()
+    ctx = _project_guard(conn, project_id)
+    if ctx is None:
+        flash("This project is not accessible to your account.", "error")
+        return redirect(url_for(_portal_back(g)))
+    ctx["prototype"] = db.get_prototype_for_project(conn, project_id)
+    ctx["testing"] = db.get_testing_report_for_project(conn, project_id)
+    ctx["testing_results"] = db.TESTING_RESULT_STATUSES
+    return render_template("project_testing.html", **ctx)
+
+
+@app.post("/project/<int:project_id>/testing/submit")
+@login_required()
+def project_testing_submit(project_id):
+    conn = db.get_db()
+    ctx = _project_guard(conn, project_id)
+    if ctx is None or not ctx["is_member"]:
+        flash("Only an active team member can submit a testing report.",
+              "error")
+        return redirect(url_for(_portal_back(g)))
+    objective = request.form.get("objective", "").strip()
+    test_description = request.form.get("test_description", "").strip()
+    expected_result = request.form.get("expected_result", "").strip()
+    actual_result = request.form.get("actual_result", "").strip()
+    if not (objective and test_description and expected_result
+            and actual_result):
+        flash("Objective, description, expected and actual results are all "
+              "required.", "error")
+        return redirect(url_for("project_testing", project_id=project_id))
+    evidence = _save_evidence_files(request.files.getlist("evidence"))
+    try:
+        db.create_testing_report(
+            conn, project_id, objective, test_description, expected_result,
+            actual_result, request.form.get("test_result", "PENDING").strip(),
+            g.user.id,
+            issues_findings=request.form.get("issues_findings", "").strip(),
+            evidence=evidence)
+        conn.commit()
+        flash("Testing report submitted to the government for review.",
+              "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("project_testing", project_id=project_id))
+
+
+@app.post("/project/<int:project_id>/testing/resubmit")
+@login_required()
+def project_testing_resubmit(project_id):
+    conn = db.get_db()
+    ctx = _project_guard(conn, project_id)
+    if ctx is None or not ctx["is_member"]:
+        flash("Only an active team member can resubmit the testing report.",
+              "error")
+        return redirect(url_for(_portal_back(g)))
+    report = db.get_testing_report_for_project(conn, project_id)
+    if report is None:
+        flash("Testing report not found.", "error")
+        return redirect(url_for("project_testing", project_id=project_id))
+    try:
+        db.resubmit_testing_report(conn, report.id, g.user.id)
+        conn.commit()
+        flash("Testing report resubmitted to the government for review.",
+              "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("project_testing", project_id=project_id))
+
+
+@app.post("/project/<int:project_id>/testing/update")
+@login_required()
+def project_testing_update(project_id):
+    conn = db.get_db()
+    ctx = _project_guard(conn, project_id)
+    if ctx is None or not ctx["is_member"]:
+        flash("Only an active team member can edit the testing report.",
+              "error")
+        return redirect(url_for(_portal_back(g)))
+    report = db.get_testing_report_for_project(conn, project_id)
+    if report is None:
+        flash("Testing report not found.", "error")
+        return redirect(url_for("project_testing", project_id=project_id))
+    new_files = _save_evidence_files(request.files.getlist("evidence"))
+    evidence = list(report.evidence or []) + new_files
+    try:
+        db.update_testing_report(
+            conn, report.id,
+            objective=request.form.get("objective", "").strip(),
+            test_description=request.form.get("test_description", "").strip(),
+            expected_result=request.form.get("expected_result", "").strip(),
+            actual_result=request.form.get("actual_result", "").strip(),
+            test_result=request.form.get("test_result", "").strip(),
+            issues_findings=request.form.get("issues_findings", "").strip(),
+            evidence=evidence)
+        conn.commit()
+        flash("Testing report draft updated.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("project_testing", project_id=project_id))
 
 
 @app.route("/faculty")
@@ -1982,6 +2236,572 @@ def _extract_gps(exif, tags):
         return None, None
 
 
+# ---------------------------------------------------------------------------
+# Phase 5 — industry / startup / MSME collaboration
+# ---------------------------------------------------------------------------
+
+def _require_industry(conn):
+    """Industry org profile for the logged-in user, or None."""
+    return db.get_organization_for_user(conn, g.user)
+
+
+def _industry_org_link(conn):
+    org = _require_industry(conn)
+    if org is None:
+        flash("No industry profile is linked to your account.", "error")
+        return None
+    return org
+
+
+@app.route("/industry")
+@login_required(role="industry")
+def industry_dashboard():
+    conn = db.get_db()
+    org = _industry_org_link(conn)
+    if org is None:
+        return redirect(url_for("landing"))
+    projects = db.list_discoverable_projects(conn)
+    unread = db.unread_notification_count(conn, g.user.id)
+    return render_template("industry_dashboard.html",
+                           org=org, projects=projects,
+                           kpis=db.industry_dashboard_kpis(conn),
+                           unread=unread)
+
+
+@app.route("/industry/profile", methods=["GET", "POST"])
+@login_required(role="industry")
+def industry_profile():
+    conn = db.get_db()
+    org = _industry_org_link(conn)
+    if org is None:
+        return redirect(url_for("landing"))
+    if request.method == "POST":
+        db.update_industry_organization(conn, org.id,
+            name=request.form.get("name", "").strip() or org.name,
+            short_name=request.form.get("short_name", "").strip() or None,
+            legal_entity_name=request.form.get("legal_entity_name", "").strip() or None,
+            org_type=request.form.get("org_type") or org.org_type,
+            sector=request.form.get("sector", "").strip() or None,
+            core_expertise=request.form.get("core_expertise", "").strip() or None,
+            technologies=request.form.get("technologies", "").strip() or None,
+            capabilities=request.form.get("capabilities", "").strip() or None,
+            email=request.form.get("email", "").strip() or None,
+            phone=request.form.get("phone", "").strip() or None,
+            address=request.form.get("address", "").strip() or None,
+            district=request.form.get("district") or org.district,
+            city=request.form.get("city", "").strip() or None,
+            website=request.form.get("website", "").strip() or None,
+            description=request.form.get("description", "").strip() or None)
+        flash("Industry profile updated.", "success")
+        return redirect(url_for("industry_profile"))
+    return render_template("industry_profile.html", org=org,
+                           org_types=db.INDUSTRY_ORG_TYPES,
+                           districts=db.DISTRICTS)
+
+
+@app.route("/industry/projects")
+@login_required(role="industry")
+def industry_projects():
+    conn = db.get_db()
+    org = _industry_org_link(conn)
+    if org is None:
+        return redirect(url_for("landing"))
+    projects = db.list_discoverable_projects(conn)
+    for p in projects:
+        fit = industry_project_fit(p, org)
+        p.fit_score = fit["score"]
+        p.fit_level = fit["level"]
+        p.fit_signals = fit["signals"]
+    projects.sort(key=lambda p: -p.fit_score)
+    return render_template("industry_projects.html", org=org, projects=projects)
+
+
+@app.route("/industry/projects/<int:project_id>")
+@login_required(role="industry")
+def industry_project_detail(project_id):
+    conn = db.get_db()
+    org = _industry_org_link(conn)
+    if org is None:
+        return redirect(url_for("landing"))
+    if not org.is_verified:
+        flash("Your organisation must be government-verified to access "
+              "project details and submit collaboration requests.", "error")
+        return redirect(url_for("industry_dashboard"))
+    project = db.get_project(conn, project_id)
+    if project is None:
+        flash("Project not found.", "error")
+        return redirect(url_for("industry_projects"))
+    if not db.project_discoverable(project):
+        flash("This project is not open for collaboration.", "error")
+        return redirect(url_for("industry_projects"))
+    existing = [c for c in db.list_collaborations_for_org(conn, org.id)
+                if c.project_id == project_id]
+    fit = industry_project_fit(project, org)
+    faculty_lead = db.project_faculty_lead(conn, project.team_id)
+    return render_template("industry_project_detail.html",
+                           org=org, project=project, existing=existing,
+                           fit=fit, faculty_lead=faculty_lead,
+                           is_partner=any(c.status == "ACCEPTED"
+                                          for c in existing),
+                           readiness=db.project_readiness(conn, project))
+
+
+@app.post("/industry/projects/<int:project_id>/interest")
+@login_required(role="industry")
+def industry_interest(project_id):
+    conn = db.get_db()
+    org = _industry_org_link(conn)
+    if org is None:
+        return redirect(url_for("landing"))
+    if not org.is_verified:
+        flash("Only verified organisations can submit collaboration requests.",
+              "error")
+        return redirect(url_for("industry_projects"))
+    project = db.get_project(conn, project_id)
+    if project is None or not db.project_discoverable(project):
+        flash("Project not found or not open for collaboration.", "error")
+        return redirect(url_for("industry_projects"))
+    title = request.form.get("title", "").strip()
+    description = request.form.get("description", "").strip()
+    if not (title and description):
+        flash("A title and description are required to express interest.",
+              "error")
+        return redirect(url_for("industry_project_detail",
+                                project_id=project_id))
+    try:
+        db.express_interest(conn, project, org, g.user.id,
+                            request.form.get("collaboration_type",
+                                              "TECHNICAL_SUPPORT"),
+                            title, description,
+                            expected_support=request.form.get(
+                                "expected_support", "").strip(),
+                            proposed_amount=request.form.get(
+                                "proposed_amount", "").strip() or None,
+                            funding_type=request.form.get("funding_type"),
+                            funding_description=request.form.get(
+                                "funding_description", "").strip())
+        conn.commit()
+        flash("Interest recorded. Submit the request when you are ready.",
+              "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("industry_project_detail",
+                            project_id=project_id))
+
+
+@app.post("/industry/collaborations/<int:request_id>/submit")
+@login_required(role="industry")
+def industry_collaboration_submit(request_id):
+    conn = db.get_db()
+    org = _industry_org_link(conn)
+    if org is None:
+        return redirect(url_for("landing"))
+    row = db.get_collaboration_row(conn, request_id)
+    if row is None or row["organization_id"] != org.id:
+        flash("Collaboration request not found.", "error")
+        return redirect(url_for("industry_collaborations"))
+    try:
+        db.submit_collaboration(conn, request_id, g.user.id)
+        conn.commit()
+        flash("Collaboration request submitted to the government.",
+              "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("industry_collaboration_detail",
+                            request_id=request_id))
+
+
+@app.route("/industry/collaborations")
+@login_required(role="industry")
+def industry_collaborations():
+    conn = db.get_db()
+    org = _industry_org_link(conn)
+    if org is None:
+        return redirect(url_for("landing"))
+    requests = db.list_collaborations_for_org(conn, org.id)
+    return render_template("industry_collaborations.html", org=org,
+                           requests=requests)
+
+
+@app.route("/industry/collaborations/<int:request_id>")
+@login_required(role="industry")
+def industry_collaboration_detail(request_id):
+    conn = db.get_db()
+    org = _industry_org_link(conn)
+    if org is None:
+        return redirect(url_for("landing"))
+    collab = db.get_collaboration(conn, request_id)
+    if collab is None or collab.organization_id != org.id:
+        flash("Collaboration request not found.", "error")
+        return redirect(url_for("industry_collaborations"))
+    return render_template("industry_collaboration_detail.html",
+                           org=org, collab=collab)
+
+
+# ---------------------------------------------------------------------------
+# Government — industry verification & collaboration review
+# ---------------------------------------------------------------------------
+
+@app.route("/command-center/industry")
+@login_required(role=GOVERNMENT)
+def gov_industry():
+    conn = db.get_db()
+    return render_template("gov_industry.html",
+                           pending=db.list_industry_organizations(conn, "PENDING"),
+                           organizations=db.list_industry_organizations(conn),
+                           kpis=db.industry_dashboard_kpis(conn))
+
+
+@app.post("/command-center/industry/<int:org_id>/verify")
+@login_required(role=GOVERNMENT)
+def gov_industry_verify(org_id):
+    conn = db.get_db()
+    note = request.form.get("note", "").strip()
+    try:
+        db.verify_industry_organization(conn, org_id, "VERIFIED", note,
+                                        g.user.id)
+        conn.commit()
+        flash("Organisation verified — they can now collaborate on projects.",
+              "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_industry"))
+
+
+@app.post("/command-center/industry/<int:org_id>/reject")
+@login_required(role=GOVERNMENT)
+def gov_industry_reject(org_id):
+    conn = db.get_db()
+    note = request.form.get("note", "").strip()
+    try:
+        db.verify_industry_organization(conn, org_id, "REJECTED", note,
+                                        g.user.id)
+        conn.commit()
+        flash("Organisation profile rejected.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_industry"))
+
+
+@app.route("/command-center/collaborations")
+@login_required(role=GOVERNMENT)
+def gov_collaborations():
+    conn = db.get_db()
+    return render_template("gov_collaborations.html",
+                           review=db.list_collaborations_for_mode(conn, "review"),
+                           decided=db.list_collaborations_for_mode(conn,
+                                                                  "decided"))
+
+
+@app.post("/command-center/collaborations/<int:request_id>/review")
+@login_required(role=GOVERNMENT)
+def gov_collaboration_review(request_id):
+    conn = db.get_db()
+    try:
+        db.begin_collaboration_review(conn, request_id, g.user.id)
+        conn.commit()
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_collaboration_detail",
+                            request_id=request_id))
+
+
+@app.post("/command-center/collaborations/<int:request_id>/verdict")
+@login_required(role=GOVERNMENT)
+def gov_collaboration_verdict(request_id):
+    conn = db.get_db()
+    decision = request.form.get("decision", "")
+    comment = request.form.get("review_comment", "").strip()
+    try:
+        db.review_collaboration(conn, request_id, decision, comment,
+                                g.user.id)
+        conn.commit()
+        flash({
+            "ACCEPTED": "Collaboration request accepted.",
+            "REVISION_REQUESTED": "Collaboration revision requested.",
+            "REJECTED": "Collaboration request rejected.",
+        }.get(decision, "Decision recorded."), "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_collaboration_detail",
+                            request_id=request_id))
+
+
+@app.route("/command-center/collaborations/<int:request_id>")
+@login_required(role=GOVERNMENT)
+def gov_collaboration_detail(request_id):
+    conn = db.get_db()
+    collab = db.get_collaboration(conn, request_id)
+    if collab is None:
+        flash("Collaboration request not found.", "error")
+        return redirect(url_for("gov_collaborations"))
+    funding = db.get_project_collaboration(conn, request_id, by_request=True)
+    return render_template("gov_collaboration_detail.html", collab=collab,
+                           funding=funding,
+                           funding_types=db.FUNDING_TYPES,
+                           funding_statuses=db.FUNDING_STATUSES)
+
+
+@app.post("/command-center/collaborations/<int:request_id>/funding")
+@login_required(role=GOVERNMENT)
+def gov_collaboration_funding(request_id):
+    conn = db.get_db()
+    funding_status = request.form.get("funding_status", "").strip()
+    comment = request.form.get("funding_comment", "").strip()
+    try:
+        db.update_collaboration_funding(conn, request_id, funding_status,
+                                        comment, g.user.id)
+        conn.commit()
+        flash(f"Funding status updated to {funding_status.lower()}.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_collaboration_detail",
+                            request_id=request_id))
+
+
+# ---------------------------------------------------------------------------
+# Phase 6 — government review centre (prototype / testing / pilot)
+# ---------------------------------------------------------------------------
+
+def _prototype_or_404(conn, prototype_id):
+    proto = db.get_prototype(conn, prototype_id)
+    if proto is None:
+        flash("Prototype not found.", "error")
+        return None
+    return proto
+
+
+@app.route("/command-center/prototypes")
+@login_required(role=GOVERNMENT)
+def gov_prototypes():
+    conn = db.get_db()
+    return render_template("gov_prototypes.html",
+                           review=db.list_prototypes(conn, "review"),
+                           decided=db.list_prototypes(conn, "decided"))
+
+
+@app.route("/command-center/prototypes/<int:prototype_id>")
+@login_required(role=GOVERNMENT)
+def gov_prototype_detail(prototype_id):
+    conn = db.get_db()
+    proto = _prototype_or_404(conn, prototype_id)
+    if proto is None:
+        return redirect(url_for("gov_prototypes"))
+    return render_template("gov_prototype_detail.html", prototype=proto)
+
+
+@app.post("/command-center/prototypes/<int:prototype_id>/review")
+@login_required(role=GOVERNMENT)
+def gov_prototype_review(prototype_id):
+    conn = db.get_db()
+    proto = _prototype_or_404(conn, prototype_id)
+    if proto is None:
+        return redirect(url_for("gov_prototypes"))
+    try:
+        db.begin_prototype_review(conn, prototype_id, g.user.id)
+        conn.commit()
+        flash("Prototype review started.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_prototype_detail", prototype_id=prototype_id))
+
+
+@app.post("/command-center/prototypes/<int:prototype_id>/verdict")
+@login_required(role=GOVERNMENT)
+def gov_prototype_verdict(prototype_id):
+    conn = db.get_db()
+    proto = _prototype_or_404(conn, prototype_id)
+    if proto is None:
+        return redirect(url_for("gov_prototypes"))
+    decision = request.form.get("decision", "").strip()
+    comment = request.form.get("review_comment", "").strip()
+    try:
+        db.review_prototype(conn, prototype_id, decision, comment, g.user.id)
+        conn.commit()
+        flash("Prototype updated.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_prototype_detail", prototype_id=prototype_id))
+
+
+def _testing_or_404(conn, report_id):
+    report = db.get_testing_report(conn, report_id)
+    if report is None:
+        flash("Testing report not found.", "error")
+        return None
+    return report
+
+
+@app.route("/command-center/testing")
+@login_required(role=GOVERNMENT)
+def gov_testing():
+    conn = db.get_db()
+    return render_template("gov_testing.html",
+                           review=db.list_testing_reports(conn, "review"),
+                           decided=db.list_testing_reports(conn, "decided"))
+
+
+@app.route("/command-center/testing/<int:report_id>")
+@login_required(role=GOVERNMENT)
+def gov_testing_detail(report_id):
+    conn = db.get_db()
+    report = _testing_or_404(conn, report_id)
+    if report is None:
+        return redirect(url_for("gov_testing"))
+    return render_template("gov_testing_detail.html", report=report)
+
+
+@app.post("/command-center/testing/<int:report_id>/review")
+@login_required(role=GOVERNMENT)
+def gov_testing_review(report_id):
+    conn = db.get_db()
+    report = _testing_or_404(conn, report_id)
+    if report is None:
+        return redirect(url_for("gov_testing"))
+    try:
+        db.begin_testing_review(conn, report_id, g.user.id)
+        conn.commit()
+        flash("Testing report review started.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_testing_detail", report_id=report_id))
+
+
+@app.post("/command-center/testing/<int:report_id>/verdict")
+@login_required(role=GOVERNMENT)
+def gov_testing_verdict(report_id):
+    conn = db.get_db()
+    report = _testing_or_404(conn, report_id)
+    if report is None:
+        return redirect(url_for("gov_testing"))
+    decision = request.form.get("decision", "").strip()
+    comment = request.form.get("review_comment", "").strip()
+    try:
+        db.review_testing_report(conn, report_id, decision, comment, g.user.id)
+        conn.commit()
+        flash("Testing report updated.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_testing_detail", report_id=report_id))
+
+
+@app.route("/command-center/pilots")
+@login_required(role=GOVERNMENT)
+def gov_pilots():
+    conn = db.get_db()
+    all_pilots = db.list_pilots(conn)
+    in_progress = [p for p in all_pilots if p.status != "DEPLOYED"]
+    deployed = [p for p in all_pilots if p.status == "DEPLOYED"]
+    return render_template(
+        "gov_pilots.html", in_progress=in_progress, deployed=deployed,
+        eligible_count=len(db.list_pilot_eligible_projects(conn)),
+        pilots_eval=db.count_pilots_needing_evaluation(conn),
+        pilots_overdue=db.count_pilots_overdue(conn))
+
+
+@app.route("/command-center/pilots/new", methods=["GET", "POST"])
+@login_required(role=GOVERNMENT)
+def gov_pilot_new():
+    conn = db.get_db()
+    if request.method == "POST":
+        project_id = request.form.get("project_id", "").strip()
+        district = request.form.get("district", "").strip()
+        if not (project_id.isdigit() and district in db.DISTRICTS):
+            flash("Choose a project and a district to open the pilot.",
+                  "error")
+            return redirect(url_for("gov_pilot_new"))
+        try:
+            db.create_pilot(
+                conn, int(project_id), district, g.user.id,
+                location=request.form.get("location", "").strip(),
+                target_community=request.form.get("target_community",
+                                                  "").strip(),
+                objectives=request.form.get("objectives", "").strip(),
+                start_date=request.form.get("start_date", "").strip() or None,
+                target_end_date=request.form.get("target_end_date",
+                                                 "").strip() or None,
+                responsible_org=request.form.get("responsible_org",
+                                                 "").strip())
+            conn.commit()
+            flash("Pilot opened successfully.", "success")
+            return redirect(url_for("gov_pilots"))
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("gov_pilot_new"))
+    eligible = db.list_pilot_eligible_projects(conn)
+    return render_template("gov_pilot_new.html", eligible=eligible,
+                           districts=db.DISTRICTS)
+
+
+@app.route("/command-center/pilots/<int:pilot_id>")
+@login_required(role=GOVERNMENT)
+def gov_pilot_detail(pilot_id):
+    conn = db.get_db()
+    pilot = db.get_pilot(conn, pilot_id)
+    if pilot is None:
+        flash("Pilot not found.", "error")
+        return redirect(url_for("gov_pilots"))
+    return render_template("gov_pilot_detail.html", pilot=pilot,
+                           all_statuses=db.PILOT_STATUSES,
+                           deferred_statuses=("ACTIVE", "COMPLETED",
+                                              "DEPLOYED"))
+
+
+@app.post("/command-center/pilots/<int:pilot_id>/status")
+@login_required(role=GOVERNMENT)
+def gov_pilot_status(pilot_id):
+    conn = db.get_db()
+    status = request.form.get("status", "").strip()
+    comment = request.form.get("review_comment", "").strip()
+    try:
+        db.set_pilot_status(conn, pilot_id, status, g.user.id, comment=comment)
+        conn.commit()
+        flash("Pilot status updated.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_pilot_detail", pilot_id=pilot_id))
+
+
+@app.post("/command-center/pilots/<int:pilot_id>/progress")
+@login_required(role=GOVERNMENT)
+def gov_pilot_progress(pilot_id):
+    conn = db.get_db()
+    text = request.form.get("progress_text", "").strip()
+    if not text:
+        flash("A progress update is required.", "error")
+        return redirect(url_for("gov_pilot_detail", pilot_id=pilot_id))
+    try:
+        db.add_pilot_progress(conn, pilot_id, text, g.user.id)
+        conn.commit()
+        flash("Progress update recorded.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_pilot_detail", pilot_id=pilot_id))
+
+
+# ---------------------------------------------------------------------------
+# Notifications feed
+# ---------------------------------------------------------------------------
+
+@app.route("/notifications")
+@login_required()
+def notifications_page():
+    conn = db.get_db()
+    notes = db.list_notifications(conn, g.user.id)
+    db.mark_all_notifications_read(conn, g.user.id)
+    conn.commit()
+    return render_template("notifications.html", notifications=notes)
+
+
+@app.post("/notifications/read-all")
+@login_required()
+def notifications_read_all():
+    conn = db.get_db()
+    db.mark_all_notifications_read(conn, g.user.id)
+    conn.commit()
+    return redirect(url_for("notifications_page"))
+
+
 DEMO_USERS = [
     ("Jharkhand Admin", "admin@jsamadhan.gov", "0000000000", "admin123", "admin"),
     ("Ramesh Kumar", "officer1@jsamadhan.gov", "1000000001", "officer123", "officer"),
@@ -2099,6 +2919,45 @@ DEMO_STUDENTS = [
          skills="drainage surveys, GIS mapping", interests="waterlogging resilience"),
 ]
 
+DEMO_INDUSTRY_ORGS = [
+    dict(name="Vidyut Infra & Civicworks Pvt Ltd", short_name="Vidyut Infra",
+         email="vidyut@jsamadhan.demo", phone="6000000001", password="industry123",
+         org_type="INDUSTRY", sector="Civil Roads Infrastructure",
+         core_expertise="roads, pavement, drainage, waterlogging, GIS monitoring, public works",
+         technologies="GIS, IoT sensors, surveying drones, condition scoring",
+         capabilities="field surveys, road condition assessment, maintenance planning",
+         address="Kanke Road, Ranchi", district="Ranchi", city="Ranchi",
+         website="https://vidyutinfra.example",
+         description="Infrastructure firm specialising in rural and urban road condition monitoring, "
+                     "drainage design and public works project delivery.",
+         verification_status="VERIFIED",
+         verification_note="Verified infrastructure partner for government projects."),
+    dict(name="AarogyaSparsh Health Solutions", short_name="AarogyaSparsh",
+         email="aarogya@jsamadhan.demo", phone="6000000002", password="industry123",
+         org_type="STARTUP", sector="HealthTech",
+         core_expertise="telemedicine, diagnostics, digital health, mobile health",
+         technologies="mobile apps, cloud dashboards, data analytics",
+         capabilities="app development, health data dashboards",
+         address="Adityapur, Jamshedpur", district="East Singhbhum", city="Jamshedpur",
+         website="https://aarogyasparsh.example",
+         description="HealthTech startup building affordable telemedicine and diagnostic platforms "
+                     "for rural and semi-urban India.",
+         verification_status="VERIFIED",
+         verification_note="Verified digital health startup."),
+    dict(name="KisanTech Agri Solutions", short_name="KisanTech",
+         email="kisantech@jsamadhan.demo", phone="6000000003", password="industry123",
+         org_type="MSME", sector="AgriTech",
+         core_expertise="irrigation sensors, soil monitoring, crop management",
+         technologies="IoT soil sensors, mobile apps",
+         capabilities="agricultural IoT device deployment",
+         address="Kanke, Ranchi", district="Ranchi", city="Ranchi",
+         website="https://kisantech.example",
+         description="AgriTech MSME deploying IoT-based irrigation and soil monitoring "
+                     "solutions for smallholder farmers.",
+         verification_status="PENDING",
+         verification_note=None),
+]
+
 
 def seed_demo_users():
     """Create the demo accounts if the users table is empty, then seed the
@@ -2154,6 +3013,7 @@ def seed_demo_users():
             _ensure_university_matching_ready(conn)
 
         _seed_phase4_demo(conn)
+        _seed_phase5_demo(conn)
 
 
 def _seed_phase4_demo(conn):
@@ -2290,6 +3150,117 @@ def _seed_phase4_demo(conn):
                     "Roll-out of the approved low-cost drainage and road "
                     "integrity monitoring across the affected blocks.")
                 conn.commit()
+
+
+def _seed_phase5_demo(conn):
+    """Idempotent Phase 5 demo: three industry organisations (two government
+    verified, one pending), plus two collaboration scenarios on the Phase 4
+    project — Scenario A: one request sitting UNDER_REVIEW, Scenario B: one
+    request ACCEPTED and connected to the project with a PROPOSED funding
+    line. Runs exactly once (guarded by an empty industry_organizations
+    table) and never re-verifies or re-submits anything a reviewer already
+    handled."""
+    if conn.execute(
+            "SELECT COUNT(*) c FROM industry_organizations").fetchone()["c"] > 0:
+        return
+
+    def _uid(email):
+        row = conn.execute("SELECT id FROM users WHERE email=?",
+                           (email,)).fetchone()
+        return row["id"] if row else None
+
+    officer_id = _uid("officer1@jsamadhan.gov")
+    admin_id = _uid("university1@jsamadhan.demo")
+    if not (officer_id and admin_id):
+        return
+
+    project = None
+    project_row = conn.execute(
+        "SELECT id FROM projects WHERE proposal_id IN "
+        "(SELECT id FROM proposals WHERE status='APPROVED') "
+        "ORDER BY id ASC LIMIT 1").fetchone()
+    if project_row is not None:
+        project = db.get_project(conn, project_row["id"])
+
+    # Create the three demo organizations once.
+    for org in DEMO_INDUSTRY_ORGS:
+        uid = db.create_user(conn, org["name"], org["email"], org["phone"],
+                             org["password"], "industry")
+        db.create_industry_organization(
+            conn, uid, org["name"], org_type=org["org_type"],
+            short_name=org.get("short_name"), legal_entity_name=org["name"],
+            sector=org["sector"], core_expertise=org["core_expertise"],
+            technologies=org["technologies"], capabilities=org["capabilities"],
+            email=org["email"], phone=org["phone"], address=org.get("address"),
+            district=org.get("district"), city=org.get("city"),
+            website=org.get("website"), description=org.get("description"))
+
+    def _scope_org(email):
+        row = conn.execute(
+            "SELECT o.* FROM industry_organizations o JOIN users u "
+            "ON u.id=o.user_id WHERE u.email=?", (email,)).fetchone()
+        return db.hydrate_industry_organization(conn, row) if row else None
+
+    # Government verifies the two eligible partners (the MSME stays pending so
+    # the review queue has live work).
+    for org in DEMO_INDUSTRY_ORGS:
+        if org["verification_status"] == "VERIFIED":
+            row = conn.execute(
+                "SELECT o.* FROM industry_organizations o JOIN users u ON "
+                "u.id=o.user_id WHERE u.email=?",
+                (org["email"],)).fetchone()
+            db.verify_industry_organization(conn, row["id"], "VERIFIED",
+                                            org["verification_note"],
+                                            officer_id)
+
+    if project is None:
+        return
+    org_a = _scope_org("vidyut@jsamadhan.demo")
+    org_b = _scope_org("aarogya@jsamadhan.demo")
+    if org_a is None or org_b is None:
+        return
+
+    # Scenario A — a request the government is still reviewing.
+    try:
+        r_a = db.express_interest(
+            conn, project, org_a, org_a.user_id, "FUNDING",
+            "Road survey scale-up partnership",
+            "Partner with the team to scale the low-cost road and drainage "
+            "condition monitoring across every affected block, contributing "
+            "field equipment and condition-scoring hardware.",
+            expected_support="20 field survey kits, IoT sensors, "
+                             "maintenance planning",
+            proposed_amount=250000, funding_type="GRANT",
+            funding_description="Grant to fund equipment and field training "
+                                "for the drainage monitoring rollout.")
+        db.submit_collaboration(conn, r_a, org_a.user_id)
+        db.begin_collaboration_review(conn, r_a, officer_id)
+        conn.commit()
+    except ValueError:
+        pass
+
+    # Scenario B — an accepted collaboration with a proposed funding line.
+    try:
+        r_b = db.express_interest(
+            conn, project, org_b, org_b.user_id, "FUNDING",
+            "Digital dashboards for waterlogging response",
+            "Contribute a cloud dashboard and data-analytics layer that turns "
+            "the team's geo-tagged survey data into clear maps for district "
+            "response teams.",
+            expected_support="cloud dashboard, data analytics, app interface",
+            proposed_amount=800000, funding_type="CSR",
+            funding_description="CSR contribution for the dashboard build "
+                                "and one year of cloud hosting.")
+        db.submit_collaboration(conn, r_b, org_b.user_id)
+        db.begin_collaboration_review(conn, r_b, officer_id)
+        db.review_collaboration(conn, r_b, "ACCEPTED",
+                                "Approved — dashboard aligns with the "
+                                "district waterlogging response plan and the "
+                                "CSR funding is fully disclosed.",
+                                officer_id)
+        conn.commit()
+    except ValueError:
+        pass
 
 
 if __name__ == "__main__":
