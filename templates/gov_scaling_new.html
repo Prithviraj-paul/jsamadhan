@@ -1,0 +1,70 @@
+{% extends "app_base.html" %}
+{% set active = 'command-center' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('p7_scaling_open_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('command_center') }}">{{ t('cmd_center') }}</a> / <a href="{{ url_for('gov_scaling') }}">{{ t('p7_scaling_title') }}</a> / {{ t('p7_scaling_open_title') }}
+</div>
+
+<h1>{{ t('p7_scaling_open_title') }}</h1>
+<p class="hint" style="margin-top:0;">{{ t('p7_scaling_open_sub') }}</p>
+
+{% if eligible %}
+<div class="card" style="max-width:760px;">
+  <form method="POST" enctype="multipart/form-data">
+    <label for="project_id">{{ t('p6_th_project') }}</label>
+    <select id="project_id" name="project_id" required>
+      {% for p in eligible %}
+      <option value="{{ p.id }}">{{ p.title[:70] }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="current_location" style="margin-top:12px;">{{ t('p7_current_location') }}</label>
+    <input type="text" id="current_location" name="current_location" placeholder="{{ t('p7_current_location_ph') }}">
+
+    <label for="proposed_districts" style="margin-top:12px;">{{ t('p7_proposed_districts') }} <span style="color:var(--danger,#c0392b);">*</span></label>
+    <select id="proposed_districts" name="proposed_districts" multiple required>
+      {% for d in districts %}
+      <option value="{{ d }}">{{ dist_label(d) }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint" style="margin-top:4px;">{{ t('p7_proposed_districts_help') }}</p>
+
+    <label for="target_communities" style="margin-top:12px;">{{ t('p7_target_communities') }}</label>
+    <input type="text" id="target_communities" name="target_communities">
+
+    <label for="scaling_objective" style="margin-top:12px;">{{ t('p7_scaling_objective') }}</label>
+    <textarea id="scaling_objective" name="scaling_objective" rows="3" placeholder="{{ t('p7_scaling_objective_ph') }}"></textarea>
+
+    <label for="expected_beneficiaries" style="margin-top:12px;">{{ t('p7_expected_beneficiaries') }}</label>
+    <input type="text" id="expected_beneficiaries" name="expected_beneficiaries" placeholder="{{ t('p7_expected_beneficiaries_ph') }}">
+
+    <label for="required_resources" style="margin-top:12px;">{{ t('p7_required_resources') }}</label>
+    <textarea id="required_resources" name="required_resources" rows="2" placeholder="{{ t('p7_required_resources_ph') }}"></textarea>
+
+    <label for="estimated_duration" style="margin-top:12px;">{{ t('p7_estimated_duration') }}</label>
+    <input type="text" id="estimated_duration" name="estimated_duration" placeholder="{{ t('p7_estimated_duration_ph') }}">
+
+    <label for="notes" style="margin-top:12px;">{{ t('p7_notes') }}</label>
+    <textarea id="notes" name="notes" rows="2"></textarea>
+
+    <label for="evidence" style="margin-top:12px;">{{ t('p6_proto_evidence') }}</label>
+    <input type="file" id="evidence" name="evidence" multiple>
+    <p class="hint" style="margin-top:4px;">{{ t('p6_proto_evidence_ph') }}</p>
+
+    <div style="margin-top:16px;">
+      <button type="submit" class="btn btn-forest">{{ t('p7_scaling_open_btn') }}</button>
+      <a class="btn btn-ghost" href="{{ url_for('gov_scaling') }}" style="margin-left:8px;">{{ t('p6_back') }}</a>
+    </div>
+  </form>
+</div>
+{% else %}
+<div class="card">
+  <p class="hint" style="margin:0;">{{ t('p7_no_eligible') }}</p>
+  <a class="btn btn-sm btn-ghost" href="{{ url_for('gov_scaling') }}" style="margin-top:12px;">{{ t('p6_back') }}</a>
+</div>
+{% endif %}
+
+{% endblock %}

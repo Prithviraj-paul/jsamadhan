@@ -209,4 +209,67 @@
   {% endif %}
 </div>
 
+<!-- Phase 7: impact assessment & scaling -->
+<div class="grid grid-2" style="margin-top:16px; align-items:start;">
+  <div class="card" style="margin:0;">
+    <div class="cc-section-head">
+      <div>
+        <h2 style="font-size:.95rem; margin:0;">{{ t('p7_stage_impact') }}</h2>
+        <p class="hint" style="margin:2px 0 0;">{{ t('p7_impact_open_sub') }}</p>
+      </div>
+      {% if readiness.impact %}
+      {{ m.impact_status_badge(readiness.impact) }}
+      {% elif readiness.deployed %}
+      <span class="badge badge-pending">{{ t('p7_ready_for_impact') }}</span>
+      {% else %}
+      <span class="badge badge-pending">{{ t('p7_lock_impact') }}</span>
+      {% endif %}
+    </div>
+    {% if readiness.impact %}
+    <p style="font-size:.9rem; margin:10px 0 0; white-space:pre-wrap;">{{ readiness.impact.problems_addressed[:240] }}</p>
+    <div class="hint" style="margin-top:6px;">{{ t('p6_submitted_at') }}: {{ readiness.impact.submitted_at.strftime('%d %b %Y') if readiness.impact.submitted_at else t('not_assigned') }}</div>
+    {% if is_member %}
+    <a class="btn btn-sm btn-ghost" href="{{ url_for('project_impact', project_id=project.id) }}" style="margin-top:12px;">{{ t('ind_view') }} →</a>
+    {% elif is_gov %}
+    <a class="btn btn-sm btn-ghost" href="{{ url_for('gov_impact_detail', impact_id=readiness.impact.id) }}" style="margin-top:12px;">{{ t('ind_view') }} →</a>
+    {% endif %}
+    {% elif is_member and readiness.deployed %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p7_no_assessment') }}</p>
+    <a class="btn btn-sm btn-forest" href="{{ url_for('project_impact', project_id=project.id) }}" style="margin-top:12px;">{{ t('p7_submit_btn') }} →</a>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p6_no_updates') }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card" style="margin:0;">
+    <div class="cc-section-head">
+      <div>
+        <h2 style="font-size:.95rem; margin:0;">{{ t('p7_stage_scaling') }}</h2>
+        <p class="hint" style="margin:2px 0 0;">{{ t('p7_scaling_sub') }}</p>
+      </div>
+      {% if readiness.scaling %}
+      {{ m.scaling_status_badge(readiness.scaling) }}
+      {% elif readiness.impact_assessed %}
+      <span class="badge badge-pending">{{ t('kpi_scaling_ready') }}</span>
+      {% elif readiness.deployed %}
+      <span class="badge badge-pending">{{ t('p7_impact_awaiting_review') }}</span>
+      {% else %}
+      <span class="badge badge-pending">{{ t('p7_lock_impact') }}</span>
+      {% endif %}
+    </div>
+    {% if readiness.scaling %}
+    <p style="font-size:.9rem; margin:10px 0 0; white-space:pre-wrap;">{{ readiness.scaling.scaling_objective[:240] }}</p>
+    <div class="hint" style="margin-top:6px;">{{ t('p6_submitted_at') }}: {{ readiness.scaling.created_at.strftime('%d %b %Y') if readiness.scaling.created_at else t('not_assigned') }}</div>
+    {% if is_gov %}
+    <a class="btn btn-sm btn-ghost" href="{{ url_for('gov_scaling_detail', scaling_id=readiness.scaling.id) }}" style="margin-top:12px;">{{ t('ind_view') }} →</a>
+    {% endif %}
+    {% elif is_gov and readiness.impact_assessed %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p7_no_scaling') }}</p>
+    <a class="btn btn-sm btn-forest" href="{{ url_for('gov_scaling_new') }}" style="margin-top:12px;">+ {{ t('p7_scaling_open_btn') }}</a>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('p6_no_updates') }}</p>
+    {% endif %}
+  </div>
+</div>
+
 {% endblock %}

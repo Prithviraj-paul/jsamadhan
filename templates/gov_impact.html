@@ -1,0 +1,87 @@
+{% extends "app_base.html" %}
+{% set active = 'command-center' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('p7_impact_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('command_center') }}">{{ t('cmd_center') }}</a> / {{ t('p7_impact_title') }}</div>
+
+<h1>{{ t('p7_impact_title') }}</h1>
+<p class="hint" style="margin-top:0;">{{ t('p7_impact_sub') }}</p>
+
+<div class="grid grid-2" style="margin-top:18px; align-items:start;">
+  <div class="card">
+    <div class="cc-section-head">
+      <div>
+        <h2 style="font-size:.95rem; margin-top:0;">{{ t('gov_collabs_review') }} ({{ review|length }})</h2>
+      </div>
+    </div>
+    {% if review %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('p6_th_project') }}</th>
+            <th>{{ t('p6_submitted_by') }}</th>
+            <th>{{ t('p6_th_status') }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in review %}
+          <tr>
+            <td>
+              <a href="{{ url_for('gov_impact_detail', impact_id=a.id) }}" style="font-weight:600; color:var(--forest);">{{ a.project.title[:56] }}</a>
+              <div class="hint">{{ t('p6_submitted_at') }}: {{ a.submitted_at.strftime('%d %b %Y') if a.submitted_at else '—' }}</div>
+            </td>
+            <td>{{ a.submitter.name if a.submitter else t('not_assigned') }}</td>
+            <td>{{ m.impact_status_badge(a) }}</td>
+            <td><a class="btn btn-sm btn-forest" href="{{ url_for('gov_impact_detail', impact_id=a.id) }}">{{ t('p7_begin_review_btn') }} →</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('gov_no_review') }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="cc-section-head">
+      <div>
+        <h2 style="font-size:.95rem; margin-top:0;">{{ t('gov_collabs_decided') }} ({{ decided|length }})</h2>
+      </div>
+    </div>
+    {% if decided %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('p6_th_project') }}</th>
+            <th>{{ t('p6_th_status') }}</th>
+            <th>{{ t('p6_th_reviewer') }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in decided %}
+          <tr>
+            <td>
+              <a href="{{ url_for('gov_impact_detail', impact_id=a.id) }}" style="font-weight:600; color:var(--forest);">{{ a.project.title[:56] }}</a>
+            </td>
+            <td>{{ m.impact_status_badge(a) }}</td>
+            <td style="font-size:.78rem;">{{ a.reviewer.name if a.reviewer else t('not_assigned') }}</td>
+            <td><a class="btn btn-sm btn-ghost" href="{{ url_for('gov_impact_detail', impact_id=a.id) }}">{{ t('ind_view') }} →</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('gov_no_decided') }}</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

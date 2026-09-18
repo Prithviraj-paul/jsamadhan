@@ -118,6 +118,21 @@ TESTING_RESULT_STATUSES = ("PASS", "FAIL", "PENDING")
 PILOT_STATUSES = ("PLANNED", "ACTIVE", "COMPLETED", "DEPLOYED")
 PILOT_ACTIVE_STATUSES = ("PLANNED", "ACTIVE", "COMPLETED")
 
+# Phase 7 — impact assessment and scaling. Both stages follow the same
+# collaboration pattern as earlier lifecycle stages: a government review
+# verdict + feedback comment, an audit log table, and marker statuses that
+# still need government attention. Impact reporting is always honest on the
+# platform: reported/evaluated figures, never independent real-world
+# verification claims.
+IMPACT_STATUSES = ("DRAFT", "SUBMITTED", "UNDER_REVIEW", "APPROVED",
+                   "REVISION_REQUESTED", "REJECTED")
+IMPACT_MARKER_STATUSES = ("SUBMITTED", "UNDER_REVIEW")
+IMPACT_FEEDBACK_STATUSES = ("APPROVED", "REVISION_REQUESTED", "REJECTED")
+SCALING_STATUSES = ("PROPOSED", "UNDER_REVIEW", "APPROVED",
+                    "REVISION_REQUESTED", "REJECTED")
+SCALING_MARKER_STATUSES = ("PROPOSED", "UNDER_REVIEW")
+SCALING_FEEDBACK_STATUSES = ("APPROVED", "REVISION_REQUESTED", "REJECTED")
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -584,6 +599,92 @@ CREATE TABLE IF NOT EXISTS pilot_deployments (
     FOREIGN KEY(project_id) REFERENCES projects(id),
     FOREIGN KEY(reviewed_by) REFERENCES users(id),
     FOREIGN KEY(created_by) REFERENCES users(id)
+);
+
+-- Phase 7 — impact assessment and scaling. One impact record and one scaling
+-- record per project keeps the chain linear; revisions are in-place
+-- resubmissions the government reviews again. All transitions are guarded in
+-- Python.
+CREATE TABLE IF NOT EXISTS impact_assessments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL UNIQUE,
+    period_start TEXT,
+    period_end TEXT,
+    target_population TEXT NOT NULL DEFAULT '',
+    beneficiaries_reached TEXT NOT NULL DEFAULT '',
+    problems_addressed TEXT NOT NULL DEFAULT '',
+    key_outcomes TEXT NOT NULL DEFAULT '',
+    before_observations TEXT NOT NULL DEFAULT '',
+    after_observations TEXT NOT NULL DEFAULT '',
+    success_indicators TEXT NOT NULL DEFAULT '',
+    challenges_faced TEXT NOT NULL DEFAULT '',
+    reported_metrics TEXT NOT NULL DEFAULT '{}',
+    evidence_json TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'DRAFT',
+    reviewer_comment TEXT,
+    submitted_by INTEGER,
+    submitted_at TEXT,
+    reviewed_by INTEGER,
+    reviewed_at TEXT,
+    created_by INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id),
+    FOREIGN KEY(created_by) REFERENCES users(id),
+    FOREIGN KEY(submitted_by) REFERENCES users(id),
+    FOREIGN KEY(reviewed_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS impact_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    impact_id INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    old_status TEXT,
+    new_status TEXT,
+    performed_by INTEGER,
+    comment TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(impact_id) REFERENCES impact_assessments(id),
+    FOREIGN KEY(performed_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS scaling_proposals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL UNIQUE,
+    impact_assessment_id INTEGER NOT NULL,
+    current_location TEXT NOT NULL DEFAULT '',
+    proposed_districts TEXT NOT NULL DEFAULT '[]',
+    target_communities TEXT NOT NULL DEFAULT '',
+    scaling_objective TEXT NOT NULL DEFAULT '',
+    expected_beneficiaries TEXT NOT NULL DEFAULT '',
+    required_resources TEXT NOT NULL DEFAULT '',
+    estimated_duration TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    evidence_json TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'PROPOSED',
+    reviewer_comment TEXT,
+    created_by INTEGER NOT NULL,
+    reviewed_by INTEGER,
+    reviewed_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id),
+    FOREIGN KEY(impact_assessment_id) REFERENCES impact_assessments(id),
+    FOREIGN KEY(created_by) REFERENCES users(id),
+    FOREIGN KEY(reviewed_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS scaling_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scaling_id INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    old_status TEXT,
+    new_status TEXT,
+    performed_by INTEGER,
+    comment TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(scaling_id) REFERENCES scaling_proposals(id),
+    FOREIGN KEY(performed_by) REFERENCES users(id)
 );
 """
 
@@ -1120,6 +1221,25 @@ def command_center_kpis(conn):
         "collab_accepted": conn.execute(
             "SELECT COUNT(*) c FROM collaboration_requests "
             "WHERE status='ACCEPTED'").fetchone()["c"],
+        "impact_assessments": conn.execute(
+            "SELECT COUNT(*) c FROM impact_assessments").fetchone()["c"],
+        "impact_reviews": conn.execute(
+            "SELECT COUNT(*) c FROM impact_assessments WHERE status IN "
+            + _sql_in(IMPACT_MARKER_STATUSES),
+            (*IMPACT_MARKER_STATUSES,)).fetchone()["c"],
+        "scaling_ready": len(list_scaling_eligible_projects(conn)),
+        "scaling_proposals": conn.execute(
+            "SELECT COUNT(*) c FROM scaling_proposals").fetchone()["c"],
+        "scaling_reviews": conn.execute(
+            "SELECT COUNT(*) c FROM scaling_proposals WHERE status IN "
+            + _sql_in(SCALING_MARKER_STATUSES),
+            (*SCALING_MARKER_STATUSES,)).fetchone()["c"],
+        "scaling_approved": conn.execute(
+            "SELECT COUNT(*) c FROM scaling_proposals WHERE status='APPROVED'"
+        ).fetchone()["c"],
+        "districts_covered": conn.execute(
+            "SELECT COUNT(DISTINCT district) c FROM pilot_deployments "
+            "WHERE status='DEPLOYED'").fetchone()["c"],
     }
 
 
@@ -1159,6 +1279,14 @@ def command_center_actions(conn):
             + _sql_in(("PLANNED", "ACTIVE"))
             + " AND target_end_date IS NOT NULL AND target_end_date < ?",
             (*("PLANNED", "ACTIVE"), _now().date().isoformat())).fetchone()["c"],
+        "impact_needing_review": conn.execute(
+            "SELECT COUNT(*) c FROM impact_assessments WHERE status IN "
+            + _sql_in(IMPACT_MARKER_STATUSES),
+            (*IMPACT_MARKER_STATUSES,)).fetchone()["c"],
+        "scaling_needing_review": conn.execute(
+            "SELECT COUNT(*) c FROM scaling_proposals WHERE status IN "
+            + _sql_in(SCALING_MARKER_STATUSES),
+            (*SCALING_MARKER_STATUSES,)).fetchone()["c"],
     }
 
 
@@ -2931,12 +3059,19 @@ def project_readiness(conn, project):
     prototype = None
     testing = None
     pilot = None
+    impact = None
+    scaling = None
     if project is not None:
         prototype = get_prototype_for_project(conn, project.id)
         testing = get_testing_report_for_project(conn, project.id)
         pilot = get_pilot_for_project(conn, project.id)
+        impact = get_impact_assessment_for_project(conn, project.id)
+        scaling = get_scaling_proposal_for_project(conn, project.id)
     prototype_ready = bool(prototype and prototype.status == "APPROVED")
     testing_completed = bool(testing and testing.status == "APPROVED")
+    impact_approved = bool(impact and impact.status == "APPROVED")
+    scaling_review = scaling is not None
+    scaled = bool(scaling and scaling.status == "APPROVED")
     pilot_label = None
     if pilot is not None:
         if pilot.status == "DEPLOYED":
@@ -2945,7 +3080,13 @@ def project_readiness(conn, project):
             pilot_label = "pilot_completed"
         elif pilot.status in ("PLANNED", "ACTIVE"):
             pilot_label = "pilot_active"
-    if pilot_label:
+    if scaled:
+        label = "scaled"
+    elif scaling_review:
+        label = "scaling_review"
+    elif impact_approved:
+        label = "impact_assessed"
+    elif pilot_label:
         label = pilot_label
     elif testing_completed:
         label = "testing_completed"
@@ -2965,10 +3106,15 @@ def project_readiness(conn, project):
         "pilot_active": pilot is not None and pilot.status in ("PLANNED", "ACTIVE"),
         "pilot_completed": pilot is not None and pilot.status == "COMPLETED",
         "deployed": pilot is not None and pilot.status == "DEPLOYED",
+        "impact_assessed": impact_approved,
+        "scaling_review": scaling_review,
+        "scaled": scaled,
         "label": label,
         "prototype": prototype,
         "testing": testing,
         "pilot": pilot,
+        "impact": impact,
+        "scaling": scaling,
     }
 
 
@@ -3744,5 +3890,560 @@ def list_pilot_eligible_projects(conn):
         "AND prot.status='APPROVED' AND tr.status='APPROVED' "
         "AND NOT EXISTS (SELECT 1 FROM pilot_deployments pd "
         "               WHERE pd.project_id=p.id) "
+        "ORDER BY p.created_at DESC").fetchall()
+    return [hydrate_project(conn, r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# Phase 7 — impact assessment and scaling
+# ---------------------------------------------------------------------------
+
+def _require_deployed_project(conn, project_id):
+    """Impact assessment never opens early: only a solution whose pilot has
+    reached DEPLOYED (an authorized reviewer completed the deployment review)
+    may begin impact assessment. No earlier stage ever qualifies."""
+    pilot = get_pilot_for_project(conn, project_id)
+    if pilot is None or pilot.status != "DEPLOYED":
+        raise ValueError(
+            "Impact assessment requires the solution to be deployed first.")
+    project = get_project_row(conn, project_id)
+    if project is None:
+        raise ValueError("Project not found.")
+    return project, pilot
+
+
+def get_impact_row(conn, impact_id):
+    return conn.execute(
+        "SELECT * FROM impact_assessments WHERE id=?", (impact_id,)).fetchone()
+
+
+def get_impact_assessment_for_project(conn, project_id):
+    row = conn.execute(
+        "SELECT * FROM impact_assessments WHERE project_id=? ORDER BY id "
+        "DESC LIMIT 1", (project_id,)).fetchone()
+    return hydrate_impact_assessment(conn, row) if row else None
+
+
+def add_impact_log(conn, impact_id, action, old_status, new_status,
+                   performed_by, comment=""):
+    conn.execute(
+        "INSERT INTO impact_logs (impact_id, action, old_status, new_status, "
+        "performed_by, comment, created_at) VALUES (?,?,?,?,?,?,?)",
+        (impact_id, action, old_status or "", new_status or "", performed_by,
+         comment or "", _now().isoformat()))
+
+
+def hydrate_impact_assessment(conn, row):
+    if row is None:
+        return None
+    d = dict(row)
+    ns = SimpleNamespace(**d)
+    ns.evidence = _clean_evidence(d.get("evidence_json"))
+    ns.metrics = {}
+    try:
+        metrics = json.loads(d.get("reported_metrics") or "{}")
+        if isinstance(metrics, dict):
+            ns.metrics = metrics
+    except (ValueError, TypeError):
+        ns.metrics = {}
+    ns.is_approved = d.get("status") == "APPROVED"
+    ns.is_marker = d.get("status") in IMPACT_MARKER_STATUSES
+    ns.is_revision = d.get("status") == "REVISION_REQUESTED"
+    ns.created_at = _parse_dt(d.get("created_at"))
+    ns.updated_at = _parse_dt(d.get("updated_at"))
+    ns.submitted_at = _parse_dt(d.get("submitted_at"))
+    ns.reviewed_at = _parse_dt(d.get("reviewed_at"))
+    ns.project = hydrate_project(
+        conn, get_project_row(conn, d["project_id"]), with_relations=False)
+    ns.creator = hydrate_user(get_user_by_id(conn, d.get("created_by")))
+    ns.submitter = hydrate_user(get_user_by_id(conn, d.get("submitted_by")))
+    ns.reviewer = hydrate_user(get_user_by_id(conn, d.get("reviewed_by")))
+    logs = conn.execute(
+        "SELECT * FROM impact_logs WHERE impact_id=? ORDER BY id ASC",
+        (d["id"],)).fetchall()
+    ns.logs = [dict(r) for r in logs] if logs else []
+    return ns
+
+
+def get_impact_assessment(conn, impact_id):
+    return hydrate_impact_assessment(conn, get_impact_row(conn, impact_id))
+
+
+def create_impact_assessment(conn, project_id, created_by,
+                             period_start="", period_end="",
+                             target_population="", beneficiaries_reached="",
+                             problems_addressed="", key_outcomes="",
+                             before_observations="", after_observations="",
+                             success_indicators="", challenges_faced="",
+                             reported_metrics=None, evidence=None):
+    """Teams may open an impact assessment (DRAFT) only for a DEPLOYED
+    solution. It never advances on its own — submission moves it forward."""
+    _require_deployed_project(conn, project_id)
+    if get_impact_assessment_for_project(conn, project_id) is not None:
+        raise ValueError("An impact assessment already exists for this project.")
+    cur = conn.execute(
+        "INSERT INTO impact_assessments (project_id, period_start, period_end, "
+        "target_population, beneficiaries_reached, problems_addressed, "
+        "key_outcomes, before_observations, after_observations, "
+        "success_indicators, challenges_faced, reported_metrics, "
+        "evidence_json, status, created_by, created_at, updated_at) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (project_id, period_start or "", period_end or "",
+         target_population or "", beneficiaries_reached or "",
+         problems_addressed or "", key_outcomes or "",
+         before_observations or "", after_observations or "",
+         success_indicators or "", challenges_faced or "",
+         json.dumps(reported_metrics or {}), json.dumps(_clean_evidence(evidence)),
+         "DRAFT", created_by, _now().isoformat(), _now().isoformat()))
+    add_impact_log(conn, cur.lastrowid, "CREATED", None, "DRAFT", created_by,
+                   "Impact assessment draft created.")
+    conn.commit()
+    return cur.lastrowid
+
+
+def update_impact_assessment_details(conn, impact_id, actor_id,
+                                     period_start="", period_end="",
+                                     target_population="",
+                                     beneficiaries_reached="",
+                                     problems_addressed="", key_outcomes="",
+                                     before_observations="",
+                                     after_observations="",
+                                     success_indicators="",
+                                     challenges_faced="",
+                                     reported_metrics=None, evidence=None):
+    """Content edits are allowed while the assessment is a DRAFT or waiting on
+    a government revision — never after it is under review or decided."""
+    row = get_impact_row(conn, impact_id)
+    if row is None:
+        raise ValueError("Impact assessment not found.")
+    if row["status"] not in ("DRAFT", "REVISION_REQUESTED"):
+        raise ValueError(
+            f"Cannot edit an impact assessment in {row['status']} state.")
+    conn.execute(
+        "UPDATE impact_assessments SET period_start=?, period_end=?, "
+        "target_population=?, beneficiaries_reached=?, problems_addressed=?, "
+        "key_outcomes=?, before_observations=?, after_observations=?, "
+        "success_indicators=?, challenges_faced=?, reported_metrics=?, "
+        "evidence_json=?, updated_at=? WHERE id=?",
+        (period_start or "", period_end or "", target_population or "",
+         beneficiaries_reached or "", problems_addressed or "",
+         key_outcomes or "", before_observations or "", after_observations or "",
+         success_indicators or "", challenges_faced or "",
+         json.dumps(reported_metrics or {}), json.dumps(_clean_evidence(evidence)),
+         _now().isoformat(), impact_id))
+    add_impact_log(conn, impact_id, "UPDATED", row["status"], row["status"],
+                   actor_id, "Assessment details edited.")
+    conn.commit()
+
+
+def submit_impact_assessment(conn, impact_id, actor_id):
+    row = get_impact_row(conn, impact_id)
+    if row is None:
+        raise ValueError("Impact assessment not found.")
+    if row["status"] != "DRAFT":
+        raise ValueError("Only a draft assessment can be submitted.")
+    conn.execute(
+        "UPDATE impact_assessments SET status='SUBMITTED', submitted_by=?, "
+        "submitted_at=?, updated_at=? WHERE id=?",
+        (actor_id, _now().isoformat(), _now().isoformat(), impact_id))
+    add_impact_log(conn, impact_id, "SUBMITTED", "DRAFT", "SUBMITTED",
+                   actor_id, "Impact assessment submitted for review.")
+    project = get_project_row(conn, row["project_id"])
+    if project:
+        for uid in _gov_user_ids(conn):
+            add_notification(
+                conn, uid, "impact", "notif_impact_submitted",
+                f"An impact assessment was submitted for project "
+                f"\"{project['title'][:60]}\".", "impact", impact_id)
+    conn.commit()
+
+
+def resubmit_impact_assessment(conn, impact_id, actor_id):
+    row = get_impact_row(conn, impact_id)
+    if row is None:
+        raise ValueError("Impact assessment not found.")
+    if row["status"] != "REVISION_REQUESTED":
+        raise ValueError(
+            "Only a revised assessment can be resubmitted.")
+    conn.execute(
+        "UPDATE impact_assessments SET status='SUBMITTED', submitted_by=?, "
+        "submitted_at=?, updated_at=? WHERE id=?",
+        (actor_id, _now().isoformat(), _now().isoformat(), impact_id))
+    add_impact_log(conn, impact_id, "RESUBMITTED", "REVISION_REQUESTED",
+                   "SUBMITTED", actor_id, "Revised assessment resubmitted.")
+    project = get_project_row(conn, row["project_id"])
+    if project:
+        for uid in _gov_user_ids(conn):
+            add_notification(
+                conn, uid, "impact", "notif_impact_submitted",
+                f"A revised impact assessment was resubmitted for project "
+                f"\"{project['title'][:60]}\".", "impact", impact_id)
+    conn.commit()
+
+
+def begin_impact_review(conn, impact_id, actor_id):
+    row = get_impact_row(conn, impact_id)
+    if row is None:
+        raise ValueError("Impact assessment not found.")
+    if row["status"] != "SUBMITTED":
+        raise ValueError("Only a submitted assessment can begin review.")
+    conn.execute(
+        "UPDATE impact_assessments SET status='UNDER_REVIEW', updated_at=? "
+        "WHERE id=?", (_now().isoformat(), impact_id))
+    add_impact_log(conn, impact_id, "REVIEW_STARTED", "SUBMITTED",
+                   "UNDER_REVIEW", actor_id, "Review started.")
+    conn.commit()
+
+
+def review_impact_assessment(conn, impact_id, decision, actor_id,
+                             comment=""):
+    if decision not in IMPACT_FEEDBACK_STATUSES:
+        raise ValueError("Unknown review decision.")
+    row = get_impact_row(conn, impact_id)
+    if row is None:
+        raise ValueError("Impact assessment not found.")
+    if row["status"] != "UNDER_REVIEW":
+        raise ValueError("Only an assessment under review can be decided.")
+    conn.execute(
+        "UPDATE impact_assessments SET status=?, reviewer_comment=?, "
+        "reviewed_by=?, reviewed_at=?, updated_at=? WHERE id=?",
+        (decision, comment or "", actor_id, _now().isoformat(),
+         _now().isoformat(), impact_id))
+    add_impact_log(conn, impact_id, "DECIDED", "UNDER_REVIEW", decision,
+                   actor_id, comment or "")
+    project = get_project_row(conn, row["project_id"])
+    if project:
+        key = {
+            "APPROVED": "notif_impact_approved",
+            "REVISION_REQUESTED": "notif_impact_revision",
+            "REJECTED": "notif_impact_rejected",
+        }[decision]
+        for uid in _team_user_ids(conn, project["team_id"]):
+            add_notification(conn, uid, "impact", key,
+                             f"The impact assessment for project "
+                             f"\"{project['title'][:60]}\" was reviewed "
+                             f"({decision.lower().replace('_',' ')}).",
+                             "impact", impact_id)
+        for uid in _project_university_recipients_for(conn, project["id"]):
+            add_notification(conn, uid, "impact", key,
+                             f"The impact assessment for project "
+                             f"\"{project['title'][:60]}\" was reviewed.",
+                             "impact", impact_id)
+        for uid in _connected_industry_users(conn, project["id"]):
+            add_notification(conn, uid, "impact", key,
+                             f"The impact assessment for the project you "
+                             f"collaborate on — \"{project['title'][:60]}\" "
+                             f"— was reviewed.", "impact", impact_id)
+        if decision == "APPROVED":
+            add_challenge_log(conn, project["challenge_id"], "IMPACT_APPROVED",
+                              f"Impact assessment approved for project "
+                              f"\"{project['title'][:60]}\".", actor_id)
+    conn.commit()
+    return decision
+
+
+def list_impact_assessments(conn, mode="all"):
+    if mode == "review":
+        q = ("SELECT * FROM impact_assessments WHERE status IN "
+             + _sql_in(IMPACT_MARKER_STATUSES) + " ORDER BY updated_at DESC")
+        params = (*IMPACT_MARKER_STATUSES,)
+    elif mode == "decided":
+        q = ("SELECT * FROM impact_assessments WHERE status IN "
+             + _sql_in(IMPACT_FEEDBACK_STATUSES) + " ORDER BY reviewed_at DESC")
+        params = (*IMPACT_FEEDBACK_STATUSES,)
+    else:
+        q = "SELECT * FROM impact_assessments ORDER BY updated_at DESC"
+        params = ()
+    return [hydrate_impact_assessment(conn, r)
+            for r in conn.execute(q, params).fetchall()]
+
+
+def count_impact_needing_review(conn):
+    return conn.execute(
+        "SELECT COUNT(*) c FROM impact_assessments WHERE status IN "
+        + _sql_in(IMPACT_MARKER_STATUSES),
+        (*IMPACT_MARKER_STATUSES,)).fetchone()["c"]
+
+
+# ---------------------------------------------------------------------------
+# Phase 7 — scaling proposals
+# ---------------------------------------------------------------------------
+
+def get_scaling_row(conn, scaling_id):
+    return conn.execute(
+        "SELECT * FROM scaling_proposals WHERE id=?", (scaling_id,)).fetchone()
+
+
+def get_scaling_proposal_for_project(conn, project_id):
+    row = conn.execute(
+        "SELECT * FROM scaling_proposals WHERE project_id=? ORDER BY id "
+        "DESC LIMIT 1", (project_id,)).fetchone()
+    return hydrate_scaling_proposal(conn, row) if row else None
+
+
+def add_scaling_log(conn, scaling_id, action, old_status, new_status,
+                    performed_by, comment=""):
+    conn.execute(
+        "INSERT INTO scaling_logs (scaling_id, action, old_status, new_status, "
+        "performed_by, comment, created_at) VALUES (?,?,?,?,?,?,?)",
+        (scaling_id, action, old_status or "", new_status or "", performed_by,
+         comment or "", _now().isoformat()))
+
+
+def hydrate_scaling_proposal(conn, row):
+    if row is None:
+        return None
+    d = dict(row)
+    ns = SimpleNamespace(**d)
+    ns.proposed_districts = []
+    try:
+        districts = json.loads(d.get("proposed_districts") or "[]")
+        if isinstance(districts, list):
+            ns.proposed_districts = districts
+    except (ValueError, TypeError):
+        ns.proposed_districts = []
+    ns.evidence = _clean_evidence(d.get("evidence_json"))
+    ns.is_approved = d.get("status") == "APPROVED"
+    ns.is_marker = d.get("status") in SCALING_MARKER_STATUSES
+    ns.is_revision = d.get("status") == "REVISION_REQUESTED"
+    ns.created_at = _parse_dt(d.get("created_at"))
+    ns.updated_at = _parse_dt(d.get("updated_at"))
+    ns.reviewed_at = _parse_dt(d.get("reviewed_at"))
+    ns.project = hydrate_project(
+        conn, get_project_row(conn, d["project_id"]), with_relations=False)
+    ns.creator = hydrate_user(get_user_by_id(conn, d.get("created_by")))
+    ns.reviewer = hydrate_user(get_user_by_id(conn, d.get("reviewed_by")))
+    ns.impact = hydrate_impact_assessment(
+        conn, get_impact_row(conn, d.get("impact_assessment_id")))
+    logs = conn.execute(
+        "SELECT * FROM scaling_logs WHERE scaling_id=? ORDER BY id ASC",
+        (d["id"],)).fetchall()
+    ns.logs = [dict(r) for r in logs] if logs else []
+    return ns
+
+
+def get_scaling_proposal(conn, scaling_id):
+    return hydrate_scaling_proposal(conn, get_scaling_row(conn, scaling_id))
+
+
+def create_scaling_proposal(conn, project_id, impact_assessment_id,
+                            created_by, current_location="",
+                            proposed_districts=None, target_communities="",
+                            scaling_objective="", expected_beneficiaries="",
+                            required_resources="", estimated_duration="",
+                            notes="", evidence=None):
+    """Government opens the scaling proposal — the terminal stage — only after
+    the impact assessment is APPROVED and the solution is deployed. One record
+    per project."""
+    project = get_project_row(conn, project_id)
+    if project is None:
+        raise ValueError("Project not found.")
+    _require_deployed_project(conn, project_id)
+    impact = get_impact_assessment(conn, impact_assessment_id)
+    if impact is None or impact.project_id != project_id:
+        raise ValueError("Invalid impact assessment for this project.")
+    if impact.status != "APPROVED":
+        raise ValueError("Scaling requires an approved impact assessment.")
+    if get_scaling_proposal_for_project(conn, project_id) is not None:
+        raise ValueError("A scaling proposal already exists for this project.")
+    districts = list(proposed_districts or [])
+    if not districts or not all(d in DISTRICTS for d in districts):
+        raise ValueError("At least one valid proposed district is required.")
+    cur = conn.execute(
+        "INSERT INTO scaling_proposals (project_id, impact_assessment_id, "
+        "current_location, proposed_districts, target_communities, "
+        "scaling_objective, expected_beneficiaries, required_resources, "
+        "estimated_duration, notes, evidence_json, status, created_by, "
+        "created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (project_id, impact_assessment_id, current_location or "",
+         json.dumps(districts), target_communities or "",
+         scaling_objective or "", expected_beneficiaries or "",
+         required_resources or "", estimated_duration or "", notes or "",
+         json.dumps(_clean_evidence(evidence)), "PROPOSED", created_by,
+         _now().isoformat(), _now().isoformat()))
+    add_scaling_log(conn, cur.lastrowid, "CREATED", None, "PROPOSED",
+                    created_by, "Scaling proposal opened.")
+    if project["team_id"]:
+        for uid in _team_user_ids(conn, project["team_id"]):
+            add_notification(conn, uid, "scaling", "notif_scaling_created",
+                             f"A scaling proposal was opened for project "
+                             f"\"{project['title'][:60]}\".",
+                             "scaling", cur.lastrowid)
+    for uid in _project_university_recipients_for(conn, project_id):
+        add_notification(conn, uid, "scaling", "notif_scaling_created",
+                         f"A scaling proposal was opened for project "
+                         f"\"{project['title'][:60]}\".",
+                         "scaling", cur.lastrowid)
+    for uid in _connected_industry_users(conn, project_id):
+        add_notification(conn, uid, "scaling", "notif_scaling_created",
+                         f"A scaling proposal was opened for the project you "
+                         f"collaborate on: \"{project['title'][:60]}\".",
+                         "scaling", cur.lastrowid)
+    for uid in _gov_user_ids(conn):
+        if uid != created_by:
+            add_notification(conn, uid, "scaling", "notif_scaling_created",
+                             f"A scaling proposal was opened for project "
+                             f"\"{project['title'][:60]}\".",
+                             "scaling", cur.lastrowid)
+    add_challenge_log(conn, project["challenge_id"], "SCALING_OPENED",
+                      f"Scaling proposal opened for project "
+                      f"\"{project['title'][:60]}\".", created_by)
+    conn.commit()
+    return cur.lastrowid
+
+
+def update_scaling_details(conn, scaling_id, actor_id, current_location="",
+                           proposed_districts=None, target_communities="",
+                           scaling_objective="", expected_beneficiaries="",
+                           required_resources="", estimated_duration="",
+                           notes="", evidence=None):
+    """Content edits are allowed while the proposal is open (PROPOSED) or
+    waiting on a government revision — never once under review or decided."""
+    row = get_scaling_row(conn, scaling_id)
+    if row is None:
+        raise ValueError("Scaling proposal not found.")
+    if row["status"] not in ("PROPOSED", "REVISION_REQUESTED"):
+        raise ValueError(
+            f"Cannot edit a scaling proposal in {row['status']} state.")
+    districts = list(proposed_districts or [])
+    if not districts or not all(d in DISTRICTS for d in districts):
+        raise ValueError("At least one valid proposed district is required.")
+    conn.execute(
+        "UPDATE scaling_proposals SET current_location=?, "
+        "proposed_districts=?, target_communities=?, scaling_objective=?, "
+        "expected_beneficiaries=?, required_resources=?, "
+        "estimated_duration=?, notes=?, evidence_json=?, updated_at=? "
+        "WHERE id=?",
+        (current_location or "", json.dumps(districts),
+         target_communities or "", scaling_objective or "",
+         expected_beneficiaries or "", required_resources or "",
+         estimated_duration or "", notes or "",
+         json.dumps(_clean_evidence(evidence)), _now().isoformat(),
+         scaling_id))
+    add_scaling_log(conn, scaling_id, "UPDATED", row["status"], row["status"],
+                    actor_id, "Scaling proposal details edited.")
+    conn.commit()
+
+
+def resubmit_scaling_proposal(conn, scaling_id, actor_id):
+    row = get_scaling_row(conn, scaling_id)
+    if row is None:
+        raise ValueError("Scaling proposal not found.")
+    if row["status"] != "REVISION_REQUESTED":
+        raise ValueError("Only a revised scaling proposal can be resubmitted.")
+    conn.execute(
+        "UPDATE scaling_proposals SET status='PROPOSED', updated_at=? "
+        "WHERE id=?", (_now().isoformat(), scaling_id))
+    add_scaling_log(conn, scaling_id, "RESUBMITTED", "REVISION_REQUESTED",
+                    "PROPOSED", actor_id, "Revised scaling proposal resubmitted.")
+    project = get_project_row(conn, row["project_id"])
+    if project:
+        for uid in _team_user_ids(conn, project["team_id"]):
+            add_notification(conn, uid, "scaling", "notif_scaling_submitted",
+                             f"A revised scaling proposal was resubmitted for "
+                             f"project \"{project['title'][:60]}\".",
+                             "scaling", scaling_id)
+        for uid in _project_university_recipients_for(conn, project["id"]):
+            add_notification(conn, uid, "scaling", "notif_scaling_submitted",
+                             f"A revised scaling proposal was resubmitted for "
+                             f"project \"{project['title'][:60]}\".",
+                             "scaling", scaling_id)
+    conn.commit()
+
+
+def begin_scaling_review(conn, scaling_id, actor_id):
+    row = get_scaling_row(conn, scaling_id)
+    if row is None:
+        raise ValueError("Scaling proposal not found.")
+    if row["status"] != "PROPOSED":
+        raise ValueError("Only an open scaling proposal can begin review.")
+    conn.execute(
+        "UPDATE scaling_proposals SET status='UNDER_REVIEW', updated_at=? "
+        "WHERE id=?", (_now().isoformat(), scaling_id))
+    add_scaling_log(conn, scaling_id, "REVIEW_STARTED", "PROPOSED",
+                    "UNDER_REVIEW", actor_id, "Review started.")
+    conn.commit()
+
+
+def review_scaling_proposal(conn, scaling_id, decision, actor_id,
+                            comment=""):
+    if decision not in SCALING_FEEDBACK_STATUSES:
+        raise ValueError("Unknown review decision.")
+    row = get_scaling_row(conn, scaling_id)
+    if row is None:
+        raise ValueError("Scaling proposal not found.")
+    if row["status"] != "UNDER_REVIEW":
+        raise ValueError("Only a scaling proposal under review can be decided.")
+    conn.execute(
+        "UPDATE scaling_proposals SET status=?, reviewer_comment=?, "
+        "reviewed_by=?, reviewed_at=?, updated_at=? WHERE id=?",
+        (decision, comment or "", actor_id, _now().isoformat(),
+         _now().isoformat(), scaling_id))
+    add_scaling_log(conn, scaling_id, "DECIDED", "UNDER_REVIEW", decision,
+                    actor_id, comment or "")
+    project = get_project_row(conn, row["project_id"])
+    if project:
+        key = {
+            "APPROVED": "notif_scaling_approved",
+            "REVISION_REQUESTED": "notif_scaling_revision",
+            "REJECTED": "notif_scaling_rejected",
+        }[decision]
+        for uid in _team_user_ids(conn, project["team_id"]):
+            add_notification(conn, uid, "scaling", key,
+                             f"The scaling proposal for project "
+                             f"\"{project['title'][:60]}\" was reviewed "
+                             f"({decision.lower().replace('_',' ')}).",
+                             "scaling", scaling_id)
+        for uid in _project_university_recipients_for(conn, project["id"]):
+            add_notification(conn, uid, "scaling", key,
+                             f"The scaling proposal for project "
+                             f"\"{project['title'][:60]}\" was reviewed.",
+                             "scaling", scaling_id)
+        for uid in _connected_industry_users(conn, project["id"]):
+            add_notification(conn, uid, "scaling", key,
+                             f"The scaling proposal for the project you "
+                             f"collaborate on — \"{project['title'][:60]}\" "
+                             f"— was reviewed.", "scaling", scaling_id)
+        if decision == "APPROVED":
+            add_challenge_log(conn, project["challenge_id"], "SCALED",
+                              f"Scaling approved for project "
+                              f"\"{project['title'][:60]}\".", actor_id)
+    conn.commit()
+    return decision
+
+
+def list_scaling_proposals(conn, mode="all"):
+    if mode == "review":
+        q = ("SELECT * FROM scaling_proposals WHERE status IN "
+             + _sql_in(SCALING_MARKER_STATUSES) + " ORDER BY updated_at DESC")
+        params = (*SCALING_MARKER_STATUSES,)
+    elif mode == "decided":
+        q = ("SELECT * FROM scaling_proposals WHERE status IN "
+             + _sql_in(SCALING_FEEDBACK_STATUSES) + " ORDER BY reviewed_at DESC")
+        params = (*SCALING_FEEDBACK_STATUSES,)
+    else:
+        q = "SELECT * FROM scaling_proposals ORDER BY updated_at DESC"
+        params = ()
+    return [hydrate_scaling_proposal(conn, r)
+            for r in conn.execute(q, params).fetchall()]
+
+
+def count_scaling_needing_review(conn):
+    return conn.execute(
+        "SELECT COUNT(*) c FROM scaling_proposals WHERE status IN "
+        + _sql_in(SCALING_MARKER_STATUSES),
+        (*SCALING_MARKER_STATUSES,)).fetchone()["c"]
+
+
+def list_scaling_eligible_projects(conn):
+    """DEPLOYED solutions with an APPROVED impact assessment and no scaling
+    proposal yet — the only projects a government user may scale."""
+    rows = conn.execute(
+        "SELECT p.* FROM projects p JOIN pilot_deployments pd "
+        "ON pd.project_id=p.id JOIN impact_assessments ia "
+        "ON ia.project_id=p.id "
+        "WHERE pd.status='DEPLOYED' AND ia.status='APPROVED' "
+        "AND NOT EXISTS (SELECT 1 FROM scaling_proposals sp "
+        "               WHERE sp.project_id=p.id) "
         "ORDER BY p.created_at DESC").fetchall()
     return [hydrate_project(conn, r) for r in rows]

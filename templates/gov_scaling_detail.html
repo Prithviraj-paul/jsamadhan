@@ -1,0 +1,190 @@
+{% extends "app_base.html" %}
+{% set active = 'command-center' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('p7_scaling_detail_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('command_center') }}">{{ t('cmd_center') }}</a> / <a href="{{ url_for('gov_scaling') }}">{{ t('p7_scaling_title') }}</a> / {{ proposal.project.title[:60] }}
+</div>
+
+<div class="topbar" style="flex-wrap:wrap;">
+  <div>
+    <h1>{{ proposal.project.title }}</h1>
+    <div class="meta" style="font-size:.84rem; color:var(--ink-soft); margin-top:8px;">
+      {{ t('p7_scaling_detail_title') }}
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    {{ m.scaling_status_badge(proposal) }}
+  </div>
+</div>
+
+<div class="banner banner-ai" style="margin-bottom:16px;">{{ t('p7_scaling_note') }}</div>
+
+<div class="grid grid-2" style="align-items:start;">
+  <div class="card">
+    <div class="ai-meta-grid" style="margin-top:6px; grid-template-columns:1fr 1fr;">
+      <div>
+        <div class="l">{{ t('p7_current_location') }}</div>
+        <div class="v">{{ proposal.current_location or t('not_assigned') }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('p7_estimated_duration') }}</div>
+        <div class="v">{{ proposal.estimated_duration or t('not_assigned') }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('p7_expected_beneficiaries') }}</div>
+        <div class="v">{{ proposal.expected_beneficiaries or t('not_assigned') }}</div>
+      </div>
+      <div>
+        <div class="l">{{ t('p7_target_communities') }}</div>
+        <div class="v">{{ proposal.target_communities or t('not_assigned') }}</div>
+      </div>
+    </div>
+
+    <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p7_proposed_districts') }}</h2>
+    {% if proposal.proposed_districts %}
+    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">
+      {% for d in proposal.proposed_districts %}
+      <span class="badge badge-accepted">{{ dist_label(d) }}</span>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="hint" style="margin:6px 0 0;">{{ t('not_assigned') }}</p>
+    {% endif %}
+
+    <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p7_scaling_objective') }}</h2>
+    <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ proposal.scaling_objective or t('not_assigned') }}</p>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:.95rem; margin-top:0;">{{ t('p7_required_resources') }}</h2>
+    <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ proposal.required_resources or t('not_assigned') }}</p>
+
+    <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p7_notes') }}</h2>
+    <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ proposal.notes or t('not_assigned') }}</p>
+
+    <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p7_stage_impact') }}</h2>
+    {% if proposal.impact %}
+    {{ m.impact_status_badge(proposal.impact) }}
+    <p style="font-size:.86rem; margin:8px 0 0; color:var(--ink-soft);">
+      {{ t('p7_key_outcomes') }}: {{ proposal.impact.key_outcomes[:160] if proposal.impact.key_outcomes else t('not_assigned') }}
+    </p>
+    {% else %}
+    <p class="hint" style="margin:6px 0 0;">{{ t('p7_no_assessment') }}</p>
+    {% endif %}
+
+    <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p6_proto_evidence') }}</h2>
+    {% if proposal.evidence %}
+    <div class="table-scroll" style="margin-top:6px;">
+      <table>
+        <thead><tr><th>{{ t('p6_proto_evidence') }}</th><th></th></tr></thead>
+        <tbody>
+        {% for ev in proposal.evidence %}
+        <tr>
+          <td>{{ ev.name }}</td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('uploaded_file', filename=ev.path) }}" target="_blank">{{ t('ind_view') }} →</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:6px 0 0;">{{ t('p6_evidence_none') }}</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if proposal.status == 'REVISION_REQUESTED' %}
+<div class="card" style="margin-top:16px;">
+  <h2 style="font-size:.95rem; margin-top:0;">{{ t('p6_proto_save_btn') }}</h2>
+  {% if proposal.reviewer_comment %}
+  <div style="margin-bottom:14px; padding:12px; background:var(--bg, #f5f4ef); border-left:3px solid var(--gold,#d9a520);">
+    <div class="l" style="font-size:.75rem; text-transform:uppercase; letter-spacing:.04em;">{{ t('p7_reviewer_comment') }}</div>
+    <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ proposal.reviewer_comment }}</p>
+  </div>
+  {% endif %}
+  <form method="POST" action="{{ url_for('gov_scaling_update', scaling_id=proposal.id) }}" enctype="multipart/form-data">
+    <label for="current_location">{{ t('p7_current_location') }}</label>
+    <input type="text" id="current_location" name="current_location" value="{{ proposal.current_location }}">
+
+    <label for="proposed_districts" style="margin-top:12px;">{{ t('p7_proposed_districts') }} <span style="color:var(--danger,#c0392b);">*</span></label>
+    <select id="proposed_districts" name="proposed_districts" multiple required>
+      {% for d in districts %}
+      <option value="{{ d }}" {% if d in proposal.proposed_districts %}selected{% endif %}>{{ dist_label(d) }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint" style="margin-top:4px;">{{ t('p7_proposed_districts_help') }}</p>
+
+    <label for="target_communities" style="margin-top:12px;">{{ t('p7_target_communities') }}</label>
+    <input type="text" id="target_communities" name="target_communities" value="{{ proposal.target_communities }}">
+
+    <label for="scaling_objective" style="margin-top:12px;">{{ t('p7_scaling_objective') }}</label>
+    <textarea id="scaling_objective" name="scaling_objective" rows="3">{{ proposal.scaling_objective }}</textarea>
+
+    <label for="expected_beneficiaries" style="margin-top:12px;">{{ t('p7_expected_beneficiaries') }}</label>
+    <input type="text" id="expected_beneficiaries" name="expected_beneficiaries" value="{{ proposal.expected_beneficiaries }}">
+
+    <label for="required_resources" style="margin-top:12px;">{{ t('p7_required_resources') }}</label>
+    <textarea id="required_resources" name="required_resources" rows="2">{{ proposal.required_resources }}</textarea>
+
+    <label for="estimated_duration" style="margin-top:12px;">{{ t('p7_estimated_duration') }}</label>
+    <input type="text" id="estimated_duration" name="estimated_duration" value="{{ proposal.estimated_duration }}">
+
+    <label for="notes" style="margin-top:12px;">{{ t('p7_notes') }}</label>
+    <textarea id="notes" name="notes" rows="2">{{ proposal.notes }}</textarea>
+
+    <label for="evidence" style="margin-top:12px;">{{ t('p6_proto_evidence') }}</label>
+    <input type="file" id="evidence" name="evidence" multiple>
+
+    <div style="margin-top:16px;">
+      <button type="submit" class="btn btn-forest">{{ t('p7_save_btn') }}</button>
+    </div>
+  </form>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div style="padding-top:2px;">
+    <form method="POST" action="{{ url_for('gov_scaling_resubmit', scaling_id=proposal.id) }}">
+      <button type="submit" class="btn btn-forest">{{ t('p7_scaling_resubmit_btn') }} →</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="card" style="margin-top:16px;">
+  <h2 style="font-size:.95rem; margin-top:0;">{{ t('gov_verdict') }}</h2>
+
+  {% if proposal.status == 'PROPOSED' %}
+  <form method="POST" action="{{ url_for('gov_scaling_review', scaling_id=proposal.id) }}">
+    <p class="hint" style="margin:0 0 10px;">{{ t('p6_begin_review_btn') }}: {{ proposal.project.title[:40] }}</p>
+    <button type="submit" class="btn btn-forest">{{ t('p7_begin_review_btn') }}</button>
+  </form>
+
+  {% elif proposal.status == 'UNDER_REVIEW' %}
+  <form method="POST" action="{{ url_for('gov_scaling_verdict', scaling_id=proposal.id) }}">
+    <label for="review_comment">{{ t('p6_review_comment') }}</label>
+    <textarea id="review_comment" name="review_comment" rows="3" placeholder="{{ t('p6_review_comment_ph') }}"></textarea>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+      <button class="btn btn-forest" name="decision" value="APPROVED">{{ t('p6_approve_btn') }}</button>
+      <button class="btn btn-ghost" name="decision" value="REVISION_REQUESTED">{{ t('p7_revision_btn') }}</button>
+      <button class="btn btn-ghost" name="decision" value="REJECTED">{{ t('p7_reject_btn') }}</button>
+    </div>
+  </form>
+
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('p7_reviewer_comment') }}: {{ proposal.reviewer.name if proposal.reviewer else t('not_assigned') }}</p>
+  {% if proposal.reviewed_at %}<p class="hint" style="margin-top:8px;">{{ t('p6_reviewed_at') }}: {{ proposal.reviewed_at.strftime('%d %b %Y, %H:%M') }}</p>{% endif %}
+  {% if proposal.reviewer_comment %}<p style="font-size:.9rem; margin:12px 0 0; white-space:pre-wrap;">{{ proposal.reviewer_comment }}</p>{% endif %}
+  {% endif %}
+
+  <div style="margin-top:18px;">
+    <a class="btn btn-sm btn-ghost" href="{{ url_for('gov_scaling') }}">{{ t('p6_back') }}</a>
+    {% if proposal.status == 'APPROVED' %}
+    <span class="hint" style="margin-left:8px;">{{ t('p7_scaling_approved_notice') }}</span>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

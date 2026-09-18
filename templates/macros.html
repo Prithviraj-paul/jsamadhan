@@ -255,6 +255,12 @@
   <span class="badge badge-overdue">{{ t('ind_readiness_pilot') }}</span>
 {% elif label == 'deployed' %}
   <span class="badge badge-resolved" style="background:var(--gold);">{{ t('ind_readiness_deployed') }}</span>
+{% elif label == 'impact_assessed' %}
+  <span class="badge badge-resolved" style="background:var(--forest);">{{ t('ind_readiness_impact') }}</span>
+{% elif label == 'scaling_review' %}
+  <span class="badge badge-overdue">{{ t('ind_readiness_scaling') }}</span>
+{% elif label == 'scaled' %}
+  <span class="badge badge-resolved" style="background:var(--gold);">{{ t('ind_readiness_scaled') }}</span>
 {% else %}
   <span class="badge badge-pending">{{ t('readiness_not_ready') }}</span>
 {% endif %}
@@ -296,5 +302,34 @@
   <span class="badge badge-overdue">{{ t('pilot_status_' ~ s) }}</span>
 {% else %}
   <span class="badge badge-pending">{{ t('pilot_status_' ~ s) }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro impact_status_badge(a) -%}
+{% set s = a.status %}
+{% if s == 'APPROVED' %}
+  <span class="badge badge-resolved" style="background:var(--forest);">{{ t('impact_status_' ~ s) }}</span>
+{% elif s in ('SUBMITTED', 'UNDER_REVIEW') %}
+  <span class="badge badge-aiverified">{{ t('impact_status_' ~ s) }}</span>
+{% elif s == 'REVISION_REQUESTED' %}
+  <span class="badge badge-reopened">{{ t('impact_status_' ~ s) }}</span>
+{% elif s == 'REJECTED' %}
+  <span class="badge badge-rejected">{{ t('impact_status_' ~ s) }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('impact_status_' ~ s) }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro scaling_status_badge(s) -%}
+{% if s.status == 'APPROVED' %}
+  <span class="badge badge-resolved" style="background:var(--gold);">{{ t('scaling_status_APPROVED') }}</span>
+{% elif s.status in ('PROPOSED', 'UNDER_REVIEW') %}
+  <span class="badge badge-aiverified">{{ t('scaling_status_' ~ s.status) }}</span>
+{% elif s.status == 'REVISION_REQUESTED' %}
+  <span class="badge badge-reopened">{{ t('scaling_status_' ~ s.status) }}</span>
+{% elif s.status == 'REJECTED' %}
+  <span class="badge badge-rejected">{{ t('scaling_status_' ~ s.status) }}</span>
+{% else %}
+  <span class="badge badge-pending">{{ t('scaling_status_' ~ s.status) }}</span>
 {% endif %}
 {%- endmacro %}

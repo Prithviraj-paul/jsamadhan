@@ -1,0 +1,280 @@
+{% extends "app_base.html" %}
+{% set active = 'teams' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('p7_impact_open_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="{{ url_for('project_details', project_id=project.id) }}">{{ project.title[:60] }}</a> / {{ t('p7_stage_impact') }}
+</div>
+
+<div class="topbar" style="flex-wrap:wrap;">
+  <div>
+    <h1>{{ t('p7_stage_impact') }}</h1>
+    <p class="hint" style="margin-top:0;">{{ t('p7_impact_open_sub') }}</p>
+  </div>
+  {% if impact %}
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    {{ m.impact_status_badge(impact) }}
+  </div>
+  {% endif %}
+</div>
+
+{% if not pilot or pilot.status != 'DEPLOYED' %}
+<div class="card">
+  <p class="hint" style="margin:0;">{{ t('p7_lock_impact') }}</p>
+  <a class="btn btn-sm btn-ghost" href="{{ url_for('project_details', project_id=project.id) }}" style="margin-top:12px;">{{ t('p6_back') }}</a>
+</div>
+
+{% elif not impact %}
+<div class="card" style="max-width:760px;">
+  <form method="POST" action="{{ url_for('project_impact_submit', project_id=project.id) }}" enctype="multipart/form-data">
+    <div class="grid grid-2">
+      <div>
+        <label for="period_start">{{ t('p7_assessment_period_start') }}</label>
+        <input type="date" id="period_start" name="period_start">
+      </div>
+      <div>
+        <label for="period_end">{{ t('p7_assessment_period_end') }}</label>
+        <input type="date" id="period_end" name="period_end">
+      </div>
+    </div>
+
+    <label for="target_population" style="margin-top:12px;">{{ t('p7_target_population') }}</label>
+    <input type="text" id="target_population" name="target_population">
+
+    <label for="beneficiaries_reached" style="margin-top:12px;">{{ t('p7_beneficiaries_reached') }}</label>
+    <input type="text" id="beneficiaries_reached" name="beneficiaries_reached">
+
+    <label for="problems_addressed" style="margin-top:12px;">{{ t('p7_problems_addressed') }} <span style="color:var(--danger,#c0392b);">*</span></label>
+    <textarea id="problems_addressed" name="problems_addressed" rows="3" required placeholder="{{ t('p7_problems_addressed_ph') }}"></textarea>
+
+    <label for="key_outcomes" style="margin-top:12px;">{{ t('p7_key_outcomes') }}</label>
+    <textarea id="key_outcomes" name="key_outcomes" rows="3" placeholder="{{ t('p7_key_outcomes_ph') }}"></textarea>
+
+    <label for="before_observations" style="margin-top:12px;">{{ t('p7_before_observations') }}</label>
+    <textarea id="before_observations" name="before_observations" rows="2" placeholder="{{ t('p7_before_observations_ph') }}"></textarea>
+
+    <label for="after_observations" style="margin-top:12px;">{{ t('p7_after_observations') }}</label>
+    <textarea id="after_observations" name="after_observations" rows="2" placeholder="{{ t('p7_after_observations_ph') }}"></textarea>
+
+    <label for="success_indicators" style="margin-top:12px;">{{ t('p7_success_indicators') }}</label>
+    <textarea id="success_indicators" name="success_indicators" rows="2" placeholder="{{ t('p7_success_indicators_ph') }}"></textarea>
+
+    <label for="challenges_faced" style="margin-top:12px;">{{ t('p7_challenges_faced') }}</label>
+    <textarea id="challenges_faced" name="challenges_faced" rows="2" placeholder="{{ t('p7_challenges_faced_ph') }}"></textarea>
+
+    <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p7_report_figures') }}</h2>
+    <p class="hint" style="margin-top:4px;">{{ t('p7_figures_note') }}</p>
+    <div class="grid grid-2">
+      <div>
+        <label for="metric_beneficiaries">{{ t('p7_metric_beneficiaries') }}</label>
+        <input type="number" id="metric_beneficiaries" name="metric_beneficiaries" min="0">
+      </div>
+      <div>
+        <label for="metric_problems_resolved">{{ t('p7_metric_problems_resolved') }}</label>
+        <input type="number" id="metric_problems_resolved" name="metric_problems_resolved" min="0">
+      </div>
+      <div>
+        <label for="metric_time_saved">{{ t('p7_metric_time_saved') }}</label>
+        <input type="number" id="metric_time_saved" name="metric_time_saved" min="0">
+      </div>
+      <div>
+        <label for="metric_cost_saved">{{ t('p7_metric_cost_saved') }}</label>
+        <input type="number" id="metric_cost_saved" name="metric_cost_saved" min="0">
+      </div>
+      <div>
+        <label for="metric_satisfaction">{{ t('p7_metric_satisfaction') }}</label>
+        <input type="number" id="metric_satisfaction" name="metric_satisfaction" min="0" max="100">
+      </div>
+    </div>
+
+    <label for="evidence" style="margin-top:12px;">{{ t('p6_proto_evidence') }}</label>
+    <input type="file" id="evidence" name="evidence" multiple>
+    <p class="hint" style="margin-top:4px;">{{ t('p6_proto_evidence_ph') }}</p>
+
+    <div style="margin-top:16px;">
+      <button type="submit" class="btn btn-forest">{{ t('p7_submit_btn') }}</button>
+      <a class="btn btn-ghost" href="{{ url_for('project_details', project_id=project.id) }}" style="margin-left:8px;">{{ t('p6_back') }}</a>
+    </div>
+  </form>
+</div>
+
+{% elif impact.status == 'REVISION_REQUESTED' %}
+<div class="card" style="max-width:760px;">
+  {% if impact.reviewer_comment %}
+  <div style="margin-bottom:16px; padding:12px; background:var(--bg, #f5f4ef); border-left:3px solid var(--gold,#d9a520);">
+    <div class="l" style="font-size:.75rem; text-transform:uppercase; letter-spacing:.04em;">{{ t('gov_review_comment_ph') }}</div>
+    <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ impact.reviewer_comment }}</p>
+  </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('project_impact_update', project_id=project.id) }}" enctype="multipart/form-data" style="margin-bottom:20px;">
+    <div class="grid grid-2">
+      <div>
+        <label for="period_start">{{ t('p7_assessment_period_start') }}</label>
+        <input type="date" id="period_start" name="period_start" value="{{ impact.period_start or '' }}">
+      </div>
+      <div>
+        <label for="period_end">{{ t('p7_assessment_period_end') }}</label>
+        <input type="date" id="period_end" name="period_end" value="{{ impact.period_end or '' }}">
+      </div>
+    </div>
+
+    <label for="target_population" style="margin-top:12px;">{{ t('p7_target_population') }}</label>
+    <input type="text" id="target_population" name="target_population" value="{{ impact.target_population }}">
+
+    <label for="beneficiaries_reached" style="margin-top:12px;">{{ t('p7_beneficiaries_reached') }}</label>
+    <input type="text" id="beneficiaries_reached" name="beneficiaries_reached" value="{{ impact.beneficiaries_reached }}">
+
+    <label for="problems_addressed" style="margin-top:12px;">{{ t('p7_problems_addressed') }}</label>
+    <textarea id="problems_addressed" name="problems_addressed" rows="3" required>{{ impact.problems_addressed }}</textarea>
+
+    <label for="key_outcomes" style="margin-top:12px;">{{ t('p7_key_outcomes') }}</label>
+    <textarea id="key_outcomes" name="key_outcomes" rows="3">{{ impact.key_outcomes }}</textarea>
+
+    <label for="before_observations" style="margin-top:12px;">{{ t('p7_before_observations') }}</label>
+    <textarea id="before_observations" name="before_observations" rows="2">{{ impact.before_observations }}</textarea>
+
+    <label for="after_observations" style="margin-top:12px;">{{ t('p7_after_observations') }}</label>
+    <textarea id="after_observations" name="after_observations" rows="2">{{ impact.after_observations }}</textarea>
+
+    <label for="success_indicators" style="margin-top:12px;">{{ t('p7_success_indicators') }}</label>
+    <textarea id="success_indicators" name="success_indicators" rows="2">{{ impact.success_indicators }}</textarea>
+
+    <label for="challenges_faced" style="margin-top:12px;">{{ t('p7_challenges_faced') }}</label>
+    <textarea id="challenges_faced" name="challenges_faced" rows="2">{{ impact.challenges_faced }}</textarea>
+
+    <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p7_report_figures') }}</h2>
+    <div class="grid grid-2">
+      <div>
+        <label for="metric_beneficiaries">{{ t('p7_metric_beneficiaries') }}</label>
+        <input type="number" id="metric_beneficiaries" name="metric_beneficiaries" min="0" value="{{ impact.metrics.get('beneficiaries', '') }}">
+      </div>
+      <div>
+        <label for="metric_problems_resolved">{{ t('p7_metric_problems_resolved') }}</label>
+        <input type="number" id="metric_problems_resolved" name="metric_problems_resolved" min="0" value="{{ impact.metrics.get('problems_resolved', '') }}">
+      </div>
+      <div>
+        <label for="metric_time_saved">{{ t('p7_metric_time_saved') }}</label>
+        <input type="number" id="metric_time_saved" name="metric_time_saved" min="0" value="{{ impact.metrics.get('time_saved', '') }}">
+      </div>
+      <div>
+        <label for="metric_cost_saved">{{ t('p7_metric_cost_saved') }}</label>
+        <input type="number" id="metric_cost_saved" name="metric_cost_saved" min="0" value="{{ impact.metrics.get('cost_saved', '') }}">
+      </div>
+      <div>
+        <label for="metric_satisfaction">{{ t('p7_metric_satisfaction') }}</label>
+        <input type="number" id="metric_satisfaction" name="metric_satisfaction" min="0" max="100" value="{{ impact.metrics.get('satisfaction', '') }}">
+      </div>
+    </div>
+
+    <label for="evidence" style="margin-top:12px;">{{ t('p6_proto_evidence') }}</label>
+    <input type="file" id="evidence" name="evidence" multiple>
+
+    {% if impact.evidence %}
+    <div class="table-scroll" style="margin-top:6px;">
+      <table>
+        <thead><tr><th>{{ t('p6_proto_evidence') }}</th><th></th></tr></thead>
+        <tbody>
+        {% for ev in impact.evidence %}
+        <tr>
+          <td>{{ ev.name }}</td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('uploaded_file', filename=ev.path) }}" target="_blank">{{ t('ind_view') }} →</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:6px 0 0;">{{ t('p6_evidence_none') }}</p>
+    {% endif %}
+
+    <div style="margin-top:16px;">
+      <button type="submit" class="btn btn-forest">{{ t('p7_save_btn') }}</button>
+    </div>
+  </form>
+
+  <div style="padding-top:14px; border-top:1px solid var(--line);">
+    <form method="POST" action="{{ url_for('project_impact_resubmit', project_id=project.id) }}">
+      <button type="submit" class="btn btn-forest">{{ t('p7_resubmit_btn') }} →</button>
+    </form>
+  </div>
+</div>
+
+{% else %}
+<div class="card">
+  <div class="ai-meta-grid" style="margin-top:6px; grid-template-columns:1fr 1fr;">
+    <div>
+      <div class="l">{{ t('p7_assessment_period_start') }}</div>
+      <div class="v">{{ impact.period_start or t('not_assigned') }}</div>
+    </div>
+    <div>
+      <div class="l">{{ t('p7_assessment_period_end') }}</div>
+      <div class="v">{{ impact.period_end or t('not_assigned') }}</div>
+    </div>
+    <div>
+      <div class="l">{{ t('p7_target_population') }}</div>
+      <div class="v">{{ impact.target_population or t('not_assigned') }}</div>
+    </div>
+    <div>
+      <div class="l">{{ t('p7_beneficiaries_reached') }}</div>
+      <div class="v">{{ impact.beneficiaries_reached or t('not_assigned') }}</div>
+    </div>
+  </div>
+
+  <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p7_problems_addressed') }}</h2>
+  <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ impact.problems_addressed or t('not_assigned') }}</p>
+
+  {% if impact.key_outcomes %}
+  <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p7_key_outcomes') }}</h2>
+  <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ impact.key_outcomes }}</p>
+  {% endif %}
+
+  {% if impact.before_observations or impact.after_observations %}
+  <div class="grid grid-2" style="margin-top:18px;">
+    <div>
+      <h2 style="font-size:.95rem; margin-top:0;">{{ t('p7_before_observations') }}</h2>
+      <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ impact.before_observations or t('not_assigned') }}</p>
+    </div>
+    <div>
+      <h2 style="font-size:.95rem; margin-top:0;">{{ t('p7_after_observations') }}</h2>
+      <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ impact.after_observations or t('not_assigned') }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if impact.success_indicators or impact.challenges_faced %}
+  <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p7_success_indicators') }}</h2>
+  <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ impact.success_indicators or t('not_assigned') }}</p>
+  <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p7_challenges_faced') }}</h2>
+  <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ impact.challenges_faced or t('not_assigned') }}</p>
+  {% endif %}
+
+  {% if impact.metrics %}
+  <div class="ai-meta-grid" style="margin-top:18px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
+    {% if impact.metrics.beneficiaries is not none %}<div><div class="l">{{ t('p7_metric_beneficiaries') }}</div><div class="v">{{ impact.metrics.beneficiaries }}</div></div>{% endif %}
+    {% if impact.metrics.problems_resolved is not none %}<div><div class="l">{{ t('p7_metric_problems_resolved') }}</div><div class="v">{{ impact.metrics.problems_resolved }}</div></div>{% endif %}
+    {% if impact.metrics.time_saved is not none %}<div><div class="l">{{ t('p7_metric_time_saved') }}</div><div class="v">{{ impact.metrics.time_saved }}</div></div>{% endif %}
+    {% if impact.metrics.cost_saved is not none %}<div><div class="l">{{ t('p7_metric_cost_saved') }}</div><div class="v">{{ impact.metrics.cost_saved }}</div></div>{% endif %}
+    {% if impact.metrics.satisfaction is not none %}<div><div class="l">{{ t('p7_metric_satisfaction') }}</div><div class="v">{{ impact.metrics.satisfaction }}</div></div>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if impact.reviewer_comment %}
+  <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
+    <h2 style="font-size:.9rem;">{{ t('gov_review_comment_ph') }}</h2>
+    <p style="font-size:.9rem; margin:4px 0 0; white-space:pre-wrap;">{{ impact.reviewer_comment }}</p>
+  </div>
+  {% endif %}
+
+  <div style="margin-top:18px;">
+    <a class="btn btn-sm btn-ghost" href="{{ url_for('project_details', project_id=project.id) }}">{{ t('p6_back') }}</a>
+    {% if impact.status == 'APPROVED' %}
+    <span class="hint" style="margin-left:8px;">{{ t('p7_impact_approved_notice') }}</span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

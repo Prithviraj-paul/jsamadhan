@@ -1,0 +1,93 @@
+{% extends "app_base.html" %}
+{% set active = 'command-center' %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('p7_scaling_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('command_center') }}">{{ t('cmd_center') }}</a> / {{ t('p7_scaling_title') }}</div>
+
+<div class="topbar">
+  <div>
+    <h1>{{ t('p7_scaling_title') }}</h1>
+    <p class="hint" style="margin:0;">{{ t('p7_scaling_sub') }}</p>
+  </div>
+  <a href="{{ url_for('gov_scaling_new') }}" class="btn btn-forest">+ {{ t('p7_scaling_open_btn') }}</a>
+</div>
+
+<div class="grid grid-2" style="margin-top:18px; align-items:start;">
+  <div class="card">
+    <div class="cc-section-head">
+      <div>
+        <h2 style="font-size:.95rem; margin-top:0;">{{ t('gov_collabs_review') }} ({{ review|length }})</h2>
+      </div>
+    </div>
+    {% if review %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('p6_th_project') }}</th>
+            <th>{{ t('p7_current_location') }}</th>
+            <th>{{ t('p6_th_status') }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in review %}
+          <tr>
+            <td>
+              <a href="{{ url_for('gov_scaling_detail', scaling_id=s.id) }}" style="font-weight:600; color:var(--forest);">{{ s.project.title[:56] }}</a>
+            </td>
+            <td style="font-size:.8rem;">{{ s.current_location or t('not_assigned') }}</td>
+            <td>{{ m.scaling_status_badge(s) }}</td>
+            <td><a class="btn btn-sm btn-forest" href="{{ url_for('gov_scaling_detail', scaling_id=s.id) }}">{{ t('p7_begin_review_btn') }} →</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('gov_no_review') }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="cc-section-head">
+      <div>
+        <h2 style="font-size:.95rem; margin-top:0;">{{ t('gov_collabs_decided') }} ({{ decided|length }})</h2>
+      </div>
+    </div>
+    {% if decided %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('p6_th_project') }}</th>
+            <th>{{ t('p7_proposed_districts') }}</th>
+            <th>{{ t('p6_th_status') }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in decided %}
+          <tr>
+            <td>
+              <a href="{{ url_for('gov_scaling_detail', scaling_id=s.id) }}" style="font-weight:600; color:var(--forest);">{{ s.project.title[:56] }}</a>
+            </td>
+            <td style="font-size:.78rem;">
+              {% for d in s.proposed_districts[:3] %}{{ dist_label(d) }}{% if not loop.last %}, {% endif %}{% endfor %}{% if s.proposed_districts|length > 3 %}…{% endif %}
+            </td>
+            <td>{{ m.scaling_status_badge(s) }}</td>
+            <td><a class="btn btn-sm btn-ghost" href="{{ url_for('gov_scaling_detail', scaling_id=s.id) }}">{{ t('ind_view') }} →</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:10px 0 0;">{{ t('gov_no_decided') }}</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

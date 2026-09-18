@@ -229,4 +229,62 @@
 </div>
 {% endif %}
 
+<!-- Phase 7: impact & scaling for accepted collaboration partners -->
+{% if is_partner %}
+<div class="card" style="margin-top:16px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:.95rem; margin:0;">{{ t('p7_stage_impact') }} · {{ t('p7_stage_scaling') }}</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('p7_partner_visibility_note') }}</p>
+    </div>
+  </div>
+
+  {% if readiness.impact %}
+  <div class="grid grid-2" style="margin-top:14px;">
+    <div>
+      <div class="l">{{ t('p7_stage_impact') }}</div>
+      <div class="v">{{ m.impact_status_badge(readiness.impact) }}</div>
+    </div>
+    <div>
+      <div class="l">{{ t('p7_beneficiaries_reached') }}</div>
+      <div class="v">{{ readiness.impact.beneficiaries_reached or t('not_assigned') }}</div>
+    </div>
+    {% if readiness.impact.problems_addressed %}
+    <div style="grid-column:1 / -1;">
+      <div class="l">{{ t('p7_problems_addressed') }}</div>
+      <div class="v" style="white-space:pre-wrap;">{{ readiness.impact.problems_addressed }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;">{{ t('p7_lock_impact') }}</p>
+  {% endif %}
+
+  {% if readiness.scaling %}
+  <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--line);">
+    <div class="grid grid-2">
+      <div>
+        <div class="l">{{ t('p7_stage_scaling') }}</div>
+        <div class="v">{{ m.scaling_status_badge(readiness.scaling) }}</div>
+      </div>
+      {% if readiness.scaling.proposed_districts %}
+      <div>
+        <div class="l">{{ t('p6_pilot_district') }}</div>
+        <div class="v">
+          {% for d in readiness.scaling.proposed_districts %}<span class="badge badge-submitted">{{ d }}</span>{% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% if readiness.scaling.scaling_objective %}
+    <div style="margin-top:12px;">
+      <div class="l">{{ t('p7_scaling_objective') }}</div>
+      <div class="v" style="white-space:pre-wrap;">{{ readiness.scaling.scaling_objective }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
 {% endblock %}

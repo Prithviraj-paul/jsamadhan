@@ -2780,6 +2780,354 @@ def gov_pilot_progress(pilot_id):
 
 
 # ---------------------------------------------------------------------------
+# Phase 7 — impact assessment and scaling
+# ---------------------------------------------------------------------------
+
+def _impact_or_404(conn, impact_id):
+    assessment = db.get_impact_assessment(conn, impact_id)
+    if assessment is None:
+        flash("Impact assessment not found.", "error")
+        return None
+    return assessment
+
+
+def _scaling_or_404(conn, scaling_id):
+    proposal = db.get_scaling_proposal(conn, scaling_id)
+    if proposal is None:
+        flash("Scaling proposal not found.", "error")
+        return None
+    return proposal
+
+
+def _impact_metrics_from_form():
+    """Optional reported figures. Empty inputs are dropped; numeric values
+    are cast so they render sensibly; anything else is kept verbatim."""
+    raw = {
+        "beneficiaries": request.form.get("metric_beneficiaries", "").strip(),
+        "problems_resolved": request.form.get("metric_problems_resolved", "").strip(),
+        "time_saved": request.form.get("metric_time_saved", "").strip(),
+        "cost_saved": request.form.get("metric_cost_saved", "").strip(),
+        "satisfaction": request.form.get("metric_satisfaction", "").strip(),
+    }
+    out = {}
+    for k, v in raw.items():
+        if not v:
+            continue
+        try:
+            out[k] = int(v)
+        except ValueError:
+            try:
+                out[k] = float(v)
+            except ValueError:
+                out[k] = v
+    return out
+
+
+@app.route("/project/<int:project_id>/impact")
+@login_required()
+def project_impact(project_id):
+    conn = db.get_db()
+    ctx = _project_guard(conn, project_id)
+    if ctx is None:
+        flash("This project is not accessible to your account.", "error")
+        return redirect(url_for(_portal_back(g)))
+    ctx["impact"] = db.get_impact_assessment_for_project(conn, project_id)
+    ctx["pilot"] = db.get_pilot_for_project(conn, project_id)
+    return render_template("project_impact.html", **ctx)
+
+
+@app.post("/project/<int:project_id>/impact/submit")
+@login_required()
+def project_impact_submit(project_id):
+    conn = db.get_db()
+    ctx = _project_guard(conn, project_id)
+    if ctx is None or not ctx["is_member"]:
+        flash("Only an active team member can submit an impact assessment.",
+              "error")
+        return redirect(url_for(_portal_back(g)))
+    existing = db.get_impact_assessment_for_project(conn, project_id)
+    if existing is not None:
+        flash("An impact assessment already exists for this project.", "error")
+        return redirect(url_for("project_impact", project_id=project_id))
+    try:
+        impact_id = db.create_impact_assessment(
+            conn, project_id, g.user.id,
+            period_start=request.form.get("period_start", "").strip(),
+            period_end=request.form.get("period_end", "").strip(),
+            target_population=request.form.get("target_population", "").strip(),
+            beneficiaries_reached=request.form.get("beneficiaries_reached",
+                                                    "").strip(),
+            problems_addressed=request.form.get("problems_addressed", "").strip(),
+            key_outcomes=request.form.get("key_outcomes", "").strip(),
+            before_observations=request.form.get("before_observations", "").strip(),
+            after_observations=request.form.get("after_observations", "").strip(),
+            success_indicators=request.form.get("success_indicators", "").strip(),
+            challenges_faced=request.form.get("challenges_faced", "").strip(),
+            reported_metrics=_impact_metrics_from_form(),
+            evidence=_save_evidence_files(request.files.getlist("evidence")))
+        conn.commit()
+        try:
+            db.submit_impact_assessment(conn, impact_id, g.user.id)
+            conn.commit()
+        except ValueError as exc:
+            flash(str(exc), "error")
+        return redirect(url_for("project_impact", project_id=project_id))
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("project_impact", project_id=project_id))
+
+
+@app.post("/project/<int:project_id>/impact/update")
+@login_required()
+def project_impact_update(project_id):
+    conn = db.get_db()
+    ctx = _project_guard(conn, project_id)
+    if ctx is None or not ctx["is_member"]:
+        flash("Only an active team member can edit the assessment.", "error")
+        return redirect(url_for(_portal_back(g)))
+    existing = db.get_impact_assessment_for_project(conn, project_id)
+    if existing is None:
+        flash("Impact assessment not found.", "error")
+        return redirect(url_for("project_impact", project_id=project_id))
+    new_files = _save_evidence_files(request.files.getlist("evidence"))
+    evidence = list(existing.evidence or []) + new_files
+    try:
+        db.update_impact_assessment_details(
+            conn, existing.id, g.user.id,
+            period_start=request.form.get("period_start", "").strip(),
+            period_end=request.form.get("period_end", "").strip(),
+            target_population=request.form.get("target_population", "").strip(),
+            beneficiaries_reached=request.form.get("beneficiaries_reached",
+                                                    "").strip(),
+            problems_addressed=request.form.get("problems_addressed", "").strip(),
+            key_outcomes=request.form.get("key_outcomes", "").strip(),
+            before_observations=request.form.get("before_observations", "").strip(),
+            after_observations=request.form.get("after_observations", "").strip(),
+            success_indicators=request.form.get("success_indicators", "").strip(),
+            challenges_faced=request.form.get("challenges_faced", "").strip(),
+            reported_metrics=_impact_metrics_from_form(),
+            evidence=evidence)
+        conn.commit()
+        flash("Impact assessment draft updated.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("project_impact", project_id=project_id))
+
+
+@app.post("/project/<int:project_id>/impact/resubmit")
+@login_required()
+def project_impact_resubmit(project_id):
+    conn = db.get_db()
+    ctx = _project_guard(conn, project_id)
+    if ctx is None or not ctx["is_member"]:
+        flash("Only an active team member can resubmit the assessment.", "error")
+        return redirect(url_for(_portal_back(g)))
+    existing = db.get_impact_assessment_for_project(conn, project_id)
+    if existing is None:
+        flash("Impact assessment not found.", "error")
+        return redirect(url_for("project_impact", project_id=project_id))
+    try:
+        db.resubmit_impact_assessment(conn, existing.id, g.user.id)
+        conn.commit()
+        flash("Assessment resubmitted to the government for review.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("project_impact", project_id=project_id))
+
+
+@app.route("/command-center/impact")
+@login_required(role=GOVERNMENT)
+def gov_impact():
+    conn = db.get_db()
+    return render_template("gov_impact.html",
+                           review=db.list_impact_assessments(conn, "review"),
+                           decided=db.list_impact_assessments(conn, "decided"))
+
+
+@app.route("/command-center/impact/<int:impact_id>")
+@login_required(role=GOVERNMENT)
+def gov_impact_detail(impact_id):
+    conn = db.get_db()
+    assessment = _impact_or_404(conn, impact_id)
+    if assessment is None:
+        return redirect(url_for("gov_impact"))
+    return render_template("gov_impact_detail.html", assessment=assessment)
+
+
+@app.post("/command-center/impact/<int:impact_id>/review")
+@login_required(role=GOVERNMENT)
+def gov_impact_review(impact_id):
+    conn = db.get_db()
+    assessment = _impact_or_404(conn, impact_id)
+    if assessment is None:
+        return redirect(url_for("gov_impact"))
+    try:
+        db.begin_impact_review(conn, impact_id, g.user.id)
+        conn.commit()
+        flash("Impact assessment review started.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_impact_detail", impact_id=impact_id))
+
+
+@app.post("/command-center/impact/<int:impact_id>/verdict")
+@login_required(role=GOVERNMENT)
+def gov_impact_verdict(impact_id):
+    conn = db.get_db()
+    assessment = _impact_or_404(conn, impact_id)
+    if assessment is None:
+        return redirect(url_for("gov_impact"))
+    decision = request.form.get("decision", "").strip()
+    comment = request.form.get("review_comment", "").strip()
+    try:
+        db.review_impact_assessment(conn, impact_id, decision, g.user.id,
+                                    comment=comment)
+        conn.commit()
+        flash("Impact assessment updated.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_impact_detail", impact_id=impact_id))
+
+
+@app.route("/command-center/scaling")
+@login_required(role=GOVERNMENT)
+def gov_scaling():
+    conn = db.get_db()
+    return render_template("gov_scaling.html",
+                           review=db.list_scaling_proposals(conn, "review"),
+                           decided=db.list_scaling_proposals(conn, "decided"))
+
+
+@app.route("/command-center/scaling/new", methods=["GET", "POST"])
+@login_required(role=GOVERNMENT)
+def gov_scaling_new():
+    conn = db.get_db()
+    if request.method == "POST":
+        project_id = request.form.get("project_id", "").strip()
+        if not project_id.isdigit():
+            flash("Choose a project to open the scaling proposal.", "error")
+            return redirect(url_for("gov_scaling_new"))
+        impact = db.get_impact_assessment_for_project(conn, int(project_id))
+        proposed = request.form.getlist("proposed_districts")
+        try:
+            if impact is None:
+                raise ValueError("Approved impact is required for scaling.")
+            db.create_scaling_proposal(
+                conn, int(project_id), impact.id, g.user.id,
+                current_location=request.form.get("current_location", "").strip(),
+                proposed_districts=proposed,
+                target_communities=request.form.get("target_communities",
+                                                     "").strip(),
+                scaling_objective=request.form.get("scaling_objective", "").strip(),
+                expected_beneficiaries=request.form.get("expected_beneficiaries",
+                                                        "").strip(),
+                required_resources=request.form.get("required_resources", "").strip(),
+                estimated_duration=request.form.get("estimated_duration", "").strip(),
+                notes=request.form.get("notes", "").strip(),
+                evidence=_save_evidence_files(request.files.getlist("evidence")))
+            conn.commit()
+            flash("Scaling proposal opened successfully.", "success")
+            return redirect(url_for("gov_scaling"))
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("gov_scaling_new"))
+    return render_template("gov_scaling_new.html",
+                           eligible=db.list_scaling_eligible_projects(conn),
+                           districts=db.DISTRICTS)
+
+
+@app.route("/command-center/scaling/<int:scaling_id>")
+@login_required(role=GOVERNMENT)
+def gov_scaling_detail(scaling_id):
+    conn = db.get_db()
+    proposal = _scaling_or_404(conn, scaling_id)
+    if proposal is None:
+        return redirect(url_for("gov_scaling"))
+    return render_template("gov_scaling_detail.html", proposal=proposal,
+                           districts=db.DISTRICTS)
+
+
+@app.post("/command-center/scaling/<int:scaling_id>/review")
+@login_required(role=GOVERNMENT)
+def gov_scaling_review(scaling_id):
+    conn = db.get_db()
+    proposal = _scaling_or_404(conn, scaling_id)
+    if proposal is None:
+        return redirect(url_for("gov_scaling"))
+    try:
+        db.begin_scaling_review(conn, scaling_id, g.user.id)
+        conn.commit()
+        flash("Scaling proposal review started.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_scaling_detail", scaling_id=scaling_id))
+
+
+@app.post("/command-center/scaling/<int:scaling_id>/verdict")
+@login_required(role=GOVERNMENT)
+def gov_scaling_verdict(scaling_id):
+    conn = db.get_db()
+    proposal = _scaling_or_404(conn, scaling_id)
+    if proposal is None:
+        return redirect(url_for("gov_scaling"))
+    decision = request.form.get("decision", "").strip()
+    comment = request.form.get("review_comment", "").strip()
+    try:
+        db.review_scaling_proposal(conn, scaling_id, decision, g.user.id,
+                                   comment=comment)
+        conn.commit()
+        flash("Scaling proposal updated.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_scaling_detail", scaling_id=scaling_id))
+
+
+@app.post("/command-center/scaling/<int:scaling_id>/update")
+@login_required(role=GOVERNMENT)
+def gov_scaling_update(scaling_id):
+    conn = db.get_db()
+    proposal = _scaling_or_404(conn, scaling_id)
+    if proposal is None:
+        return redirect(url_for("gov_scaling"))
+    new_files = _save_evidence_files(request.files.getlist("evidence"))
+    evidence = list(proposal.evidence or []) + new_files
+    try:
+        db.update_scaling_details(
+            conn, scaling_id, g.user.id,
+            current_location=request.form.get("current_location", "").strip(),
+            proposed_districts=request.form.getlist("proposed_districts"),
+            target_communities=request.form.get("target_communities", "").strip(),
+            scaling_objective=request.form.get("scaling_objective", "").strip(),
+            expected_beneficiaries=request.form.get("expected_beneficiaries",
+                                                    "").strip(),
+            required_resources=request.form.get("required_resources", "").strip(),
+            estimated_duration=request.form.get("estimated_duration", "").strip(),
+            notes=request.form.get("notes", "").strip(),
+            evidence=evidence)
+        conn.commit()
+        flash("Scaling proposal updated.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_scaling_detail", scaling_id=scaling_id))
+
+
+@app.post("/command-center/scaling/<int:scaling_id>/resubmit")
+@login_required(role=GOVERNMENT)
+def gov_scaling_resubmit(scaling_id):
+    conn = db.get_db()
+    proposal = _scaling_or_404(conn, scaling_id)
+    if proposal is None:
+        return redirect(url_for("gov_scaling"))
+    try:
+        db.resubmit_scaling_proposal(conn, scaling_id, g.user.id)
+        conn.commit()
+        flash("Scaling proposal resubmitted.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("gov_scaling_detail", scaling_id=scaling_id))
+
+
+# ---------------------------------------------------------------------------
 # Notifications feed
 # ---------------------------------------------------------------------------
 
