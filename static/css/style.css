@@ -137,6 +137,31 @@ p{ margin:0 0 1em 0; max-width:62ch; }
 .map-legend .dot{ width:11px; height:11px; border-radius:50%; display:inline-block; flex:none; }
 .map-empty{ position:absolute; inset:0; display:grid; place-items:center; color:var(--ink-faint); font-size:.9rem; z-index:999; pointer-events:none; }
 
+/* ---------- live problems map (public landing section) ---------- */
+.lm-split{ display:grid; grid-template-columns:1fr 1fr; gap:36px; align-items:start; }
+.lm-split-col{ min-width:0; }
+.lm-split .problem-grid{ grid-template-columns:repeat(2,1fr); gap:14px; }
+.lm-split .problem-card .thumb{ height:120px; }
+.lm-card{ position:relative; padding:0; overflow:hidden; background:#e8efe9; }
+.lm-map{ height:520px; }
+.lm-empty{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:24px; font-size:.9rem; color:var(--ink-soft); background:rgba(232,239,233,.92); z-index:999; pointer-events:none; }
+.lm-empty[hidden]{ display:none!important; }
+.lm-legend{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 18px; margin-top:14px; font-size:.8rem; color:var(--ink); }
+.lm-item{ display:inline-flex; align-items:center; gap:6px; }
+.lm-legend .dot{ width:11px; height:11px; border-radius:50%; display:inline-block; flex:none; border:1px solid rgba(0,0,0,.12); }
+.lm-hint{ flex-basis:100%; color:var(--ink-soft); font-size:.76rem; }
+.lm-pop-label{ font-size:.82rem; color:#444; line-height:1.55; }
+.lm-view{ display:inline-block; margin-top:8px; color:var(--sal); font-weight:600; font-size:.85rem; text-decoration:none; }
+.lm-view:hover{ text-decoration:underline; }
+.lm-marker{ transform-box:fill-box; transform-origin:center; filter:drop-shadow(0 2px 4px rgba(0,0,0,.45)); }
+.lm-marker:hover{ filter:drop-shadow(0 3px 6px rgba(0,0,0,.55)); }
+.lm-marker-critical{ animation:lm-pulse 1.8s ease-in-out infinite; }
+.lm-marker-high{ animation:lm-pulse 2.4s ease-in-out infinite; }
+@keyframes lm-pulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.22); } }
+@media (max-width:900px){ .lm-split{ grid-template-columns:1fr; gap:32px; } }
+@media (max-width:720px){ .lm-map{ height:360px; } }
+@media (max-width:640px){ .lm-split .problem-grid{ grid-template-columns:1fr; } .lm-split .problem-card .thumb{ height:140px; } }
+
 @media (max-width:760px){ .ai-meta-grid{ grid-template-columns:repeat(2, 1fr); } }
 
 /* ---------- forms ---------- */
@@ -224,6 +249,14 @@ tr.row-link:hover{ background:#FBF9F3; cursor:pointer; }
 .role-card h3{ margin:10px 0 4px; font-size:1rem; }
 .role-card p{ font-size:.82rem; color:var(--ink-soft); margin:0; }
 @media (max-width:720px){ .role-grid{ grid-template-columns:1fr; } }
+.role-pick-page{ max-width: 940px; }
+.role-pick-page .role-grid{ grid-template-columns:repeat(3,1fr); margin-top:22px; }
+.role-pick-page .role-card{ padding:16px 18px 14px; }
+.role-pick-page .role-card h3{ margin:6px 0 4px; font-size:.95rem; }
+.role-pick-page .role-card p{ font-size:.8rem; line-height:1.5; }
+.role-pick-page .choice-arrow{ margin-top:10px; font-size:1.05rem; }
+@media (max-width:860px){ .role-pick-page .role-grid{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:560px){ .role-pick-page .role-grid{ grid-template-columns:1fr; } }
 .login-choice{ margin-top:20px; }
 .login-choice .role-card{ position:relative; }
 .choice-arrow{ display:block; margin-top:14px; color:var(--sal); font-size:1.25rem; font-weight:600; }
@@ -355,6 +388,21 @@ tr.row-link:hover{ background:#FBF9F3; cursor:pointer; }
 .step:nth-child(3) .num{ background:var(--sal); }
 .step h3{ font-size:1rem; margin:0 0 6px; color:var(--forest); }
 .step p{ font-size:.84rem; color:var(--ink-soft); line-height:1.6; margin:0; }
+
+/* How it works — compact architecture */
+.arch{ display:flex; flex-wrap:wrap; align-items:stretch; gap:10px; margin-top:24px; }
+.arch-step{ flex:1 1 150px; min-width:132px; background:#fff; border:1px solid var(--line); border-radius:var(--radius-m); padding:14px 14px 15px; }
+.arch-step .num{ width:36px; height:36px; border-radius:50%; display:grid; place-items:center; background:var(--teal); color:#fff; font-weight:800; font-size:.92rem; margin-bottom:10px; }
+.arch-step .num.c2{ background:var(--amber); }
+.arch-step .num.c3{ background:var(--sal); }
+.arch-step .num.c4{ background:var(--teal); }
+.arch-step .num.c5{ background:var(--sal); }
+.arch-step .num.c6{ background:var(--amber); }
+.arch-step .num.c7{ background:var(--teal); }
+.arch-step .num.c8{ background:var(--sal); }
+.arch-step h3{ font-size:.94rem; margin:0 0 4px; color:var(--forest); }
+.arch-step p{ font-size:.78rem; color:var(--ink-soft); line-height:1.5; margin:0; }
+.arch-arrow{ align-self:center; color:var(--sal); font-weight:700; font-size:1.15rem; flex:none; }
 
 /* =====================================================
    MOBILE OPTIMIZATION

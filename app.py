@@ -2199,6 +2199,66 @@ def api_map_data():
 
 
 # ---------------------------------------------------------------------------
+# live problems map (public)
+# ---------------------------------------------------------------------------
+
+# Complaint status -> i18n key. Anything not listed falls back to the raw
+# status string so the public map always shows an honest label.
+_PUBLIC_PROBLEM_STATUS_KEYS = {
+    "Submitted": "status_submitted",
+    "AI Verified": "status_ai_verified",
+    "Pending Officer Review": "status_pending_officer",
+    "Accepted by Officer": "status_accepted",
+    "Reopened": "status_reopened",
+    "Escalated": "status_escalated",
+    "Resolved": "status_resolved",
+    "Rejected": "status_rejected",
+}
+
+
+@app.route("/api/live-problems")
+def api_live_problems():
+    """Public, unauthenticated feed of reported problems for the homepage
+    map. Only ever exposes data already visible on the public track page
+    (code, title, category, district, status, urgency, date, coordinates) --
+    never reporter identity, officer/reviewer info, evidence or private notes."""
+    conn = db.get_db()
+    rows = conn.execute(
+        "SELECT code, title, category, district, status, urgency, severity, "
+        "latitude, longitude, location_text, created_at FROM complaints "
+        "WHERE latitude IS NOT NULL AND longitude IS NOT NULL "
+        " ORDER BY created_at DESC, id DESC"
+    ).fetchall()
+    out = []
+    for r in rows:
+        status_key = _PUBLIC_PROBLEM_STATUS_KEYS.get(r["status"])
+        urgency = r["urgency"] or ""
+        if urgency in ("critical", "high", "normal", "low"):
+            urgency_label = i18n.t("urgency_" + urgency)
+        else:
+            urgency_label = i18n.t("lm_urgency_not_specified")
+        out.append({
+            "code": r["code"],
+            "title": r["title"],
+            "category": r["category"],
+            "category_label": i18n.cat_label(r["category"]),
+            "district": r["district"],
+            "district_label": i18n.dist_label(r["district"]),
+            "status": r["status"],
+            "status_label": i18n.t(status_key) if status_key else r["status"],
+            "urgency": urgency or "none",
+            "urgency_label": urgency_label,
+            "severity": r["severity"],
+            "location_text": r["location_text"],
+            "lat": r["latitude"],
+            "lng": r["longitude"],
+            "created_at": r["created_at"] or "",
+            "track_url": url_for("track_complaint", code=r["code"]),
+        })
+    return jsonify(out)
+
+
+# ---------------------------------------------------------------------------
 # uploaded files
 # ---------------------------------------------------------------------------
 

@@ -12,7 +12,7 @@
   </nav>
 </header>
 
-<div class="page page-narrow">
+<div class="page page-narrow {% if role is none %}role-pick-page{% endif %}">
   <div class="demo-notice" role="alert">
     <span>🥼</span>
     <span>{{ t('demo_notice') }}</span>
