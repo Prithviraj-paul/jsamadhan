@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}#{{ challenge.code }} — {{ t('app_name') }}{% endblock %}
+{% block body %}
+<div class="page">
+  <div class="crumb"><a href="{{ url_for('landing') }}">{{ t('nav_home') }}</a> / <a href="{{ url_for('challenge_explorer') }}">{{ t('pub_title') }}</a> / #{{ challenge.code }}</div>
+
+  <div class="topbar">
+    <div>
+      <div class="crumb">#{{ challenge.code }}</div>
+      <h1>{{ challenge.title }}</h1>
+      <div class="meta" style="font-size:.86rem; color:var(--ink-soft);">
+        {{ dist_label(challenge.district) }} · {{ cat_label(challenge.category) }}{% if challenge.subcategory %} · {{ challenge.subcategory }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="banner banner-ai" style="margin:14px 0;">
+    <strong>✓ {{ t('pub_validated_badge') }}</strong>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h2 style="font-size:1rem; margin-top:0;">{{ challenge.title }}</h2>
+      <p style="font-size:.9rem;">{{ challenge.description }}</p>
+      <div class="meta" style="font-size:.82rem; color:var(--ink-soft);">
+        {{ t('pub_f_priority') }}: {{ challenge.priority_level|capitalize }}
+        {% if challenge.location_text %} · 📍 {{ challenge.location_text }}{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <h2 style="font-size:1rem; margin-top:0;">{{ t('pub_evidence') }}</h2>
+      <div class="pub-kv"><span>{{ t('pub_evidence_reports') }}</span><strong>{{ t('cluster_reports', n=progress.reports) }}</strong></div>
+      {% if progress.pattern %}
+      <div class="pub-kv"><span>{{ t('cluster_pattern') }}</span><strong>✓</strong></div>
+      {% endif %}
+      {% if progress.reports_from %}
+      <div class="pub-kv"><span>{{ t('pub_evidence_range') }}</span><strong>{{ progress.reports_from[:10] }} → {{ progress.reports_to[:10] }}</strong></div>
+      {% endif %}
+      {% if progress.report_districts %}
+      <div class="pub-kv"><span>{{ t('pub_evidence_districts') }}</span><strong>{{ progress.report_districts|join(', ') }}</strong></div>
+      {% endif %}
+      <div class="pub-kv"><span>{{ t('pub_evidence_photos') }}</span><strong>{{ progress.reports_with_evidence }}</strong></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h2 style="font-size:1rem; margin-top:0;">{{ t('pub_collab') }}</h2>
+    <div class="pub-kv"><span>{{ t('pub_c_matches') }}</span><strong>{{ progress.matches }}</strong></div>
+    {% if progress.accepted_unis %}
+    <div class="pub-kv"><span>{{ t('pub_c_accepted') }}</span><strong>{{ progress.accepted_unis|join(', ') }}</strong></div>
+    {% endif %}
+    <div class="pub-kv"><span>{{ t('pub_c_teams') }}</span><strong>{{ progress.teams|length }}{% if progress.teams %} ({{ progress.teams|join(', ') }}){% endif %}</strong></div>
+    <div class="pub-kv"><span>{{ t('pub_c_proposals') }}</span><strong>{{ progress.proposals }}</strong></div>
+    <div class="pub-kv"><span>{{ t('pub_c_project') }}</span><strong>{{ progress.projects }}</strong></div>
+    <div class="pub-kv"><span>{{ t('pub_c_prototype') }}</span><strong>{{ progress.prototypes_approved }}/{{ progress.prototypes }}</strong></div>
+    <div class="pub-kv"><span>{{ t('pub_c_testing') }}</span><strong>{{ progress.testing_approved }}/{{ progress.testing }}</strong></div>
+    <div class="pub-kv"><span>{{ t('pub_c_pilot') }}</span><strong>{{ progress.pilots }}{% if progress.pilot_statuses %} ({{ progress.pilot_statuses|join(', ') }}){% endif %}</strong></div>
+    <div class="pub-kv"><span>{{ t('pub_c_impact') }}</span><strong>{{ progress.impacts_approved }}/{{ progress.impacts }}</strong></div>
+    <div class="pub-kv"><span>{{ t('pub_c_scaling') }}</span><strong>{{ progress.scalings_approved }}/{{ progress.scalings }}</strong></div>
+  </div>
+
+  {% if challenge.success_criteria %}
+  <div class="card" style="margin-top:16px;">
+    <h2 style="font-size:1rem; margin-top:0;">{{ t('success_title') }}</h2>
+    <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ challenge.success_criteria }}</p>
+  </div>
+  {% endif %}
+
+  <div class="card" style="margin-top:16px;">
+    <h2 style="font-size:1rem; margin-top:0;">{{ t('pub_timeline') }}</h2>    <ol class="flow-grid pub-timeline">
+      {% for st in stages %}
+      <li class="flow-step {{ 'done' if progress.stages_done[st] }} {{ 'current' if progress.stage == st }}">
+        <span class="num" aria-hidden="true">{{ loop.index }}</span>
+        <h3>{{ t('pub_stage_' + st) }}</h3>
+      </li>
+      {% endfor %}
+    </ol>
+    <p class="hint">{{ t('funnel_demo_note') }}</p>
+  </div>
+
+  <div style="margin-top:20px;">
+    <a class="btn btn-ghost" href="{{ url_for('challenge_explorer') }}">← {{ t('pub_title') }}</a>
+  </div>
+</div>
+
+<footer class="footer">
+  <span>{{ t('footer_note') }}</span>
+  <span class="credits">{{ t('privacy_note') }}</span>
+</footer>
+{% endblock %}

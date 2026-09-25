@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ t('track_page_title') }} — {{ t('app_name') }}{% endblock %}
+{% block body %}
+<div class="page page-narrow">
+  <div class="crumb"><a href="{{ url_for('landing') }}">{{ t('nav_home') }}</a> / {{ t('track_page_title') }}</div>
+  <div class="section-title"><h1 style="font-size:1.4rem; margin:0;">{{ t('track_page_title') }}</h1></div>
+  <p class="section-sub">{{ t('track_page_sub') }}</p>
+
+  <div class="card">
+    <form method="POST">
+      <label for="code">{{ t('track_code_label') }}</label>
+      <input type="text" id="code" name="code" required autofocus
+             value="{{ code or '' }}" placeholder="JS-7F4K92BX" autocomplete="off"
+             style="text-transform:uppercase;">
+      <div class="hint">{{ t('track_code_hint') }}</div>
+      <div style="margin-top:22px;">
+        <button type="submit" class="btn btn-primary btn-block">{{ t('track_btn') }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer class="footer">
+  <span>{{ t('footer_note') }}</span>
+  <span class="credits">{{ t('privacy_note') }}</span>
+</footer>
+{% endblock %}

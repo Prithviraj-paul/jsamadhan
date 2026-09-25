@@ -7,6 +7,9 @@ uploads/
 .venv/
 venv/
 .env
+*.env
+!.env.example
+.flask_secret
 *.pid
 tunnel_out.log
 tunnel_err.log

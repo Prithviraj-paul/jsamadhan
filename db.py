@@ -22,7 +22,80 @@ DB_PATH = os.path.join(BASE_DIR, "jsamadhan.db")
 
 ROLES = ("citizen", "officer", "admin", "university", "faculty", "student",
          "industry")
-INFRA_CATEGORIES = {"Roads & Infrastructure"}
+# Phase-1 pilot: new reports/challenges use ONLY these three focus areas.
+# Legacy values in CATEGORIES below must keep rendering (backwards compat).
+PILOT_CATEGORIES = [
+    "Roads & Public Infrastructure",
+    "Water & Sanitation",
+    "Education Infrastructure",
+]
+
+PILOT_SUBCATEGORIES = {
+    "Roads & Public Infrastructure": [
+        "Pothole",
+        "Damaged Road",
+        "Bridge / Culvert",
+        "Streetlight",
+        "Drainage",
+        "Public Asset",
+        "Other Infrastructure",
+    ],
+    "Water & Sanitation": [
+        "Handpump",
+        "Pipeline Leakage",
+        "Drinking Water",
+        "Waterlogging",
+        "Drainage",
+        "Community Sanitation",
+        "Waste Accumulation",
+        "Other",
+    ],
+    "Education Infrastructure": [
+        "Building Damage",
+        "Classroom Infrastructure",
+        "Toilet",
+        "Drinking Water",
+        "Electricity",
+        "Accessibility",
+        "School Premises",
+        "Other",
+    ],
+}
+
+# Legacy categories from before the Phase-1 pilot. Never delete these —
+# historical records keep rendering via i18n.CATEGORY_KEYS, and dashboards
+# treat them as legacy/future-scope data.
+LEGACY_CATEGORIES = [
+    "Roads & Infrastructure", "Water Resources", "Electricity",
+    "Sanitation", "Healthcare", "Education", "Public Safety", "Other",
+]
+
+# Maps a legacy category to the closest pilot focus area for presentation
+# (grouping only — the stored value is never rewritten).
+LEGACY_TO_PILOT = {
+    "Roads & Infrastructure": "Roads & Public Infrastructure",
+    "Electricity": "Roads & Public Infrastructure",
+    "Public Safety": "Roads & Public Infrastructure",
+    "Water Resources": "Water & Sanitation",
+    "Sanitation": "Water & Sanitation",
+    "Education": "Education Infrastructure",
+    "Healthcare": "Education Infrastructure",
+    "Other": "Water & Sanitation",
+}
+
+
+def is_pilot_category(category):
+    return category in PILOT_CATEGORIES
+
+
+def pilot_for_category(category):
+    """Pilot focus area for any stored category (new or legacy)."""
+    if category in PILOT_CATEGORIES:
+        return category
+    return LEGACY_TO_PILOT.get(category)
+
+
+INFRA_CATEGORIES = {"Roads & Infrastructure", "Roads & Public Infrastructure"}
 
 CATEGORIES = [
     "Roads & Infrastructure", "Water Resources", "Electricity",
@@ -155,6 +228,11 @@ CREATE TABLE IF NOT EXISTS complaints (
     category TEXT NOT NULL,
     district TEXT NOT NULL,
     location_text TEXT,
+    landmark TEXT,
+    subcategory TEXT,
+    problem_duration TEXT,
+    people_affected INTEGER,
+    issue_frequency TEXT,
     latitude REAL,
     longitude REAL,
     image_metadata TEXT,
@@ -173,6 +251,7 @@ CREATE TABLE IF NOT EXISTS complaints (
     ai_confidence INTEGER,
     ai_note TEXT,
     ai_detail TEXT,
+    ai_analysis TEXT,
     severity INTEGER,
     urgency TEXT,
     accepted_at TEXT,
@@ -180,10 +259,18 @@ CREATE TABLE IF NOT EXISTS complaints (
     resolution_filename TEXT,
     resolution_confidence REAL,
     resolution_note TEXT,
+    resolution_ai_status TEXT,
+    resolution_ai_provider TEXT,
+    resolution_ai_model TEXT,
+    resolution_same_scene_score INTEGER,
+    resolution_manual_review INTEGER DEFAULT 0,
     resolved_at TEXT,
     notify_sent_at TEXT,
     action_due_at TEXT,
     escalated_at TEXT,
+    challenge_id INTEGER,
+    master_issue_id INTEGER,
+    manual_review_requested INTEGER DEFAULT 0,
     created_at TEXT NOT NULL,
     FOREIGN KEY(citizen_id) REFERENCES users(id),
     FOREIGN KEY(officer_id) REFERENCES users(id)
@@ -205,6 +292,7 @@ CREATE TABLE IF NOT EXISTS challenges (
     description TEXT NOT NULL,
     category TEXT NOT NULL,
     subcategory TEXT,
+    success_criteria TEXT,
     district TEXT NOT NULL,
     location_text TEXT,
     latitude REAL,
@@ -374,6 +462,7 @@ CREATE TABLE IF NOT EXISTS proposals (
     estimated_duration TEXT,
     submitted_by INTEGER,
     status TEXT NOT NULL DEFAULT 'DRAFT',
+    ai_review TEXT,
     review_comment TEXT,
     reviewed_by INTEGER,
     reviewed_at TEXT,
@@ -590,6 +679,8 @@ CREATE TABLE IF NOT EXISTS pilot_deployments (
     responsible_org TEXT,
     status TEXT NOT NULL DEFAULT 'PLANNED',
     progress_updates TEXT NOT NULL DEFAULT '',
+    ai_summary TEXT,
+    ai_summary_hash TEXT,
     deployment_review_comment TEXT,
     reviewed_by INTEGER,
     reviewed_at TEXT,
@@ -620,6 +711,8 @@ CREATE TABLE IF NOT EXISTS impact_assessments (
     challenges_faced TEXT NOT NULL DEFAULT '',
     reported_metrics TEXT NOT NULL DEFAULT '{}',
     evidence_json TEXT NOT NULL DEFAULT '[]',
+    ai_summary TEXT,
+    ai_summary_hash TEXT,
     status TEXT NOT NULL DEFAULT 'DRAFT',
     reviewer_comment TEXT,
     submitted_by INTEGER,
@@ -719,8 +812,23 @@ def init_db():
         ("location_state", "TEXT"), ("pincode", "TEXT"),
         ("severity", "INTEGER"), ("urgency", "TEXT"),
         ("ai_detail", "TEXT"),
+        ("ai_analysis", "TEXT"),
         ("notify_sent_at", "TEXT"), ("action_due_at", "TEXT"), ("escalated_at", "TEXT"),
         ("challenge_id", "INTEGER"),
+        # Phase-1 pilot structured fields (safe additive migration — old DBs
+        # gain these columns without losing any historical records).
+        ("subcategory", "TEXT"),
+        ("problem_duration", "TEXT"),
+        ("people_affected", "INTEGER"),
+        ("issue_frequency", "TEXT"),
+        ("landmark", "TEXT"),
+        # After-image AI verification details (nullable — old resolved
+        # cases keep working with resolution_confidence/note alone).
+        ("resolution_ai_status", "TEXT"),
+        ("resolution_ai_provider", "TEXT"),
+        ("resolution_ai_model", "TEXT"),
+        ("resolution_same_scene_score", "INTEGER"),
+        ("resolution_manual_review", "INTEGER"),
     ):
         if column not in complaint_columns:
             conn.execute(f"ALTER TABLE complaints ADD COLUMN {column} {column_type}")
@@ -730,6 +838,37 @@ def init_db():
     ):
         if column not in user_columns:
             conn.execute(f"ALTER TABLE users ADD COLUMN {column} {column_type}")
+    # Part 9 / Feature 5: optional government-defined success criteria per
+    # challenge (nullable — old challenges and old proposals keep working).
+    challenge_columns = {row[1] for row in conn.execute("PRAGMA table_info(challenges)")}
+    # Phase 0: nullable forward-compat hook for Master Issue consolidation.
+    # Reports are always created WITHOUT it; duplicate processing may link
+    # them later. Never required at creation.
+    if "master_issue_id" not in complaint_columns:
+        conn.execute("ALTER TABLE complaints ADD COLUMN master_issue_id INTEGER")
+    # Citizen override when the upload-time photo check rejects an image:
+    # the officer is asked to review manually instead of trusting the check.
+    if "manual_review_requested" not in complaint_columns:
+        conn.execute("ALTER TABLE complaints ADD COLUMN manual_review_requested INTEGER DEFAULT 0")
+    # P8 audit: cached AI proposal review + P9 cached readiness explanation.
+    proposal_columns = {row[1] for row in conn.execute("PRAGMA table_info(proposals)")}
+    if "ai_review" not in proposal_columns:
+        conn.execute("ALTER TABLE proposals ADD COLUMN ai_review TEXT")
+    if "ai_readiness" not in challenge_columns:
+        conn.execute("ALTER TABLE challenges ADD COLUMN ai_readiness TEXT")
+    if "readiness_hash" not in challenge_columns:
+        conn.execute("ALTER TABLE challenges ADD COLUMN readiness_hash TEXT")
+    # P10: cached AI summaries for pilots and impact assessments.
+    pilot_columns = {row[1] for row in conn.execute("PRAGMA table_info(pilot_deployments)")}
+    if "ai_summary" not in pilot_columns:
+        conn.execute("ALTER TABLE pilot_deployments ADD COLUMN ai_summary TEXT")
+    if "ai_summary_hash" not in pilot_columns:
+        conn.execute("ALTER TABLE pilot_deployments ADD COLUMN ai_summary_hash TEXT")
+    impact_columns = {row[1] for row in conn.execute("PRAGMA table_info(impact_assessments)")}
+    if "ai_summary" not in impact_columns:
+        conn.execute("ALTER TABLE impact_assessments ADD COLUMN ai_summary TEXT")
+    if "ai_summary_hash" not in impact_columns:
+        conn.execute("ALTER TABLE impact_assessments ADD COLUMN ai_summary_hash TEXT")
     conn.commit()
     conn.close()
 
@@ -863,6 +1002,20 @@ def clear_profile_photo(conn, user_id):
 # ---------------------------------------------------------------------------
 
 def new_complaint_code(conn):
+    """Strong tracking codes (P17): JS- + 8 secrets-generated A-Z0-9 chars.
+
+    Historical JS-12345 codes keep working (lookups are exact-match; nothing
+    is migrated or removed). Retries on the astronomically unlikely collision.
+    """
+    import secrets as _secrets
+    import string as _string
+
+    alphabet = _string.ascii_uppercase + _string.digits
+    for _ in range(20):
+        code = "JS-" + "".join(_secrets.choice(alphabet) for _ in range(8))
+        if not conn.execute("SELECT 1 FROM complaints WHERE code=?", (code,)).fetchone():
+            return code
+    # Practically unreachable fallback.
     while True:
         code = f"JS-{random.randint(10000, 99999)}"
         if not conn.execute("SELECT 1 FROM complaints WHERE code=?", (code,)).fetchone():

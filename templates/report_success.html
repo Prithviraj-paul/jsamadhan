@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ t('success_title') }} — {{ t('app_name') }}{% endblock %}
+{% block body %}
+<div class="page page-narrow">
+  <div class="card" style="text-align:center; padding-top:28px;">
+    <div style="font-size:2.4rem;" aria-hidden="true">✅</div>
+    <h1 style="font-size:1.4rem; margin:8px 0 4px;">{{ t('success_title') }}</h1>
+    <p class="hint">{{ t('success_sub') }}</p>
+    <div class="pub-kv"><span>{{ t('success_code') }}</span><strong>{{ complaint.code }}</strong></div>
+    <div class="pub-kv"><span>{{ t('focus_area') }}</span><strong>{{ cat_label(complaint.category) }}{% if complaint.subcategory %} · {{ complaint.subcategory }}{% endif %}</strong></div>
+    <div class="pub-kv"><span>{{ t('location_details') }}</span><strong>{{ dist_label(complaint.district) }}{% if complaint.location_text %} · {{ complaint.location_text }}{% endif %}</strong></div>
+    <div class="pub-kv"><span>{{ t('th_status') }}</span><strong>{{ complaint.status }}</strong></div>
+    {% if related_count %}
+    <div class="banner banner-ai" style="margin:14px 0 0; display:block; text-align:left;">
+      {{ t('success_linked', n=related_count) }}
+    </div>
+    {% else %}
+    <p class="hint" style="margin:14px 0 0;">{{ t('success_new') }}</p>
+    {% endif %}
+    <div style="margin-top:20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+      <a class="btn btn-forest" href="{{ url_for('track_complaint', code=complaint.code) }}">{{ t('track_btn') }}</a>
+      <a class="btn btn-ghost" href="{{ url_for('citizen_dashboard') }}">{{ t('nav_my_complaints') }}</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

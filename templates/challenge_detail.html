@@ -15,6 +15,7 @@
       {{ dist_label(challenge.district) }} · {{ cat_label(challenge.category) }}
       {% if challenge.subcategory %} · {{ challenge.subcategory }}{% endif %}
       · {{ t('citizen_reports_count', count=challenge.report_count) }}
+      {% if challenge.reports|length >= 3 %} · <strong>{{ t('cluster_pattern') }}</strong>{% endif %}
     </div>
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
@@ -47,6 +48,57 @@
 {% elif challenge.validation_status == 'REJECTED' %}
 <div class="banner banner-warn" style="margin-top:16px; margin-bottom:0;">
   {{ t('val_rejection_reason') }}: {{ challenge.rejection_reason or '—' }}
+</div>
+{% endif %}
+
+{% if readiness is defined and readiness %}
+<div class="card" style="margin-top:16px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:.95rem; margin:0;">{{ t('ready_title') }} — {{ t('ready_level_' + readiness.level) }} ({{ readiness.total }}/{{ readiness.of }})</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('ready_sub') }}</p>
+    </div>
+  </div>
+  {% for key, score, maxv in readiness.signals %}
+  <div class="pub-kv"><span>{{ t(key) }}</span><strong>{{ score }}/{{ maxv }}</strong></div>
+  {% endfor %}
+  <p class="hint" style="margin:8px 0 0;">{{ t('ready_disclaimer') }}</p>
+</div>
+{% endif %}
+
+{% if readiness100 is defined and readiness100 %}
+<div class="card" style="margin-top:16px;">
+  <div class="cc-section-head">
+    <div>
+      <h2 style="font-size:.95rem; margin:0;">{{ t('ready100_title') }} — {{ readiness100.score }}/100</h2>
+      <p class="hint" style="margin:2px 0 0;">{{ t('ready100_disclaimer') }}</p>
+    </div>
+  </div>
+  {% for key, score, maxv in readiness100.parts %}
+  <div class="pub-kv"><span>{{ t('ready100_' + key) }}</span><strong>{{ score }}/{{ maxv }}</strong></div>
+  {% endfor %}
+  {% if readiness_ai and readiness_ai.data %}
+  {% set _rd = readiness_ai.data %}
+  <div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--line);">
+    <p style="font-size:.9rem;">{{ _rd.summary }}</p>
+    <div class="pub-kv"><span>{{ t('ready_score') }}</span><strong>{{ t('ready_level_' + readiness.level) if readiness is defined and readiness else '' }} · {{ _rd.recommendation }}</strong></div>
+    {% if _rd.key_signals %}
+    <ul style="margin:6px 0 0; padding-left:18px; font-size:.86rem; color:var(--ink-soft);">
+      {% for _s in _rd.key_signals %}<li>{{ _s }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% if _rd.missing_evidence %}
+    <p class="hint" style="margin:8px 0 0;">{{ t('prop_ai_missing') }}: {{ _rd.missing_evidence|join('; ') }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if challenge.success_criteria %}
+<div class="card" style="margin-top:16px;">
+  <h2 style="font-size:.95rem; margin-top:0;">{{ t('success_title') }}</h2>
+  <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ challenge.success_criteria }}</p>
 </div>
 {% endif %}
 

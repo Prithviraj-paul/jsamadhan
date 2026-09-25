@@ -21,6 +21,10 @@
 </div>
 
 <div class="banner banner-ai" style="margin-bottom:16px;">{{ t('p7_scaling_note') }}</div>
+<div class="banner banner-ai" style="margin-bottom:16px; display:block;">
+  <strong>Pilot → Evidence → Impact Assessment → Government Review → Scaling Proposal</strong>
+  <div class="hint" style="margin-top:4px;">{{ t('ready_disclaimer') }}</div>
+</div>
 
 <div class="grid grid-2" style="align-items:start;">
   <div class="card">
@@ -84,7 +88,7 @@
         {% for ev in proposal.evidence %}
         <tr>
           <td>{{ ev.name }}</td>
-          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('uploaded_file', filename=ev.path) }}" target="_blank">{{ t('ind_view') }} →</a></td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('protected_evidence', filename=ev.path) }}" target="_blank">{{ t('ind_view') }} →</a></td>
         </tr>
         {% endfor %}
         </tbody>

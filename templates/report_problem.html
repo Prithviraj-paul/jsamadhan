@@ -9,6 +9,11 @@
 
 <h1>{{ t('report_heading') }}</h1>
 
+<div class="banner banner-ai" style="margin-top:14px;">
+  <strong>{{ t('pilot_focus_title') }}</strong>
+  <div class="hint" style="margin:4px 0 0;">{{ t('pilot_focus_desc') }}</div>
+</div>
+
 <div class="card" style="margin-top:18px;">
   <div style="margin-bottom:14px;">
     <strong style="font-size:.82rem; color:var(--ink-soft);">{{ t('reported_by') }}</strong>
@@ -16,70 +21,112 @@
     <div class="hint">{{ t('autofill_note') }}</div>
   </div>
 
-  <form method="POST" enctype="multipart/form-data" style="margin-top:22px;">
+  <form method="POST" enctype="multipart/form-data" style="margin-top:22px;" data-report-form>
     <label for="title">{{ t('problem_title') }}</label>
-    <input type="text" id="title" name="title" required placeholder="{{ t('problem_title_ph') }}">
+    <input type="text" id="title" name="title" required maxlength="150" placeholder="{{ t('problem_title_ph') }}" value="{{ form.title if form else '' }}">
 
     <label for="description">{{ t('describe_problem') }}</label>
-    <textarea id="description" name="description" required placeholder="{{ t('describe_problem_ph') }}"></textarea>
+    <textarea id="description" name="description" required maxlength="3000" placeholder="{{ t('describe_problem_ph') }}">{{ form.description if form else '' }}</textarea>
 
     <div class="ai-assist">
       <div class="ai-assist-head">{{ t('ai_assist_heading') }}</div>
       <div class="hint">{{ t('ai_assist_hint') }}</div>
       <div class="ai-assist-controls">
-        <button type="button" class="btn btn-sm btn-forest" data-voice-toggle>{{ t('btn_speak') }}</button>
+        <button type="button" class="btn btn-sm btn-forest" data-iv-start>📞 {{ t('iv_start') }}</button>
         <select data-voice-lang aria-label="{{ t('voice_lang') }}">
           <option value="hi-IN">हिन्दी</option>
           <option value="en-IN">English</option>
-          <option value="bn-IN">বাংলা</option>
-          <option value="or-IN">ଓଡ଼ିଆ</option>
-          <option value="mr-IN">मराठी</option>
-          <option value="ta-IN">தமிழ்</option>
-          <option value="te-IN">తెలుగు</option>
-          <option value="kn-IN">ಕನ್ನಡ</option>
-          <option value="ml-IN">മലയാളം</option>
-          <option value="gu-IN">ગુજરાતી</option>
-          <option value="pa-IN">ਪੰਜਾਬੀ</option>
-          <option value="ur-IN">اردو</option>
         </select>
-        <button type="button" class="btn btn-sm btn-ghost" data-ocr-toggle>{{ t('ocr_btn') }}</button>
-        <input type="file" data-ocr-input accept="image/*" capture="environment" style="display:none;">
       </div>
-      <div data-voice-status class="hint"></div>
-      <div data-ocr-status class="hint"></div>
+      <div class="iv-call" data-iv-call hidden>
+        <div class="iv-call-head">
+          <span class="iv-avatar" aria-hidden="true">🤖</span>
+          <div>
+            <strong>{{ t('iv_title') }}</strong>
+            <div class="hint" data-iv-step></div>
+          </div>
+          <button type="button" class="btn btn-sm btn-ghost" data-iv-end>{{ t('iv_end') }}</button>
+        </div>
+        <div class="iv-question" data-iv-question aria-live="polite"></div>
+        <div class="iv-answer" data-iv-answer></div>
+        <div class="hint" data-iv-status></div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button type="button" class="btn btn-sm btn-ghost" data-iv-retry hidden>{{ t('iv_repeat') }}</button>
+        </div>
+      </div>
     </div>
 
     <div class="field-row">
       <div>
-        <label for="category">{{ t('category') }}</label>
+        <label for="category">{{ t('focus_area') }}</label>
         <select id="category" name="category">
-          {% for cat in CATEGORIES %}
-          <option value="{{ cat }}">{{ cat_label(cat) }}</option>
+          {% for cat in PILOT_CATEGORIES %}
+          <option value="{{ cat }}" {{ 'selected' if form and form.category == cat }}>{{ cat_label(cat) }}</option>
           {% endfor %}
         </select>
-        <div class="hint">{{ t('category_hint') }}</div>
+        <div class="hint">{{ t('focus_area_hint') }} {{ t('category_hint') }}</div>
       </div>
+      <div>
+        <label for="subcategory">{{ t('subcategory') }}</label>
+        <select id="subcategory" name="subcategory" data-selected="{{ form.subcategory if form else '' }}">
+        </select>
+        <div class="hint">{{ t('subcategory_hint') }}</div>
+        <div class="hint" data-cat-suggest hidden></div>
+      </div>
+    </div>
+
+    <div class="field-row">
       <div>
         <label for="district">{{ t('district') }}</label>
         <select id="district" name="district">
           {% for dist in DISTRICTS %}
-          <option value="{{ dist }}">{{ dist_label(dist) }}</option>
+          <option value="{{ dist }}" {{ 'selected' if form and form.district == dist }}>{{ dist_label(dist) }}</option>
           {% endfor %}
         </select>
+      </div>
+      <div>
+        <label for="landmark">{{ t('landmark') }}</label>
+        <input type="text" id="landmark" name="landmark" maxlength="200" placeholder="{{ t('landmark_ph') }}" value="{{ form.landmark if form else '' }}">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div>
+        <label for="problem_duration">{{ t('problem_duration') }}</label>
+        <select id="problem_duration" name="problem_duration">
+          <option value="">—</option>
+          <option value="just_started" {{ 'selected' if form and form.problem_duration == 'just_started' }}>{{ t('dur_just_started') }}</option>
+          <option value="days" {{ 'selected' if form and form.problem_duration == 'days' }}>{{ t('dur_days') }}</option>
+          <option value="weeks" {{ 'selected' if form and form.problem_duration == 'weeks' }}>{{ t('dur_weeks') }}</option>
+          <option value="months" {{ 'selected' if form and form.problem_duration == 'months' }}>{{ t('dur_months') }}</option>
+          <option value="long" {{ 'selected' if form and form.problem_duration == 'long' }}>{{ t('dur_long') }}</option>
+        </select>
+      </div>
+      <div>
+        <label for="issue_frequency">{{ t('issue_frequency') }}</label>
+        <select id="issue_frequency" name="issue_frequency">
+          <option value="">—</option>
+          <option value="one_time" {{ 'selected' if form and form.issue_frequency == 'one_time' }}>{{ t('freq_one_time') }}</option>
+          <option value="recurring" {{ 'selected' if form and form.issue_frequency == 'recurring' }}>{{ t('freq_recurring') }}</option>
+        </select>
+      </div>
+      <div>
+        <label for="people_affected">{{ t('people_affected') }}</label>
+        <input type="number" id="people_affected" name="people_affected" min="0" max="1000000" placeholder="{{ t('people_affected_ph') }}" value="{{ form.people_affected if form else '' }}">
       </div>
     </div>
 
     <label for="location_text">{{ t('location_details') }}</label>
-    <input type="text" id="location_text" name="location" placeholder="{{ t('location_ph') }}">
+    <input type="text" id="location_text" name="location" placeholder="{{ t('location_ph') }}" value="{{ form.location if form else '' }}">
 
     <!-- Hidden GPS fields — populated by location picker -->
     <input type="hidden" name="lat" data-latitude value="">
     <input type="hidden" name="lng" data-longitude value="">
 
-    <div data-location-picker>
+    <div data-location-picker data-auto-locate>
       <div class="location-picker">
         <div class="location-picker-head">
-          <strong style="font-size:.88rem;">Location (optional)</strong>
+          <strong style="font-size:.88rem;">{{ t('loc_head') }}</strong>
           <span data-location-status class="hint" style="margin-top:0;"></span>
         </div>
         <div class="location-search">
@@ -90,11 +137,12 @@
         <div data-location-suggestions class="location-suggestions" hidden></div>
         <div data-location-map class="location-map"></div>
         <div class="hint">Click anywhere on the map or use the buttons above to set coordinates. Reverse geocoding fills district details automatically.</div>
+        <div data-location-readout class="hint" style="margin-top:6px;" aria-live="polite"></div>
       </div>
-      <input type="hidden" data-location-address>
-      <input type="hidden" data-location-city>
-      <input type="hidden" data-location-state>
-      <input type="hidden" data-location-pincode>
+      <input type="hidden" name="location_address" data-location-address>
+      <input type="hidden" name="location_city" data-location-city>
+      <input type="hidden" name="location_state" data-location-state>
+      <input type="hidden" name="pincode" data-location-pincode>
     </div>
 
     <label>{{ t('evidence_label') }}</label>
@@ -102,33 +150,151 @@
       <div class="big">📎</div>
       <div class="evidence-controls" data-evidence-controls>
         <button type="button" class="btn btn-sm btn-ghost" data-evidence-trigger="evidence_input">{{ t('evidence_click') }}</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-camera-btn>📷 {{ t('ev_camera') }}</button>
         <input type="file" id="evidence_input" name="evidence" data-evidence-input accept="image/*,video/*" style="display:none;">
+        <input type="file" id="camera_input" data-camera-input accept="image/*" capture="environment" style="display:none;">
         <button type="button" class="btn btn-sm evidence-clear" data-clear-evidence hidden>✕ Clear</button>
       </div>
       <div class="evidence-selected" data-evidence-name></div>
+      <div class="cam-preview" data-cam-preview hidden>
+        <video data-cam-video playsinline muted style="width:100%; border-radius:8px;"></video>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button type="button" class="btn btn-sm btn-forest" data-cam-capture>{{ t('ev_capture') }}</button>
+          <button type="button" class="btn btn-sm btn-ghost" data-cam-cancel>{{ t('nav_close') }}</button>
+        </div>
+      </div>
     </div>
     <div class="hint">{{ t('evidence_hint') }}</div>
+    <div class="hint" data-photo-check aria-live="polite"></div>
+    <label class="manual-review" data-manual-review hidden style="display:flex; gap:8px; align-items:flex-start; margin-top:8px; font-size:.86rem;">
+      <input type="checkbox" name="manual_review" value="1" style="margin-top:3px;">
+      <span>{{ t('ev_manual_review') }}</span>
+    </label>
 
     <div style="margin-top:22px;">
-      <button type="submit" class="btn btn-primary btn-block">{{ t('btn_submit_problem') }}</button>
+      <button type="submit" class="btn btn-primary btn-block" data-submit-btn>{{ t('btn_submit_problem') }}</button>
     </div>
   </form>
 </div>
 
 <script>
 (function () {
-  var desc = document.getElementById('description');
-  var voiceStatus = document.querySelector('[data-voice-status]');
-  var ocrStatus = document.querySelector('[data-ocr-status]');
-  var langSel = document.querySelector('[data-voice-lang]');
-  var voiceBtn = document.querySelector('[data-voice-toggle]');
-  var ocrBtn = document.querySelector('[data-ocr-toggle]');
-  var ocrInput = document.querySelector('[data-ocr-input]');
+  /* ---------- Single-submit guard (Phase 0): prevent double reports ---- */
+  var reportForm = document.querySelector('[data-report-form]');
+  var submitBtn = document.querySelector('[data-submit-btn]');
+  if (reportForm && submitBtn) {
+    var submitLabel = submitBtn.textContent;
+    reportForm.addEventListener('submit', function () {
+      if (reportForm.dataset.submitted === '1') return;
+      reportForm.dataset.submitted = '1';
+      submitBtn.disabled = true;
+      submitBtn.textContent = "{{ t('submitting') }}";
+      window.setTimeout(function () {
+        /* re-enable in case client-side validation stops the submit */
+        reportForm.dataset.submitted = '';
+        submitBtn.disabled = false;
+        submitBtn.textContent = submitLabel;
+      }, 8000);
+    });
+  }
+  /* ---------- Focus area -> subcategory options (Phase-1 pilot) ---------- */
+  var SUBS = {{ PILOT_SUBCATEGORIES|tojson }};
+  var catSel = document.getElementById('category');
+  var subSel = document.getElementById('subcategory');
+  function refreshSubs() {
+    var opts = SUBS[catSel.value] || [];
+    var keep = subSel.getAttribute('data-selected') || '';
+    subSel.innerHTML = '';
+    opts.forEach(function (s) {
+      var o = document.createElement('option');
+      o.value = s; o.textContent = s;
+      if (s === keep) o.selected = true;
+      subSel.appendChild(o);
+    });
+  }
+  if (catSel && subSel) {
+    catSel.addEventListener('change', refreshSubs);
+    refreshSubs();
+  }
 
-  var CANON = { 'hi-IN': 'hi', 'en-IN': 'en', 'bn-IN': 'bn', 'or-IN': 'or',
-                'mr-IN': 'mr', 'ta-IN': 'ta', 'te-IN': 'te', 'kn-IN': 'kn',
-                'ml-IN': 'ml', 'gu-IN': 'gu', 'pa-IN': 'pa', 'ur-IN': 'ur',
-                'en': 'en', 'hi': 'hi' };
+  /* ---------- Live AI category suggestion (advisory, manual wins) -------
+     As the title/description are typed, AI suggests focus area +
+     subcategory. Applied automatically only until the citizen touches
+     the dropdowns themselves; afterwards it appears with an Apply
+     button. The dropdowns always stay manually changeable. */
+  var catSuggest = document.querySelector('[data-cat-suggest]');
+  var catTouched = false, catTimer = null, catSuggesting = false;
+  if (catSel) {
+    catSel.addEventListener('change', function () { catTouched = true; });
+    subSel.addEventListener('change', function () { catTouched = true; });
+  }
+  function catSuggestText(cat, sub) {
+    return "{{ t('ai_auto_cat') }}".replace('{cat}', cat).replace('{sub}', sub || '');
+  }
+  function applySuggestion(cat, sub) {
+    if (setSelect('category', cat)) {
+      refreshSubs();
+      if (sub) setSelect('subcategory', sub);
+      return true;
+    }
+    return false;
+  }
+  function runCatSuggest() {
+    if (catSuggesting) return;
+    var titleEl = document.getElementById('title');
+    var text = ((titleEl ? titleEl.value : '') + ' ' + desc.value).trim();
+    if (text.length < 15) return;
+    catSuggesting = true;
+    fetch({{ url_for('api_ai_parse_report')|tojson }}, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        catSuggesting = false;
+        if (!data || !data.success || !data.fields || !data.fields.category) return;
+        var cat = data.fields.category, sub = data.fields.subcategory || '';
+        if (catSel.value === cat) {
+          if (sub) setSelect('subcategory', sub);
+          if (catSuggest) catSuggest.hidden = true;
+          return;
+        }
+        if (!catTouched) {
+          /* First suggestion: apply automatically, citizen can change. */
+          if (applySuggestion(cat, sub) && catSuggest) catSuggest.hidden = true;
+        } else if (catSuggest) {
+          catSuggest.innerHTML = '';
+          var span = document.createElement('span');
+          span.textContent = catSuggestText(cat, sub) + ' ';
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn btn-sm btn-ghost';
+          btn.textContent = "{{ t('ai_apply') }}";
+          btn.addEventListener('click', function () {
+            applySuggestion(cat, sub);
+            catSuggest.hidden = true;
+          });
+          catSuggest.appendChild(span);
+          catSuggest.appendChild(btn);
+          catSuggest.hidden = false;
+        }
+      })
+      .catch(function () { catSuggesting = false; });
+  }
+  function scheduleCatSuggest() {
+    if (catTimer) window.clearTimeout(catTimer);
+    catTimer = window.setTimeout(runCatSuggest, 1500);
+  }
+  ['title', 'description'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', scheduleCatSuggest);
+  });
+
+  var desc = document.getElementById('description');
+  var langSel = document.querySelector('[data-voice-lang]');
+
+  var CANON = { 'hi-IN': 'hi', 'en-IN': 'en', 'en': 'en', 'hi': 'hi' };
 
   function appendToDesc(text) {
     text = (text || '').replace(/\s+/g, ' ').trim();
@@ -145,67 +311,457 @@
       .catch(function () {});
   }
 
-  /* ---------- Voice to text (Web Speech API) ---------- */
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  var recognizing = false;
-  if (!SR) {
-    voiceStatus.textContent = "{{ t('speak_unsupported') }}";
-    voiceBtn.disabled = true;
-  } else {
-    var rec = new SR();
-    rec.continuous = false;
-    rec.interimResults = true;
-    rec.lang = langSel.value;
-    langSel.addEventListener('change', function () { rec.lang = langSel.value; });
-
-    rec.onstart = function () { recognizing = true; voiceStatus.textContent = "{{ t('speak_start') }}"; voiceBtn.classList.add('btn-red'); };
-    rec.onerror = function (e) { recognizing = false; voiceStatus.textContent = "{{ t('speak_error') }}"; voiceBtn.classList.remove('btn-red'); };
-    rec.onend = function () { recognizing = false; voiceBtn.classList.remove('btn-red'); if (!rec._finished) voiceStatus.textContent = "{{ t('speak_error') }}"; };
-    rec.onresult = function (event) {
-      var final = '';
-      for (var i = event.resultIndex; i < event.results.length; i++) {
-        var it = event.results[i];
-        if (it.isFinal) { final += it[0].transcript + ' '; rec._finished = true; }
-      }
-      if (final) { appendToDesc(final); voiceStatus.textContent = "{{ t('speak_final_done') }}"; setSiteLang(rec.lang); }
-    };
-
-    voiceBtn.addEventListener('click', function () {
-      if (recognizing) { rec.stop(); recognizing = false; return; }
-      rec._finished = false;
-      try { rec.lang = langSel.value; rec.start(); }
-      catch (e) { voiceStatus.textContent = "{{ t('speak_error') }}"; }
-    });
+  function ivStatusEl() {
+    return document.querySelector('[data-iv-status]');
   }
 
-  /* ---------- Image to text (Tesseract.js OCR) ---------- */
-  ocrBtn.addEventListener('click', function () { ocrInput.click(); });
-  ocrInput.addEventListener('change', function () {
-    var file = ocrInput.files[0];
-    if (!file) return;
-    ocrStatus.textContent = "{{ t('ocr_started') }}";
-    function run(tesseract) {
-      tesseract.recognize(file, 'eng+hin', { logger: function () {} })
-        .then(function (res) {
-          var text = (res && res.data && res.data.text) || '';
-          if (text.replace(/[^\p{L}\p{N}]/gu, '').length < 2) {
-            ocrStatus.textContent = "{{ t('ocr_error') }}";
-          } else {
-            appendToDesc(text);
-            ocrStatus.textContent = "{{ t('ocr_done') }}";
+  /* ---------- AI form fill: narration -> structured fields -------------- */
+  function setSelect(id, value) {
+    if (!value) return false;
+    var el = document.getElementById(id);
+    if (!el) return false;
+    for (var i = 0; i < el.options.length; i++) {
+      if (el.options[i].value === value) { el.value = value; return true; }
+    }
+    return false;
+  }
+  function analyzeAndFill(narration) {
+    var text = (narration || desc.value || '').trim();
+    if (!text) return;
+    var st = ivStatusEl();
+    if (st) st.textContent = "{{ t('ai_filling') }}";
+    fetch({{ url_for('api_ai_parse_report')|tojson }}, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var st2 = ivStatusEl();
+        if (!data || !data.success || !data.fields) {
+          if (st2) st2.textContent = "{{ t('ai_fill_error') }}";
+          return;
+        }
+        var f = data.fields, filled = 0;
+        function fillText(id, val) {
+          if (!val) return;
+          var el = document.getElementById(id);
+          if (el && !el.value.trim()) { el.value = val; filled++; }
+        }
+        fillText('title', f.title);
+        fillText('description', f.description);
+        fillText('landmark', f.landmark);
+        fillText('location_text', f.location);
+        if (f.category && setSelect('category', f.category)) {
+          filled++;
+          refreshSubs();
+          if (f.subcategory && setSelect('subcategory', f.subcategory)) filled++;
+        }
+        ['district', 'problem_duration', 'issue_frequency'].forEach(function (id) {
+          var key = id === 'problem_duration' ? 'duration' : (id === 'issue_frequency' ? 'frequency' : id);
+          if (f[key] && setSelect(id, f[key])) filled++;
+        });
+        if (f.people_affected !== null && f.people_affected !== undefined && f.people_affected !== '') {
+          var pa = document.getElementById('people_affected');
+          if (pa && !String(pa.value).trim()) { pa.value = f.people_affected; filled++; }
+        }
+        var st3 = ivStatusEl();
+        if (st3) st3.textContent = filled
+          ? "{{ t('ai_filled') }}".replace('{n}', filled)
+          : "{{ t('ai_fill_none') }}";
+      })
+      .catch(function () {
+        var st4 = ivStatusEl();
+        if (st4) st4.textContent = "{{ t('ai_fill_error') }}";
+      });
+  }
+
+  /* ---------- Call-style guided interview (AI asks, citizen answers) --- */
+  var ivCall = document.querySelector('[data-iv-call]');
+  var ivStart = document.querySelector('[data-iv-start]');
+  var ivEnd = document.querySelector('[data-iv-end]');
+  var ivQ = document.querySelector('[data-iv-question]');
+  var ivA = document.querySelector('[data-iv-answer]');
+  var ivStep = document.querySelector('[data-iv-step]');
+  var ivStatus = document.querySelector('[data-iv-status]');
+  var ivIndex = -1, ivActive = false, ivSR = null, ivTries = 0;
+  var ivListening = false, ivSpeakTimer = null, ivGotResult = false;
+  /* Voice prompts in both languages (mirror iv_q_* strings); the spoken
+     question always follows the selected voice language, not the site. */
+  var IV_Q = [
+    { en: "Please describe your problem. What happened, and how is it affecting people?",
+      hi: "कृपया अपनी समस्या बताएँ। क्या हुआ, और इससे लोगों पर क्या असर पड़ रहा है?" },
+    { en: "How long has this existed, how many people are affected, and does it happen again and again?",
+      hi: "यह कब से है, कितने लोग प्रभावित हैं, और क्या यह बार-बार होता है?" }
+  ];
+  var IV_RETRY = {
+    en: "Sorry, I could not hear you. Please try again.",
+    hi: "माफ़ कीजिए, मैं सुन नहीं पाया। कृपया फिर से बोलें।"
+  };
+  function ivLang() {
+    var v = langSel ? langSel.value : 'hi-IN';
+    return v || 'hi-IN';
+  }
+  function ivShort() { return ivLang().toLowerCase().indexOf('hi') === 0 ? 'hi' : 'en'; }
+  function ivText(obj) { return obj[ivShort()] || obj.en; }
+  function ivSpeak(text, onend) {
+    var done = false;
+    function finish() {
+      if (done) return;
+      done = true;
+      if (ivSpeakTimer) { window.clearTimeout(ivSpeakTimer); ivSpeakTimer = null; }
+      if (onend) onend();
+    }
+    try {
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = ivLang();
+      try {
+        var voices = window.speechSynthesis.getVoices() || [];
+        var want = ivShort();
+        for (var i = 0; i < voices.length; i++) {
+          if ((voices[i].lang || '').toLowerCase().indexOf(want) === 0) {
+            u.voice = voices[i];
+            break;
           }
-        })
-        .catch(function () { ocrStatus.textContent = "{{ t('ocr_error') }}"; });
+        }
+      } catch (e) {}
+      u.onend = finish;
+      u.onerror = finish;
+      window.speechSynthesis.speak(u);
+      /* If speech synthesis produces no sound/end event, still continue. */
+      ivSpeakTimer = window.setTimeout(finish, 9000);
+    } catch (e) { finish(); }
+  }
+  function ivAsk(i) {
+    ivIndex = i;
+    ivTries = 0;
+    ivStep.textContent = (i + 1) + ' / ' + IV_Q.length;
+    ivQ.textContent = ivText(IV_Q[i]);
+    ivA.textContent = '';
+    ivStatus.textContent = '';
+    var rb = document.querySelector('[data-iv-retry]');
+    if (rb) rb.hidden = true;
+    /* AI asks, then starts listening automatically — no extra button. */
+    ivSpeak(ivText(IV_Q[i]), function () { if (ivActive) ivListen(); });
+  }
+  function ivStop() {
+    ivActive = false;
+    ivListening = false;
+    ivStopping = true;
+    if (ivWindowTimer) { window.clearTimeout(ivWindowTimer); ivWindowTimer = null; }
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+    try { if (ivSR) ivSR.abort(); } catch (e) {}
+    if (ivCall) ivCall.hidden = true;
+  }
+  function ivHeardNothing() {
+    /* Retry automatically twice, then offer the Repeat button. */
+    ivTries++;
+    var rb = document.querySelector('[data-iv-retry]');
+    if (ivTries < 3) {
+      ivStatus.textContent = ivText(IV_RETRY);
+      ivSpeak(ivText(IV_RETRY), function () { if (ivActive) ivListen(); });
+    } else {
+      ivStatus.textContent = ivText(IV_RETRY);
+      if (rb) rb.hidden = false;
     }
-    if (window.Tesseract) { run(window.Tesseract); }
-    else {
-      var s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-      s.onload = function () { if (window.Tesseract) run(window.Tesseract); else ocrStatus.textContent = "{{ t('ocr_loading_error') }}"; };
-      s.onerror = function () { ocrStatus.textContent = "{{ t('ocr_loading_error') }}"; };
-      document.head.appendChild(s);
+  }
+  var ivWindowMs = 30000, ivWindowTimer = null, ivFinalText = '', ivStopping = false;
+  var ivWatchTimer = null, ivLastSpeechAt = 0;
+  var IV_SILENCE_MS = 4500;
+  function ivListen() {
+    var SR2 = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR2) {
+      ivStatus.textContent = "{{ t('speak_unsupported') }}";
+      return;
     }
+    /* Microphone + speech recognition need a secure context (HTTPS or
+       localhost). On plain http://LAN addresses the browser blocks the
+       mic — say so plainly instead of a generic "can't hear". */
+    if (window.isSecureContext === false) {
+      ivStatus.textContent = "{{ t('iv_insecure') }}";
+      var rb0 = document.querySelector('[data-iv-retry]');
+      if (rb0) rb0.hidden = false;
+      return;
+    }
+    /* Never start twice: a second start() throws and looks like a mic
+       failure. */
+    if (ivListening) return;
+    ivListening = true;
+    ivStopping = false;
+    ivFinalText = '';
+    ivSR = new SR2();
+    ivSR.lang = ivLang();
+    /* Keep listening across pauses so the citizen gets a full window to
+       speak (single-shot mode cuts off after a brief silence). */
+    ivSR.continuous = true;
+    ivSR.interimResults = true;
+    ivSR.onresult = function (event) {
+      var interim = '';
+      for (var i = event.resultIndex; i < event.results.length; i++) {
+        var it = event.results[i];
+        if (it.isFinal) {
+          ivFinalText += it[0].transcript + ' ';
+          ivLastSpeechAt = Date.now();
+        }
+        else { interim += it[0].transcript + ' '; }
+      }
+      ivA.textContent = (ivFinalText + interim).trim();
+      if (ivFinalText.trim()) {
+        var rb2 = document.querySelector('[data-iv-retry]');
+        if (rb2) rb2.hidden = true;
+      }
+    };
+    ivSR.onerror = function (event) {
+      var kind = (event && event.error) || '';
+      if (kind === 'not-allowed' || kind === 'service-not-allowed') {
+        /* Mic blocked: retrying automatically is pointless — explain and
+           offer the Repeat button plus typing instead. */
+        ivFinishWindow();
+        ivStatus.textContent = "{{ t('iv_mic_blocked') }}";
+        var rb3 = document.querySelector('[data-iv-retry]');
+        if (rb3) rb3.hidden = false;
+        return;
+      }
+      if (kind === 'network' || kind === 'language-not-supported') {
+        ivFinishWindow();
+        ivStatus.textContent = "{{ t('iv_need_net') }}";
+        var rb4 = document.querySelector('[data-iv-retry]');
+        if (rb4) rb4.hidden = false;
+        return;
+      }
+      /* Other errors (incl. no-speech): keep the window open; onend below
+         will restart listening until time runs out. */
+    };
+    ivSR.onend = function () {
+      ivListening = false;
+      /* Browser stopped early (pause/timeout) while our window is still
+         open and we have no answer yet — resume instead of hanging. */
+      if (ivActive && !ivStopping && !ivFinalText.trim()) {
+        window.setTimeout(function () { if (ivActive) ivListen(); }, 300);
+      }
+    };
+    try {
+      ivSR.start();
+      ivStatus.textContent = "{{ t('iv_listening') }}";
+    } catch (e) {
+      ivListening = false;
+      ivHeardNothing();
+      return;
+    }
+    /* End the answer window after a full 30 seconds, then process. */
+    if (ivWindowTimer) window.clearTimeout(ivWindowTimer);
+    ivWindowTimer = window.setTimeout(function () { ivFinishAnswer(); }, ivWindowMs);
+    /* Long-pause detection: if the citizen stops speaking for a few
+       seconds after giving an answer, close early and fill the part. */
+    ivLastSpeechAt = Date.now();
+    if (ivWatchTimer) window.clearInterval(ivWatchTimer);
+    ivWatchTimer = window.setInterval(function () {
+      if (!ivActive || !ivListening) return;
+      if (ivFinalText.trim() && (Date.now() - ivLastSpeechAt) > IV_SILENCE_MS) {
+        window.clearInterval(ivWatchTimer);
+        ivWatchTimer = null;
+        ivFinishAnswer();
+      }
+    }, 1000);
+  }
+  function ivFinishWindow() {
+    ivStopping = true;
+    ivListening = false;
+    if (ivWindowTimer) { window.clearTimeout(ivWindowTimer); ivWindowTimer = null; }
+    if (ivWatchTimer) { window.clearInterval(ivWatchTimer); ivWatchTimer = null; }
+    try { if (ivSR) ivSR.stop(); } catch (e) {}
+  }
+  function ivFinishAnswer() {
+    if (!ivActive) return;
+    ivFinishWindow();
+    var text = ivFinalText.trim();
+    if (!text) { ivHeardNothing(); return; }
+    ivTries = 0;
+    var rb5 = document.querySelector('[data-iv-retry]');
+    if (rb5) rb5.hidden = true;
+    ivA.textContent = text;
+    ivStatus.textContent = "{{ t('ai_filling') }}";
+    if (ivIndex === 0) appendToDesc(text);
+    analyzeAnswer(text);
+  }
+  function analyzeAnswer(text) {
+    fetch({{ url_for('api_ai_parse_report')|tojson }}, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && data.success && data.fields) {
+          /* Every answer can fill any slot (title, people count, district
+             etc.), no matter which question was asked. */
+          var f = data.fields, n = 0;
+          function fillText(id, val) {
+            if (!val) return;
+            var el = document.getElementById(id);
+            if (el && !el.value.trim()) { el.value = val; n++; }
+          }
+          fillText('title', f.title);
+          if (ivIndex === 0) { /* description already appended live */ }
+          fillText('landmark', f.landmark);
+          fillText('location_text', f.location);
+          if (f.category && setSelect('category', f.category)) {
+            n++; refreshSubs();
+            if (f.subcategory && setSelect('subcategory', f.subcategory)) n++;
+          }
+          ['district', 'problem_duration', 'issue_frequency'].forEach(function (id) {
+            var key = id === 'problem_duration' ? 'duration' : (id === 'issue_frequency' ? 'frequency' : id);
+            if (f[key] && setSelect(id, f[key])) n++;
+          });
+          var _pa = f.people_affected;
+          if (_pa !== null && _pa !== undefined && String(_pa).trim() !== '') {
+            var pa = document.getElementById('people_affected');
+            if (pa && !String(pa.value).trim()) {
+              pa.value = parseInt(_pa, 10);
+              if (!isNaN(pa.value) && String(pa.value).trim() !== '') n++;
+            }
+          }
+          ivStatus.textContent = "{{ t('ai_filled') }}".replace('{n}', n);
+        } else {
+          ivStatus.textContent = "{{ t('ai_fill_error') }}";
+        }
+        window.setTimeout(ivNext, 1600);
+      })
+      .catch(function () {
+        ivStatus.textContent = "{{ t('ai_fill_error') }}";
+        window.setTimeout(ivNext, 1600);
+      });
+  }
+  function ivNext() {
+    if (!ivActive) return;
+    if (ivIndex + 1 < IV_Q.length) {
+      ivAsk(ivIndex + 1);
+    } else {
+      ivStatus.textContent = "{{ t('iv_done') }}";
+      ivSpeak("{{ t('iv_done') }}", ivStop);
+    }
+  }
+  if (ivStart) {
+    ivStart.addEventListener('click', function () {
+      if (!ivCall) return;
+      ivActive = true;
+      ivCall.hidden = false;
+      ivCall.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      /* Match the site language to the chosen voice language. */
+      try { setSiteLang(ivLang()); } catch (e) {}
+      /* Location comes from GPS automatically — pin it now if empty so
+         district and address follow the current location. The citizen
+         can still move the pin on the map. */
+      try {
+        var latEl = document.querySelector('[data-latitude]');
+        var useLoc = document.querySelector('[data-use-location]');
+        if (latEl && !latEl.value && useLoc) useLoc.click();
+      } catch (e) {}
+      ivAsk(0);
+    });
+  }
+  if (ivEnd) ivEnd.addEventListener('click', ivStop);
+  var ivRetryBtn = document.querySelector('[data-iv-retry]');
+  if (ivRetryBtn) ivRetryBtn.addEventListener('click', function () {
+    if (!ivActive || ivIndex < 0) return;
+    ivRetryBtn.hidden = true;
+    ivAsk(ivIndex);
   });
+
+  /* ---------- Camera capture + upload-time photo check ------------------ */
+  var evInput = document.getElementById('evidence_input');
+  var camInput = document.getElementById('camera_input');
+  var camBtn = document.querySelector('[data-camera-btn]');
+  var camPreview = document.querySelector('[data-cam-preview]');
+  var camVideo = document.querySelector('[data-cam-video]');
+  var camStream = null;
+  var photoCheck = document.querySelector('[data-photo-check]');
+  var manualWrap = document.querySelector('[data-manual-review]');
+  function stopCam() {
+    if (camStream) { camStream.getTracks().forEach(function (tr) { tr.stop(); }); camStream = null; }
+    if (camPreview) camPreview.hidden = true;
+  }
+  if (camBtn) {
+    camBtn.addEventListener('click', function () {
+      if (camInput && (/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent))) { camInput.click(); return; }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        if (camInput) camInput.click();
+        return;
+      }
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+        .then(function (stream) {
+          camStream = stream;
+          camVideo.srcObject = stream;
+          camVideo.play();
+          camPreview.hidden = false;
+        })
+        .catch(function () { if (camInput) camInput.click(); });
+    });
+  }
+  var camCapture = document.querySelector('[data-cam-capture]');
+  if (camCapture) {
+    camCapture.addEventListener('click', function () {
+      if (!camVideo || !camVideo.videoWidth) return;
+      var canvas = document.createElement('canvas');
+      canvas.width = camVideo.videoWidth;
+      canvas.height = camVideo.videoHeight;
+      canvas.getContext('2d').drawImage(camVideo, 0, 0);
+      stopCam();
+      canvas.toBlob(function (blob) {
+        if (!blob || !evInput) return;
+        var file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
+        var dt = new DataTransfer();
+        dt.items.add(file);
+        evInput.files = dt.files;
+        evInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }, 'image/jpeg', 0.85);
+    });
+  }
+  var camCancel = document.querySelector('[data-cam-cancel]');
+  if (camCancel) camCancel.addEventListener('click', stopCam);
+  if (camInput) {
+    camInput.addEventListener('change', function () {
+      if (camInput.files && camInput.files[0] && evInput) {
+        var dt = new DataTransfer();
+        dt.items.add(camInput.files[0]);
+        evInput.files = dt.files;
+        evInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+  }
+  function runPhotoCheck() {
+    if (!evInput || !evInput.files || !evInput.files[0]) return;
+    var file = evInput.files[0];
+    if (!file.type || file.type.indexOf('image/') !== 0) return;
+    var title = document.getElementById('title');
+    var catSel2 = document.getElementById('category');
+    if (!title || !title.value.trim() || !desc.value.trim()) return;
+    if (photoCheck) photoCheck.textContent = "{{ t('ev_checking') }}";
+    if (manualWrap) {
+      manualWrap.hidden = true;
+      var _cb = manualWrap.querySelector('input[type=checkbox]');
+      if (_cb) _cb.checked = false;
+    }
+    var form = new FormData();
+    form.append('photo', file);
+    form.append('title', title.value.trim());
+    form.append('description', desc.value.trim());
+    form.append('category', catSel2 ? catSel2.value : '');
+    fetch({{ url_for('api_ai_check_photo')|tojson }}, { method: 'POST', body: form })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data || !data.success) { if (photoCheck) photoCheck.textContent = ''; return; }
+        if (data.match) {
+          if (photoCheck) photoCheck.textContent = "{{ t('ev_match_ok') }}".replace('{n}', data.confidence || 0);
+        } else {
+          if (photoCheck) photoCheck.textContent = "{{ t('ev_mismatch') }}";
+          if (manualWrap) manualWrap.hidden = false;
+        }
+      })
+      .catch(function () { if (photoCheck) photoCheck.textContent = ''; });
+  }
+  if (evInput) evInput.addEventListener('change', function () { window.setTimeout(runPhotoCheck, 300); });
 })();
 </script>
 

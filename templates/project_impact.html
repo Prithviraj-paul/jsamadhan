@@ -180,7 +180,7 @@
         {% for ev in impact.evidence %}
         <tr>
           <td>{{ ev.name }}</td>
-          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('uploaded_file', filename=ev.path) }}" target="_blank">{{ t('ind_view') }} →</a></td>
+          <td><a class="btn btn-sm btn-ghost" href="{{ url_for('protected_evidence', filename=ev.path) }}" target="_blank">{{ t('ind_view') }} →</a></td>
         </tr>
         {% endfor %}
         </tbody>

@@ -23,6 +23,25 @@
 
 <div class="banner banner-ai" style="margin-bottom:16px;">{{ t('p7_reported_note') }}</div>
 
+{% if impact_ai and impact_ai.data %}
+{% set _id = impact_ai.data %}
+<div class="card" style="margin-bottom:16px; border-top:4px solid var(--teal);">
+  <h2 style="font-size:1rem; margin-top:0;">{{ t('impact_ai_title') }}</h2>
+  {% if comparisons %}
+  <p style="font-size:.9rem;">{{ comparisons|join(' ') }}</p>
+  {% endif %}
+  {% if _id.summary %}<p style="font-size:.9rem;">{{ _id.summary }}</p>{% endif %}
+  {% for _label, _items in ((t('prop_ai_strengths'), _id.goals_met), (t('prop_ai_pilot'), _id.goals_partially_met), (t('prop_ai_missing'), _id.missing_evidence), (t('prop_ai_risks'), _id.risks_to_scaling)) %}
+  {% if _items %}
+  <h3 style="font-size:.86rem; margin:12px 0 4px;">{{ _label }}</h3>
+  <ul style="margin:0; padding-left:18px; font-size:.86rem; color:var(--ink-soft);">
+    {% for _it in _items %}<li>{{ _it }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="grid grid-2" style="align-items:start;">
   <div class="card">
     <div class="ai-meta-grid" style="margin-top:6px; grid-template-columns:1fr 1fr;">
@@ -49,6 +68,11 @@
 
     <h2 style="font-size:.95rem; margin-top:18px;">{{ t('p7_key_outcomes') }}</h2>
     <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;">{{ assessment.key_outcomes or t('not_assigned') }}</p>
+
+    {% if success_criteria %}
+    <h2 style="font-size:.95rem; margin-top:18px;">{{ t('success_compare_title') }}</h2>
+    <p style="font-size:.9rem; margin:6px 0 0; white-space:pre-wrap;"><strong>{{ t('success_title') }}:</strong> {{ success_criteria }}</p>
+    {% endif %}
   </div>
 
   <div class="card">
@@ -91,7 +115,7 @@
       {% for ev in assessment.evidence %}
       <tr>
         <td>{{ ev.name }}</td>
-        <td><a class="btn btn-sm btn-ghost" href="{{ url_for('uploaded_file', filename=ev.path) }}" target="_blank">{{ t('ind_view') }} →</a></td>
+        <td><a class="btn btn-sm btn-ghost" href="{{ url_for('protected_evidence', filename=ev.path) }}" target="_blank">{{ t('ind_view') }} →</a></td>
       </tr>
       {% endfor %}
       </tbody>

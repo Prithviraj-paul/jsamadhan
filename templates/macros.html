@@ -242,6 +242,56 @@
 {% endif %}
 {%- endmacro %}
 
+{% macro ai_recommendation_box(rec, citizen_category, public=false) -%}
+{% if rec and rec.data %}
+{% set d = rec.data %}
+{% set disagree = d.recommended_category and d.recommended_category != citizen_category %}
+<div class="card" style="margin-top:20px;">
+  <h2 style="font-size:1rem; margin-top:0;">{{ t('ai_rec_title') }}</h2>
+  {% if d.summary %}<p style="font-size:.9rem;">{{ d.summary }}</p>{% endif %}
+  <div class="pub-kv"><span>{{ t('ai_citizen_selected') }}</span><strong>{{ cat_label(citizen_category) }}</strong></div>
+  <div class="pub-kv"><span>{{ t('ai_suggests') }}</span><strong>{{ cat_label(d.recommended_category) }}{% if d.recommended_subcategory %} · {{ d.recommended_subcategory }}{% endif %}</strong></div>
+  <div class="pub-kv"><span>{{ t('ai_assess_score') }}</span><strong>{{ d.severity_score }}/100 ({{ d.urgency }})</strong></div>
+  {% if disagree %}
+  <div class="banner banner-warn" style="margin:12px 0 0;">{{ t('ai_officer_decides') }}</div>
+  {% endif %}
+  {% if d.limitations %}
+  <p class="hint" style="margin:8px 0 0;">{{ t('res_limitations') }}: {{ d.limitations|join('; ') }}</p>
+  {% endif %}
+  {% if not public %}
+  <details style="margin-top:10px; font-size:.82rem;">
+    <summary style="cursor:pointer;">{{ t('ai_tech') }}</summary>
+    <div class="hint" style="margin-top:6px;">
+      {{ t('ai_provider') }}: {{ rec.provider or '—' }} · {{ t('ai_model') }}: {{ rec.model or '—' }} · {{ t('ai_latency') }}: {{ rec.latency_ms or 0 }} ms · {{ t('ai_fallback') }}: {{ t('yes') if rec.fallback_used else t('no') }}
+    </div>
+  </details>
+  {% endif %}
+</div>
+{% endif %}
+{%- endmacro %}
+
+{% macro resolution_review(c, public=false) -%}
+{% if c.resolution_ai_status %}
+<div class="banner banner-ai" style="margin-bottom:16px; display:block;">
+  <strong>{{ t('res_review_title') }}: {{ t('res_status_' + c.resolution_ai_status) }}</strong>
+  <div style="font-weight:500; font-size:.85rem; margin-top:4px;">
+    {{ t('res_score') }}: {{ c.resolution_confidence }}/100
+    {% if c.resolution_same_scene_score is not none %} · {{ t('res_site') }}: {{ c.resolution_same_scene_score }}/100{% endif %}
+  </div>
+  {% if not public and c.resolution_note %}
+  <div class="hint" style="margin:6px 0 0;">{{ c.resolution_note }}</div>
+  {% endif %}
+  {% if c.resolution_manual_review %}
+  <div class="hint" style="margin:4px 0 0;">{{ t('res_manual') }}</div>
+  {% endif %}
+</div>
+{% elif c.resolution_confidence is not none %}
+<div class="banner banner-ai" style="margin-bottom:16px;">
+  {{ t('ai_resolution_check') }}: {{ t('change_score') }} {{ c.resolution_confidence }}/100
+</div>
+{% endif %}
+{%- endmacro %}
+
 {% macro readiness_badge(label) -%}
 {% if label == 'industry_connected' %}
   <span class="badge badge-resolved">{{ t('ind_readiness_connected') }}</span>

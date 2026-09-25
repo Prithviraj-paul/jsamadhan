@@ -43,6 +43,27 @@
   <div class="kpi"><div class="n">{{ kpis.districts_covered }}</div><div class="l">{{ t('kpi_districts_covered') }}</div></div>
 </div>
 
+<!-- Category intelligence: top recurring subcategories from real reports -->
+{% if cat_intel is defined and cat_intel %}
+<div class="card" style="margin-top:22px;">
+  <h2 style="font-size:1rem; margin-top:0;">{{ t('catintel_title') }}</h2>
+  <div class="grid grid-3">
+    {% for group in cat_intel %}
+    <div>
+      <h3 style="font-size:.88rem; margin:0 0 6px; color:var(--forest);">{{ cat_label(group.area) }}</h3>
+      {% if group.top %}
+      {% for item in group.top %}
+      <div class="pub-kv"><span>{{ item.sub }}</span><strong>{{ item.n }}</strong></div>
+      {% endfor %}
+      {% else %}
+      <p class="hint" style="margin:0;">{{ t('catintel_empty') }}</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <!-- Action required -->
 <div class="card" style="margin-top:22px;">
   <div class="cc-section-head">

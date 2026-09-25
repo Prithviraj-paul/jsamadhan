@@ -13,8 +13,9 @@
     <div class="crumb">#{{ complaint.code }} · {{ complaint.created_at.strftime('%d %b %Y') }}</div>
     <h1>{{ complaint.title }}</h1>
     <div class="meta" style="font-size:.86rem; color:var(--ink-soft);">
-      {{ dist_label(complaint.district) }} · {{ cat_label(complaint.category) }}
+      {{ dist_label(complaint.district) }} · {{ cat_label(complaint.category) }}{% if complaint.subcategory %} · {{ complaint.subcategory }}{% endif %}
       {% if complaint.location_text %} · {{ complaint.location_text }}{% endif %}
+      {% if complaint.landmark %} · 📍 {{ complaint.landmark }}{% endif %}
     </div>
   </div>
   {{ m.status_badge(complaint) }}
@@ -23,9 +24,9 @@
 {% if complaint.photo_filename %}
 <div class="evidence-box" style="margin-bottom:20px;">
   {% if complaint.is_photo_video %}
-  <video controls muted preload="metadata" style="max-height:320px;"><source src="{{ url_for('uploaded_file', filename=complaint.photo_filename) }}" type="video/mp4"></video>
+  <video controls muted preload="metadata" style="max-height:320px;"><source src="{{ url_for('protected_evidence', filename=complaint.photo_filename) }}" type="video/mp4"></video>
   {% else %}
-  <img src="{{ url_for('uploaded_file', filename=complaint.photo_filename) }}" alt="Evidence">
+  <img src="{{ url_for('protected_evidence', filename=complaint.photo_filename) }}" alt="Evidence">
   {% endif %}
   <div class="cap">{{ t('evidence_before') }}</div>
 </div>
@@ -114,6 +115,8 @@
   <span style="font-weight:500;">{{ t('create_challenge_hint', code=complaint.code) }}</span>
 </div>
 
+{{ m.ai_recommendation_box(ai_rec, complaint.category) }}
+
 <!-- AI-assisted duplicate detection -->
 <div class="card" style="margin-top:20px;" id="duplicate-match">
   <div class="cc-section-head">
@@ -184,19 +187,17 @@
   <div class="evidence-pair">
     {% if complaint.photo_filename %}
     <div class="evidence-box">
-      <img src="{{ url_for('uploaded_file', filename=complaint.photo_filename) }}" alt="Before">
+      <img src="{{ url_for('protected_evidence', filename=complaint.photo_filename) }}" alt="Before">
       <div class="cap">{{ t('evidence_before') }}</div>
     </div>
     {% endif %}
     <div class="evidence-box">
-      <img src="{{ url_for('uploaded_file', filename=complaint.resolution_filename) }}" alt="After">
+      <img src="{{ url_for('protected_evidence', filename=complaint.resolution_filename) }}" alt="After">
       <div class="cap">{{ t('evidence_after_officer') }}</div>
     </div>
   </div>
-  {% if complaint.resolution_confidence is not none %}
-  <div class="banner banner-ai" style="margin-top:16px; margin-bottom:0;">
-    {{ t('ai_resolution_check') }}: {{ t('change_score') }} {{ complaint.resolution_confidence }}/100
-  </div>
+  {% if complaint.resolution_filename %}
+  {{ m.resolution_review(complaint) }}
   {% endif %}
 </div>
 {% endif %}

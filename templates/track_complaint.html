@@ -2,17 +2,6 @@
 {% import "macros.html" as m %}
 {% block title %}#{{ complaint.code }} — {{ t('app_name') }}{% endblock %}
 {% block body %}
-<header class="topnav">
-  <a class="govt-brand" href="{{ url_for('landing') }}">
-    <span class="govt-mark" aria-hidden="true">झा</span>
-    <span class="brand"><strong>{{ t('app_name')|upper }}</strong><span>{{ t('govt_of_jharkhand') }}</span></span>
-  </a>
-  <nav>
-    {% include "lang_switcher.html" %}
-    <a href="{{ url_for('landing') }}">{{ t('nav_back_home') }}</a>
-  </nav>
-</header>
-
 <div class="page">
   {{ m.status_banner(complaint) }}
 
@@ -51,6 +40,32 @@
     {{ m.status_badge(complaint) }}
   </div>
 
+  <!-- Citizen journey: plain-language stages -->
+  <div class="card track-journey" style="margin-bottom:20px;">
+    <h2 style="font-size:1rem; margin-top:0;">{{ t('track_progress_title') }}</h2>
+    <ol class="journey">
+      {% for st in citizen_stages %}
+      <li class="{{ 'done' if st.done }} {{ 'current' if st.current }}">
+        <span class="j-dot" aria-hidden="true">{% if st.done %}✓{% else %}{{ loop.index }}{% endif %}</span>
+        <span class="j-label">{{ t(st.key) }}</span>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+
+  {% if pub_challenge %}
+  <div class="banner banner-ai" style="margin-bottom:16px;">
+    <strong>{{ t('track_challenge_msg') }}</strong>
+    <a class="lm-view" style="margin:0 0 0 8px;" href="{{ url_for('public_challenge_detail', challenge_id=pub_challenge.id) }}">{{ pub_challenge.code }} — {{ t('track_challenge_view') }} →</a>
+  </div>
+  {% elif challenge_pending %}
+  <div class="banner banner-warn" style="margin-bottom:16px;">
+    {{ t('track_challenge_pending') }}
+  </div>
+  {% endif %}
+
+  {{ m.ai_recommendation_box(ai_rec, complaint.category, public=true) }}
+
   <!-- Evidence pair -->
   {% if complaint.photo_filename or complaint.resolution_filename %}
   <div class="evidence-pair" style="margin-bottom:20px;">
@@ -64,7 +79,7 @@
       <div class="cap">{{ t('evidence_before') }}</div>
     </div>
     {% endif %}
-    {% if complaint.resolution_filename %}
+    {% if complaint.resolution_filename and complaint.status == 'Resolved' %}
     <div class="evidence-box">
       <img src="{{ url_for('uploaded_file', filename=complaint.resolution_filename) }}" alt="Resolution">
       <div class="cap">{{ t('evidence_after_officer') }}</div>
@@ -77,31 +92,32 @@
   </div>
   {% endif %}
 
-  <!-- AI resolution check -->
-  {% if complaint.resolution_confidence is not none %}
-  <div class="banner banner-ai" style="margin-bottom:16px;">
-    {{ t('ai_resolution_check') }}: {{ t('change_score') }} {{ complaint.resolution_confidence }}/100
-    {% if complaint.resolution_confidence is not none %}
-      — {{ complaint.resolution_note }}
-    {% endif %}
-  </div>
-  {% endif %}
+  <!-- AI-assisted resolution review (short public version) -->
+  {{ m.resolution_review(complaint, public=true) }}
 
   <div class="grid grid-2">
     <div class="card">
       <h2 style="font-size:1rem; margin-top:0;">{{ t('problem_section') }}</h2>
       <p style="font-size:.9rem;">{{ complaint.description }}</p>
       <div class="meta" style="font-size:.82rem; color:var(--ink-soft);">
-        {{ dist_label(complaint.district) }} · {{ cat_label(complaint.category) }}
+        {{ dist_label(complaint.district) }} · {{ cat_label(complaint.category) }}{% if complaint.subcategory %} · {{ complaint.subcategory }}{% endif %}
         {% if complaint.location_text %} · {{ complaint.location_text }}{% endif %}
       </div>
+      {% if not is_pilot_category(complaint.category) %}
+      <div class="hint" style="margin-top:6px;">{{ t('legacy_badge') }}</div>
+      {% endif %}
+      {% if complaint.landmark or complaint.problem_duration or complaint.people_affected is not none or complaint.issue_frequency %}
+      <div class="meta" style="font-size:.82rem; color:var(--ink-soft); margin-top:6px;">
+        {% if complaint.landmark %}📍 {{ complaint.landmark }} · {% endif %}
+        {% if complaint.problem_duration %}{{ t('problem_duration') }}: {{ complaint.problem_duration }} · {% endif %}
+        {% if complaint.people_affected is not none %}{{ t('people_affected') }}: {{ complaint.people_affected }} · {% endif %}
+        {% if complaint.issue_frequency %}{{ t('issue_frequency') }}: {{ complaint.issue_frequency }}{% endif %}
+      </div>
+      {% endif %}
     </div>
     <div class="card">
       <h2 style="font-size:1rem; margin-top:0;">{{ t('reported_by_section') }}</h2>
-      <p style="font-size:.9rem;">{{ complaint.citizen.name }}<br>{{ complaint.citizen.email }}</p>
-      {% if complaint.officer %}
-      <p style="font-size:.82rem; color:var(--ink-soft);">Assigned to: {{ complaint.officer.name }}</p>
-      {% endif %}
+      <p style="font-size:.9rem;">{{ t('track_reporter_anon') }}</p>
     </div>
   </div>
 

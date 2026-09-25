@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ t('pub_title') }} — {{ t('app_name') }}{% endblock %}
+{% block body %}
+<div class="page">
+  <div class="crumb"><a href="{{ url_for('landing') }}">{{ t('nav_home') }}</a> / {{ t('pub_title') }}</div>
+  <h1>{{ t('pub_title') }}</h1>
+  <p class="section-sub">{{ t('pub_sub') }}</p>
+
+  <form method="GET" class="card pub-filters">
+    <div class="pub-filter-row">
+      <div>
+        <label for="f-focus">{{ t('pub_f_focus') }}</label>
+        <select id="f-focus" name="focus">
+          <option value="all">{{ t('filter_all') }}</option>
+          {% for cat in PILOT_CATEGORIES %}
+          <option value="{{ cat }}" {{ 'selected' if filters.focus == cat }}>{{ cat_label(cat) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="f-district">{{ t('pub_f_district') }}</label>
+        <select id="f-district" name="district">
+          <option value="all">{{ t('filter_all') }}</option>
+          {% for dist in DISTRICTS %}
+          <option value="{{ dist }}" {{ 'selected' if filters.district == dist }}>{{ dist_label(dist) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="f-priority">{{ t('pub_f_priority') }}</label>
+        <select id="f-priority" name="priority">
+          <option value="all">{{ t('filter_all') }}</option>
+          {% for pl in ('low', 'normal', 'high', 'critical') %}
+          <option value="{{ pl }}" {{ 'selected' if filters.priority == pl }}>{{ pl|capitalize }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="f-stage">{{ t('pub_f_stage') }}</label>
+        <select id="f-stage" name="stage">
+          <option value="all">{{ t('filter_all') }}</option>
+          {% for st in ('validated', 'match', 'proposal', 'project', 'prototype', 'testing', 'pilot', 'impact', 'scaling') %}
+          <option value="{{ st }}" {{ 'selected' if filters.stage == st }}>{{ t('pub_stage_' + st) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="pub-search">
+        <label for="f-q">{{ t('pub_f_search') }}</label>
+        <input type="text" id="f-q" name="q" value="{{ filters.q }}" placeholder="{{ t('pub_search_ph') }}">
+      </div>
+    </div>
+    <div class="pub-filter-actions">
+      <button type="submit" class="btn btn-forest btn-sm">{{ t('pub_search_btn') }}</button>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('challenge_explorer') }}">{{ t('pub_clear') }}</a>
+    </div>
+  </form>
+
+  {% if challenges %}
+  <div class="focus-grid" style="margin-top:20px;">
+    {% for c in challenges %}
+    <div class="focus-card">
+      <div class="body">
+        <span class="id">{{ c.code }}</span>
+        <h3>{{ c.title }}</h3>
+        <p class="tags">{{ cat_label(c.category) }}{% if c.subcategory %} · {{ c.subcategory }}{% endif %}</p>
+        <p>{{ c.description[:160] }}{% if c.description|length > 160 %}…{% endif %}</p>
+        <div class="pub-meta">
+          <span>📍 {{ dist_label(c.district) }}</span>
+          <span>{{ c.priority_level|capitalize }}</span>
+          <span>{{ t('pub_stage_' + c.public_progress.stage) }}</span>
+        </div>
+        <div class="pub-meta">
+          <span>{{ t('cluster_reports', n=c.public_progress.reports) }}</span>
+          <span>{{ t('pub_c_teams') }}: {{ c.public_progress.teams|length }}</span>
+          {% if c.public_progress.pattern %}<span><strong>{{ t('cluster_pattern') }}</strong></span>{% endif %}
+          {% if c.public_progress.pilots %}<span>{{ t('pub_c_pilot') }}: {{ c.public_progress.pilot_statuses|join(', ') }}</span>{% endif %}
+        </div>
+        <a class="all" href="{{ url_for('public_challenge_detail', challenge_id=c.id) }}">{{ t('pub_view') }} →</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="hint" style="margin-top:20px;">{{ t('pub_empty') }}</p>
+  {% endif %}
+</div>
+
+<footer class="footer">
+  <span>{{ t('footer_note') }}</span>
+  <span class="credits">{{ t('privacy_note') }}</span>
+</footer>
+{% endblock %}

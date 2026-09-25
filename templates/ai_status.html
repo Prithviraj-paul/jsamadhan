@@ -1,0 +1,37 @@
+{% extends "app_base.html" %}
+{% set active = 'overview' %}
+{% block title %}AI Status — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('admin_dashboard') }}">{{ t('nav_overview') }}</a> / AI Status</div>
+<h1 style="font-size:1.3rem;">AI Provider Health</h1>
+<p class="hint">Configuration and minimal live probes. API keys are never displayed.</p>
+
+<div class="grid grid-2" style="margin-top:16px;">
+  {% for key, label in (('gemini', 'Gemini'), ('groq', 'Groq'), ('openrouter', 'OpenRouter'), ('huggingface', 'Hugging Face')) %}
+  {% set info = status[key] %}
+  <div class="card">
+    <div class="cc-section-head">
+      <h2 style="font-size:1rem; margin:0;">{{ label }}</h2>
+      {% if info.configured %}
+      <span class="badge badge-accepted">Configured</span>
+      {% else %}
+      <span class="badge badge-pending">Not configured</span>
+      {% endif %}
+    </div>
+    <div class="pub-kv"><span>Model</span><strong>{{ info.model }}</strong></div>
+    {% if key == 'groq' %}<div class="pub-kv"><span>Whisper</span><strong>{{ info.whisper_model }}</strong></div>{% endif %}
+    {% if result and tested == key %}
+    <div class="pub-kv"><span>Last call</span><strong>{{ 'Success' if result.ok else 'Failed' }}</strong></div>
+    {% if result.latency_ms is not none %}<div class="pub-kv"><span>Latency</span><strong>{{ result.latency_ms }} ms</strong></div>{% endif %}
+    <div class="pub-kv"><span>Detail</span><strong>{{ result.message }}</strong></div>
+    <span class="conf-pill conf-{{ 'strong' if result.level == 'green' else 'medium' if result.level == 'yellow' else 'low' if result.level == 'red' else 'possible' }}">{{ result.level|capitalize }}</span>
+    {% endif %}
+    <form method="POST" style="margin-top:12px;">
+      <input type="hidden" name="provider" value="{{ key }}">
+      <button type="submit" class="btn btn-sm btn-ghost" {% if not info.configured %}disabled{% endif %}>Test {{ label }}</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

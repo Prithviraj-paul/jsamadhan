@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% import "macros.html" as m %}
-{% block title %}{{ t('app_name') }}{% endblock %}
+{% block title %}{{ t('app_name') }} — {{ t('hero_title') }}{% endblock %}
 {% block head_extra %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
@@ -9,32 +9,29 @@
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
 {% endblock %}
 {% block body %}
-<header class="topnav">
-  <a class="govt-brand" href="{{ url_for('landing') }}" aria-label="Government of Jharkhand">
-    <span class="govt-mark" aria-hidden="true">झा</span>
-    <span class="brand"><strong class="erase-title" data-erase-title data-title-en="Jharkhand Samadhan" data-title-hi="झारखंड समाधान">Jharkhand Samadhan</strong><span>{{ t('govt_of_jharkhand') }}</span></span>
-  </a>
-  <nav>
-    {% include "lang_switcher.html" %}
-    <a class="login-icon" href="{{ url_for('login') }}" aria-label="{{ t('btn_login') }}" title="{{ t('btn_login') }}">⇥</a>
-  </nav>
-</header>
-
 <div class="demo-notice" role="alert">
   <span>🥼</span>
   <span>{{ t('demo_notice') }}</span>
 </div>
 
+{# ---------- Section 1 — Hero ---------- #}
 <section class="hero">
   <div class="hero-inner">
     <div class="hero-copy">
       <span class="hero-kicker">{{ t('hero_kicker') }}</span>
-      <h1 class="erase-title hero-h1-animated" data-erase-title data-title-en="Report it. Track it. See it fixed.." data-title-hi="Shikayat karein. Track karein. Theek hote hue dekhein."></h1>
+      <h1>{{ t('hero_title') }}</h1>
       <p class="hero-lead">{{ t('hero_body') }}</p>
       <div class="hero-cta">
-        <a class="btn-report-hero" href="{{ url_for('register') }}">{{ t('nav_register') }} ›</a>
-        <a class="btn-hero-guest" href="{{ url_for('login') }}">{{ t('btn_login') }}</a>
+        <a class="btn-report-hero" href="{{ url_for('register') }}">{{ t('btn_report_problem') }} ›</a>
+        <a class="btn-hero-guest" href="{{ url_for('challenge_explorer') }}">{{ t('btn_explore_challenges') }}</a>
       </div>
+      <form id="track" class="hero-track" data-track-form>
+        <label for="track-code">{{ t('track_title') }}</label>
+        <div class="hero-track-row">
+          <input type="text" id="track-code" data-track-code placeholder="{{ t('track_ph') }}" autocomplete="off">
+          <button type="submit" class="btn btn-forest btn-sm">{{ t('track_btn') }}</button>
+        </div>
+      </form>
     </div>
     <div class="hero-art">
       <img src="{{ url_for('static', filename='img/problems/hero.jpg') }}" alt="{{ t('hero_title') }}">
@@ -43,135 +40,176 @@
 </section>
 
 <div class="page">
-  <section class="section lm-split">
-    <div class="lm-split-col">
-      <div class="section-title"><h2>{{ t('sec_problems_title') }}</h2></div>
-      <p class="section-sub">{{ t('sec_problems_sub') }}</p>
-      <div class="problem-grid">
-        <a class="problem-card" href="{{ url_for('register') }}">
-          <img class="thumb" src="{{ url_for('static', filename='img/problems/road.jpg') }}" alt="{{ t('problem_road') }}">
-          <div class="body">
-            <h3>{{ t('problem_road') }}</h3>
-            <p>{{ t('problem_road_desc') }}</p>
-          </div>
-        </a>
-        <a class="problem-card" href="{{ url_for('register') }}">
-          <img class="thumb" src="{{ url_for('static', filename='img/problems/water.jpg') }}" alt="{{ t('problem_water') }}">
-          <div class="body">
-            <h3>{{ t('problem_water') }}</h3>
-            <p>{{ t('problem_water_desc') }}</p>
-          </div>
-        </a>
-        <a class="problem-card" href="{{ url_for('register') }}">
-          <img class="thumb" src="{{ url_for('static', filename='img/problems/electric.jpg') }}" alt="{{ t('problem_electricity') }}">
-          <div class="body">
-            <h3>{{ t('problem_electricity') }}</h3>
-            <p>{{ t('problem_electricity_desc') }}</p>
-          </div>
-        </a>
-        <a class="problem-card" href="{{ url_for('register') }}">
-          <img class="thumb" src="{{ url_for('static', filename='img/problems/sanitation.jpg') }}" alt="{{ t('problem_sanitation') }}">
-          <div class="body">
-            <h3>{{ t('problem_sanitation') }}</h3>
-            <p>{{ t('problem_sanitation_desc') }}</p>
-          </div>
-        </a>
-        <a class="problem-card" href="{{ url_for('register') }}">
-          <img class="thumb" src="{{ url_for('static', filename='img/problems/health.jpg') }}" alt="{{ t('problem_health') }}">
-          <div class="body">
-            <h3>{{ t('problem_health') }}</h3>
-            <p>{{ t('problem_health_desc') }}</p>
-          </div>
-        </a>
-        <a class="problem-card" href="{{ url_for('register') }}">
-          <img class="thumb" src="{{ url_for('static', filename='img/problems/education.jpg') }}" alt="{{ t('problem_education') }}">
-          <div class="body">
-            <h3>{{ t('problem_education') }}</h3>
-            <p>{{ t('problem_education_desc') }}</p>
-          </div>
-        </a>
-      </div>
+  {# ---------- Section 2 — Three Focus Areas ---------- #}
+  <section class="section" id="focus-areas">
+    <div class="section-title"><h2>{{ t('focus_title') }}</h2></div>
+    <p class="section-sub">{{ t('focus_sub') }}</p>
+    <div class="banner banner-ai" style="margin-bottom:14px;">
+      <strong>{{ t('pilot_focus_title') }}</strong>
+      <div class="hint" style="margin:4px 0 0;">{{ t('pilot_focus_desc') }}</div>
     </div>
-
-    <div class="lm-split-col">
-      <div class="section-title"><h2>{{ t('lm_title') }}</h2></div>
-      <p class="section-sub">{{ t('lm_sub') }}</p>
-      <div class="card lm-card">
-        <div id="live-problems-map" class="lm-map"></div>
-        <div id="lm-empty" class="lm-empty" hidden></div>
+    <div class="focus-grid">
+      <div class="focus-card">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/road.jpg') }}" alt="{{ t('focus_road_title') }}" loading="lazy">
+        <div class="body">
+          <h3>{{ t('focus_road_title') }}</h3>
+          <p class="tags">{{ t('focus_road_tags') }}</p>
+          <p>{{ t('focus_road_desc') }}</p>
+        </div>
       </div>
-      <div class="lm-legend">
-        <span class="lm-item"><span class="dot" style="background:#e11d2e;"></span> {{ t('urgency_critical') }}</span>
-        <span class="lm-item"><span class="dot" style="background:#f97316;"></span> {{ t('urgency_high') }}</span>
-        <span class="lm-item"><span class="dot" style="background:#10b981;"></span> {{ t('urgency_normal') }}</span>
-        <span class="lm-item"><span class="dot" style="background:#3b82f6;"></span> {{ t('urgency_low') }}</span>
-        <span class="lm-item"><span class="dot" style="background:#8a919c;"></span> {{ t('lm_urgency_not_specified') }}</span>
-        <span class="lm-hint">{{ t('lm_cluster_hint') }}</span>
+      <div class="focus-card">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/water.jpg') }}" alt="{{ t('focus_water_title') }}" loading="lazy">
+        <div class="body">
+          <h3>{{ t('focus_water_title') }}</h3>
+          <p class="tags">{{ t('focus_water_tags') }}</p>
+          <p>{{ t('focus_water_desc') }}</p>
+        </div>
+      </div>
+      <div class="focus-card">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/education.jpg') }}" alt="{{ t('focus_edu_title') }}" loading="lazy">
+        <div class="body">
+          <h3>{{ t('focus_edu_title') }}</h3>
+          <p class="tags">{{ t('focus_edu_tags') }}</p>
+          <p>{{ t('focus_edu_desc') }}</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="section how-banner">
-    <div class="section-title"><h2>{{ t('sec_how_title') }}</h2><small>{{ t('sec_how_sub') }}</small></div>
-    <div class="arch">
-      <div class="arch-step">
-        <span class="num c1" aria-hidden="true">1</span>
-        <h3>{{ t('arch_1') }}</h3>
-        <p>{{ t('arch_1_desc') }}</p>
+  {# ---------- Section 3 — One Problem-Solving Ecosystem ---------- #}
+  <section class="section" id="ecosystem">
+    <div class="section-title"><h2>{{ t('eco_title') }}</h2></div>
+    <p class="section-sub">{{ t('eco_sub') }}</p>
+    <div class="eco-grid">
+      <div class="eco-card">
+        <div class="eco-icon" aria-hidden="true">🧑‍🤝‍🧑</div>
+        <h3>{{ t('eco_citizens_t') }}</h3>
+        <p>{{ t('eco_citizens_d') }}</p>
       </div>
-      <span class="arch-arrow" aria-hidden="true">→</span>
-      <div class="arch-step">
-        <span class="num c2" aria-hidden="true">2</span>
-        <h3>{{ t('arch_2') }}</h3>
-        <p>{{ t('arch_2_desc') }}</p>
+      <div class="eco-card">
+        <div class="eco-icon" aria-hidden="true">🏛️</div>
+        <h3>{{ t('eco_govt_t') }}</h3>
+        <p>{{ t('eco_govt_d') }}</p>
       </div>
-      <span class="arch-arrow" aria-hidden="true">→</span>
-      <div class="arch-step">
-        <span class="num c3" aria-hidden="true">3</span>
-        <h3>{{ t('arch_3') }}</h3>
-        <p>{{ t('arch_3_desc') }}</p>
+      <div class="eco-card">
+        <div class="eco-icon" aria-hidden="true">🎓</div>
+        <h3>{{ t('eco_uni_t') }}</h3>
+        <p>{{ t('eco_uni_d') }}</p>
       </div>
-      <span class="arch-arrow" aria-hidden="true">→</span>
-      <div class="arch-step">
-        <span class="num c4" aria-hidden="true">4</span>
-        <h3>{{ t('arch_4') }}</h3>
-        <p>{{ t('arch_4_desc') }}</p>
-      </div>
-      <span class="arch-arrow" aria-hidden="true">→</span>
-      <div class="arch-step">
-        <span class="num c5" aria-hidden="true">5</span>
-        <h3>{{ t('arch_5') }}</h3>
-        <p>{{ t('arch_5_desc') }}</p>
-      </div>
-      <span class="arch-arrow" aria-hidden="true">→</span>
-      <div class="arch-step">
-        <span class="num c6" aria-hidden="true">6</span>
-        <h3>{{ t('arch_6') }}</h3>
-        <p>{{ t('arch_6_desc') }}</p>
-      </div>
-      <span class="arch-arrow" aria-hidden="true">→</span>
-      <div class="arch-step">
-        <span class="num c7" aria-hidden="true">7</span>
-        <h3>{{ t('arch_7') }}</h3>
-        <p>{{ t('arch_7_desc') }}</p>
-      </div>
-      <span class="arch-arrow" aria-hidden="true">→</span>
-      <div class="arch-step">
-        <span class="num c8" aria-hidden="true">8</span>
-        <h3>{{ t('arch_8') }}</h3>
-        <p>{{ t('arch_8_desc') }}</p>
+      <div class="eco-card">
+        <div class="eco-icon" aria-hidden="true">🏭</div>
+        <h3>{{ t('eco_industry_t') }}</h3>
+        <p>{{ t('eco_industry_d') }}</p>
       </div>
     </div>
   </section>
 
-  <div class="grid grid-3" style="margin:26px 0 36px;">
-    <div class="kpi"><div class="n">{{ stats.total }}</div><div class="l">{{ t('stat_reported') }}</div></div>
-    <div class="kpi"><div class="n">{{ stats.open }}</div><div class="l">{{ t('stat_open') }}</div></div>
-    <div class="kpi"><div class="n">{{ stats.resolved }}</div><div class="l">{{ t('stat_resolved') }}</div></div>
-  </div>
+  {# ---------- Section 4 — Full workflow ---------- #}
+  <section class="section how-banner" id="how-it-works">
+    <div class="section-title"><h2>{{ t('flow_title') }}</h2><small>{{ t('flow_sub') }}</small></div>
+    <ol class="flow-grid">
+      <li class="flow-step"><span class="num" aria-hidden="true">1</span><h3>{{ t('flow_1t') }}</h3><p>{{ t('flow_1d') }}</p></li>
+      <li class="flow-step"><span class="num" aria-hidden="true">2</span><h3>{{ t('flow_2t') }}</h3><p>{{ t('flow_2d') }}</p></li>
+      <li class="flow-step"><span class="num" aria-hidden="true">3</span><h3>{{ t('flow_3t') }}</h3><p>{{ t('flow_3d') }}</p></li>
+      <li class="flow-step"><span class="num" aria-hidden="true">4</span><h3>{{ t('flow_4t') }}</h3><p>{{ t('flow_4d') }}</p></li>
+      <li class="flow-step"><span class="num" aria-hidden="true">5</span><h3>{{ t('flow_5t') }}</h3><p>{{ t('flow_5d') }}</p></li>
+      <li class="flow-step"><span class="num" aria-hidden="true">6</span><h3>{{ t('flow_6t') }}</h3><p>{{ t('flow_6d') }}</p></li>
+      <li class="flow-step"><span class="num" aria-hidden="true">7</span><h3>{{ t('flow_7t') }}</h3><p>{{ t('flow_7d') }}</p></li>
+      <li class="flow-step"><span class="num" aria-hidden="true">8</span><h3>{{ t('flow_8t') }}</h3><p>{{ t('flow_8d') }}</p></li>
+    </ol>
+  </section>
 
+  {# ---------- Section 5 — Live Problem Intelligence ---------- #}
+  <section class="section" id="live-map">
+    <div class="section-title"><h2>{{ t('intel_title') }}</h2></div>
+    <p class="section-sub">{{ t('intel_sub') }}</p>
+    <div class="intel-filters" role="group" aria-label="{{ t('intel_title') }}">
+      <button type="button" class="btn btn-sm btn-forest" data-map-filter="all" aria-pressed="true">{{ t('filter_all') }}</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-map-filter="roads" aria-pressed="false">{{ t('filter_roads') }}</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-map-filter="water" aria-pressed="false">{{ t('filter_water') }}</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-map-filter="edu" aria-pressed="false">{{ t('filter_edu') }}</button>
+    </div>
+    <div class="card lm-card">
+      <div id="live-problems-map" class="lm-map"></div>
+      <div id="lm-empty" class="lm-empty" hidden></div>
+    </div>
+    <div class="lm-legend">
+      <span class="lm-item"><span class="dot" style="background:#e11d2e;"></span> {{ t('urgency_critical') }}</span>
+      <span class="lm-item"><span class="dot" style="background:#f97316;"></span> {{ t('urgency_high') }}</span>
+      <span class="lm-item"><span class="dot" style="background:#10b981;"></span> {{ t('urgency_normal') }}</span>
+      <span class="lm-item"><span class="dot" style="background:#3b82f6;"></span> {{ t('urgency_low') }}</span>
+      <span class="lm-item"><span class="dot" style="background:#8a919c;"></span> {{ t('lm_urgency_not_specified') }}</span>
+      <span class="lm-hint">{{ t('lm_cluster_hint') }}</span>
+    </div>
+  </section>
+
+  {# ---------- Section 6 — Problem → Challenge → Solution ---------- #}
+  <section class="section" id="funnel">
+    <div class="section-title"><h2>{{ t('funnel_title') }}</h2></div>
+    <p class="section-sub">{{ t('funnel_sub') }}</p>
+    <ol class="funnel">
+      <li class="funnel-step"><span class="funnel-n">{{ stats.total }}</span><span class="funnel-l">{{ t('funnel_reports') }}</span></li>
+      <li class="funnel-arrow" aria-hidden="true">↓</li>
+      <li class="funnel-step"><span class="funnel-n">{{ stats.challenges_validated }}</span><span class="funnel-l">{{ t('funnel_challenge') }}</span></li>
+      <li class="funnel-arrow" aria-hidden="true">↓</li>
+      <li class="funnel-step"><span class="funnel-n">{{ stats.teams }}</span><span class="funnel-l">{{ t('funnel_teams') }}</span></li>
+      <li class="funnel-arrow" aria-hidden="true">↓</li>
+      <li class="funnel-step"><span class="funnel-n">{{ stats.solutions }}</span><span class="funnel-l">{{ t('funnel_solution') }}</span></li>
+      <li class="funnel-arrow" aria-hidden="true">↓</li>
+      <li class="funnel-step"><span class="funnel-n">{{ stats.pilots }}</span><span class="funnel-l">{{ t('funnel_pilot') }}</span></li>
+      <li class="funnel-arrow" aria-hidden="true">↓</li>
+      <li class="funnel-step"><span class="funnel-n">{{ stats.deployed }}</span><span class="funnel-l">{{ t('funnel_impact') }}</span></li>
+    </ol>
+    <p class="hint">{{ t('funnel_demo_note') }}</p>
+  </section>
+
+  {# ---------- Validated challenges preview ---------- #}
+  {% if landing_challenges %}
+  <section class="section" id="challenges-preview">
+    <div class="section-title"><h2>{{ t('pub_recent') }}</h2></div>
+    <p class="section-sub">{{ t('pub_sub') }}</p>
+    <div class="focus-grid">
+      {% for c in landing_challenges %}
+      <div class="focus-card">
+        <div class="body">
+          <span class="id">{{ c.code }}</span>
+          <h3>{{ c.title }}</h3>
+          <p class="tags">{{ cat_label(c.category) }}{% if c.subcategory %} · {{ c.subcategory }}{% endif %}</p>
+          <p>{{ c.description[:150] }}{% if c.description|length > 150 %}…{% endif %}</p>
+          <div class="pub-meta">
+            <span>📍 {{ dist_label(c.district) }}</span>
+            <span>{{ c.priority_level|capitalize }}</span>
+            <span>{{ t('pub_stage_' + c.public_progress.stage) }}</span>
+            {% if c.public_progress.pattern %}<span><strong>{{ t('cluster_pattern') }}</strong></span>{% endif %}
+          </div>
+          <a class="all" href="{{ url_for('public_challenge_detail', challenge_id=c.id) }}">{{ t('pub_view') }} →</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div style="margin-top:18px; text-align:center;">
+      <a class="btn btn-forest" href="{{ url_for('challenge_explorer') }}">{{ t('pub_view_all') }}</a>
+    </div>
+  </section>
+  {% endif %}
+
+  {# ---------- Section 7 — Impact / platform statistics ---------- #}
+  <section class="section" id="impact">
+    <div class="section-title"><h2>{{ t('stats_title') }}</h2></div>
+    <div class="grid grid-3 kpi5">
+      <div class="kpi"><div class="n">{{ stats.total }}</div><div class="l">{{ t('kpi_reports') }}</div></div>
+      <div class="kpi"><div class="n">{{ stats.challenges }}</div><div class="l">{{ t('kpi_challenges') }}</div></div>
+      <div class="kpi"><div class="n">{{ stats.teams }}</div><div class="l">{{ t('kpi_teams') }}</div></div>
+      <div class="kpi"><div class="n">{{ stats.pilots }}</div><div class="l">{{ t('kpi_pilots') }}</div></div>
+      <div class="kpi"><div class="n">{{ stats.deployed }}</div><div class="l">{{ t('kpi_deployed') }}</div></div>
+      <div class="kpi"><div class="n">{{ stats.resolved }}</div><div class="l">{{ t('stat_resolved') }}</div></div>
+    </div>
+    <p class="hint">{{ t('funnel_demo_note') }}</p>
+  </section>
+
+  {# ---------- Section 8 — Before/After outcomes ---------- #}
   {% if resolved_cases %}
-  <section class="section gallery">
+  <section class="section gallery" id="outcomes">
     <div class="section-title"><h2>{{ t('gallery_title') }}</h2></div>
     <p class="section-sub">{{ t('gallery_sub') }}</p>
     <div class="problem-grid">
@@ -180,13 +218,13 @@
         <div class="thumb before-after">
           {% if c.photo_filename %}
           <div>
-            <img src="{{ url_for('uploaded_file', filename=c.photo_filename) }}" alt="" loading="lazy">
+            <img src="{{ url_for('uploaded_file', filename=c.photo_filename) }}" alt="{{ t('gallery_before') }}" loading="lazy">
             <span class="cap">{{ t('gallery_before') }}</span>
           </div>
           {% endif %}
           {% if c.resolution_filename %}
           <div>
-            <img src="{{ url_for('uploaded_file', filename=c.resolution_filename) }}" alt="" loading="lazy">
+            <img src="{{ url_for('uploaded_file', filename=c.resolution_filename) }}" alt="{{ t('gallery_after') }}" loading="lazy">
             <span class="cap">{{ t('gallery_after') }}</span>
           </div>
           {% endif %}
@@ -206,19 +244,35 @@
   </section>
   {% endif %}
 
-  <div class="demo-creds">
-    <strong>{{ t('demo_logins') }}</strong> {{ t('demo_accounts_note') }}<br>
-    Admin: <code>admin@jsamadhan.gov / admin123</code> ·
-    Officer: <code>officer1@jsamadhan.gov / officer123</code> ·
-    Citizen: <code>citizen@example.com / citizen123</code> ({{ t('or_register') }})<br>
-    University: <code>university1@jsamadhan.demo / university123</code> ·
-    Faculty: <code>faculty1@jsamadhan.demo / faculty123</code> ·
-    Student: <code>student1@jsamadhan.demo / student123</code>
-  </div>
+  {# ---------- Section 9 — Built for collaboration ---------- #}
+  <section class="section collab" id="collab">
+    <div class="section-title"><h2>{{ t('collab_title') }}</h2></div>
+    <p class="section-sub">{{ t('collab_body') }}</p>
+    <p class="section-sub">{{ t('diff_message') }}</p>
+    <div class="hero-cta" style="margin-top:18px;">
+      <a class="btn btn-forest" href="{{ url_for('register') }}">{{ t('btn_report_problem') }} ›</a>
+      <a class="btn btn-ghost" href="{{ url_for('challenge_explorer') }}">{{ t('btn_explore_challenges') }}</a>
+    </div>
+  </section>
 </div>
 
-<footer class="footer">
-  <span>{{ t('footer_note') }}</span>
+{# ---------- Section 10 — Footer ---------- #}
+<footer class="footer footer-cols">
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <strong>Jharkhand Samadhan</strong>
+      <span>{{ t('foot_tagline') }}</span>
+      <span class="credits">{{ t('footer_note') }}</span>
+    </div>
+    <nav class="footer-nav" aria-label="Footer">
+      <a href="#focus-areas">{{ t('foot_focus') }}</a>
+      <a href="#how-it-works">{{ t('foot_how') }}</a>
+      <a href="{{ url_for('challenge_explorer') }}">{{ t('foot_challenges') }}</a>
+      <a href="{{ url_for('impact_dashboard') }}">{{ t('nav_impact') }}</a>
+      <a href="{{ url_for('track_lookup') }}">{{ t('foot_track') }}</a>
+      <a href="{{ url_for('login') }}">{{ t('foot_login') }}</a>
+    </nav>
+  </div>
   <span class="credits">{{ t('privacy_note') }}</span>
   <span class="credits">Problem photos: Wikimedia Commons (CC BY / CC BY-SA).</span>
 </footer>
@@ -226,6 +280,17 @@
 {% block scripts %}
 <script>
 (function () {
+  /* Track-a-problem shortcut: jump straight to the public tracking page. */
+  var trackForm = document.querySelector('[data-track-form]');
+  if (trackForm) {
+    trackForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var input = trackForm.querySelector('[data-track-code]');
+      var code = input ? input.value.replace(/\s+/g, '').toUpperCase() : '';
+      if (code) window.location.href = {{ url_for('track_complaint', code='__CODE__')|tojson }}.replace('__CODE__', encodeURIComponent(code));
+    });
+  }
+
   var apiUrl = {{ url_for('api_live_problems')|tojson }};
   var i18n = {
     status: {{ t('lm_status_label')|tojson }},
@@ -237,6 +302,13 @@
   };
   var colors = { critical: '#e11d2e', high: '#f97316', normal: '#10b981', low: '#3b82f6', none: '#8a919c' };
   var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  /* api_live_problems carries pilot_area per record (legacy rows map to the
+     closest pilot area server-side) — filters never reload the page. */
+  var PILOT = {
+    roads: 'Roads & Public Infrastructure',
+    water: 'Water & Sanitation',
+    edu: 'Education Infrastructure'
+  };
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -283,36 +355,64 @@
   }
   window.addEventListener('resize', function () { if (map) map.invalidateSize(); });
 
-  fetch(apiUrl).then(function (r) { return r.json(); }).then(function (data) {
-    if (!data.length) { fail(i18n.empty); return; }
-    var cluster = null;
-    try { cluster = L.markerClusterGroup({ maxClusterRadius: 42, showCoverageOnHover: false }); } catch (e) { cluster = null; }
+  var allRecords = [];
+  var cluster = null;
+  try { cluster = L.markerClusterGroup({ maxClusterRadius: 42, showCoverageOnHover: false }); } catch (e) { cluster = null; }
+
+  function makeMarker(p) {
+    var col = colors[p.urgency] || colors.none;
+    var urgClass = p.urgency in colors ? p.urgency : 'none';
+    var marker = L.circleMarker([p.approx_lat, p.approx_lng], {
+      radius: 11, color: '#fff', weight: 3,
+      fillColor: col, fillOpacity: 1,
+      className: 'lm-marker lm-marker-' + urgClass
+    });
+    var pop = '<strong>' + esc(p.title) + '</strong><br>' +
+      '<span class="lm-pop-label">' + esc(p.category_label) +
+      (p.subcategory ? ' &middot; ' + esc(p.subcategory) : '') +
+      ' &middot; ' + esc(p.district_label) + '</span>' +
+      '<br><span class="lm-pop-label">' + esc(i18n.status) + ': ' + esc(p.status_label) + '</span>' +
+      ' &middot; <span class="lm-pop-label">' + esc(p.urgency_label) + '</span>' +
+      (p.severity != null ? '<br><span class="lm-pop-label">' + esc(i18n.severity) + ': ' + p.severity + '/100</span>' : '') +
+      '<br><span class="lm-pop-label">' + esc(i18n.reported_on) + ': ' + esc(fmtDate(p.created_at)) + '</span>';
+    marker.bindPopup(pop, { maxWidth: 280 });
+    marker.bindTooltip('<strong>' + esc(p.title) + '</strong> &middot; ' + esc(p.urgency_label), { direction: 'top', offset: [0, -10], opacity: 0.95 });
+    return marker;
+  }
+
+  function render(filter) {
+    if (cluster) { cluster.clearLayers(); try { map.removeLayer(cluster); } catch (e) {} }
+    var want = PILOT[filter];
+    var shown = allRecords.filter(function (p) { return !want || p.pilot_area === want; });
     var bounds = [];
-    data.forEach(function (p) {
-      var col = colors[p.urgency] || colors.none;
-      var urgClass = p.urgency in colors ? p.urgency : 'none';
-      var marker = L.circleMarker([p.lat, p.lng], {
-        radius: 11, color: '#fff', weight: 3,
-        fillColor: col, fillOpacity: 1,
-        className: 'lm-marker lm-marker-' + urgClass
-      });
-      var pop = '<strong>' + esc(p.title) + '</strong><br>' +
-        '<span class="lm-pop-label">#' + esc(p.code) + '</span><br>' +
-        '<span class="lm-pop-label">' + esc(p.category_label) + ' &middot; ' + esc(p.district_label) + '</span>' +
-        (p.location_text ? '<br><span class="lm-pop-label">' + esc(p.location_text) + '</span>' : '') +
-        '<br><span class="lm-pop-label">' + esc(i18n.status) + ': ' + esc(p.status_label) + '</span>' +
-        ' &middot; <span class="lm-pop-label">' + esc(p.urgency_label) + '</span>' +
-        (p.severity != null ? '<br><span class="lm-pop-label">' + esc(i18n.severity) + ': ' + p.severity + '/100</span>' : '') +
-        '<br><span class="lm-pop-label">' + esc(i18n.reported_on) + ': ' + esc(fmtDate(p.created_at)) + '</span>' +
-        '<br><a class="lm-view" href="' + esc(p.track_url) + '">' + esc(i18n.view_problem) + ' &rarr;</a>';
-      marker.bindPopup(pop, { maxWidth: 280 });
-      marker.bindTooltip('<strong>' + esc(p.title) + '</strong> &middot; ' + esc(p.urgency_label), { direction: 'top', offset: [0, -10], opacity: 0.95 });
+    if (!shown.length) { fail(i18n.empty); return; }
+    shown.forEach(function (p) {
+      var marker = makeMarker(p);
       if (cluster) { cluster.addLayer(marker); } else { marker.addTo(map); }
-      bounds.push([p.lat, p.lng]);
+      bounds.push([p.approx_lat, p.approx_lng]);
     });
     if (cluster) map.addLayer(cluster);
     if (empty) empty.hidden = true;
-    if (bounds.length > 1) map.fitBounds(bounds, { padding: [20, 20], maxZoom: 11 });
+    if (bounds.length === 1) map.setView(bounds[0], 10);
+    else if (bounds.length > 1) map.fitBounds(bounds, { padding: [20, 20], maxZoom: 11 });
+  }
+
+  document.querySelectorAll('[data-map-filter]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('[data-map-filter]').forEach(function (b) {
+        b.setAttribute('aria-pressed', 'false');
+        b.classList.remove('btn-forest'); b.classList.add('btn-ghost');
+      });
+      btn.setAttribute('aria-pressed', 'true');
+      btn.classList.add('btn-forest'); btn.classList.remove('btn-ghost');
+      render(btn.getAttribute('data-map-filter'));
+    });
+  });
+
+  fetch(apiUrl).then(function (r) { return r.json(); }).then(function (data) {
+    allRecords = data || [];
+    if (!allRecords.length) { fail(i18n.empty); return; }
+    render('all');
   }).catch(function (e) {
     console.error(e);
     fail(i18n.empty);

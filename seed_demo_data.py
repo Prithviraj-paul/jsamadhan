@@ -212,9 +212,10 @@ def main():
 
             if status == "AI Verified":
                 _move(conn, cid, "AI Verified",
-                      "Automated satellite screening matched the report (confidence "
-                      f"{rnd.randint(66, 96)}%).", created + timedelta(hours=2),
-                      {"ai_note": "Satellite pass shows a visible anomaly at the location."})
+                      "AI-assisted review of submitted evidence found it consistent "
+                      f"with the report (assessment score {rnd.randint(66, 96)}/100).",
+                      created + timedelta(hours=2),
+                      {"ai_note": "AI-assisted evidence review: photo consistent with the report."})
             elif status == "Pending Officer Review":
                 if ai_detail:
                     _move(conn, cid, "Pending Officer Review",
@@ -280,7 +281,7 @@ def main():
             citizen_id=citizen_id, status="Escalated",
             severity=66, urgency="high",
             ai_confidence=62,
-            ai_note="Satellite pass shows congestion anomaly at the junction.",
+            ai_note="AI-assisted evidence review: report consistent with the location.",
             created_at=esc_created.isoformat(),
             action_due_at=(esc_created + timedelta(days=3)).isoformat(),
             notify_sent_at=(esc_created + timedelta(days=1)).isoformat(),

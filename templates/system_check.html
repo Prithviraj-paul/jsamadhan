@@ -1,0 +1,21 @@
+{% extends "app_base.html" %}
+{% set active = 'overview' %}
+{% block title %}{{ t('syscheck_title') }} — {{ t('app_name') }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="{{ url_for('admin_dashboard') }}">{{ t('nav_overview') }}</a> / {{ t('syscheck_title') }}</div>
+<h1 style="font-size:1.3rem;">{{ t('syscheck_title') }}</h1>
+
+<div class="card" style="margin-top:16px;">
+  {% for name, ok in checks %}
+  <div class="pub-kv"><span>{{ name }}</span><strong>{{ t('syscheck_ok') if ok else t('syscheck_fail') }}</strong></div>
+  {% endfor %}
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <h2 style="font-size:1rem; margin-top:0;">{{ t('syscheck_repair') }}</h2>
+  <form method="POST">
+    <button type="submit" class="btn btn-sm btn-forest">{{ t('syscheck_repair') }}</button>
+  </form>
+</div>
+{% endblock %}

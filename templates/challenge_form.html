@@ -51,19 +51,31 @@
     <label for="description">{{ t('ch_desc') }}</label>
     <textarea id="description" name="description" required placeholder="{{ t('ch_desc_ph') }}">{{ challenge.description if editing else form.description if form else seed.description if seed else '' }}</textarea>
 
+    <div class="banner banner-ai" style="margin-bottom:16px;">
+      <strong>{{ t('pilot_focus_title') }}</strong>
+      <div class="hint" style="margin:4px 0 0;">{{ t('pilot_focus_desc') }}</div>
+    </div>
+
     <div class="field-row">
       <div>
-        <label for="category">{{ t('category') }}</label>
+        <label for="category">{{ t('focus_area') }}</label>
+        {% set _cur_cat = challenge.category if editing else form.category if form else seed.category if seed else PILOT_CATEGORIES[0] %}
         <select id="category" name="category">
-          {% for cat in CATEGORIES %}
-          <option value="{{ cat }}" {{ 'selected' if (challenge and challenge.category == cat) or (not editing and form and form.category == cat) or (not editing and not form and seed and seed.category == cat) }}>{{ cat_label(cat) }}</option>
+          {% for cat in PILOT_CATEGORIES %}
+          <option value="{{ cat }}" {{ 'selected' if _cur_cat == cat }}>{{ cat_label(cat) }}</option>
           {% endfor %}
+          {% if _cur_cat not in PILOT_CATEGORIES %}
+          <option value="{{ _cur_cat }}" selected>{{ cat_label(_cur_cat) }} ({{ t('legacy_badge') }})</option>
+          {% endif %}
         </select>
+        <div class="hint">{{ t('focus_area_hint') }}</div>
       </div>
       <div>
-        <label for="subcategory">{{ t('ch_subcategory') }}</label>
-        <input type="text" id="subcategory" name="subcategory" placeholder="{{ t('ch_subcategory_ph') }}"
-               value="{{ challenge.subcategory if editing else form.subcategory if form else '' }}">
+        <label for="subcategory">{{ t('subcategory') }}</label>
+        {% set _cur_sub = challenge.subcategory if editing else form.subcategory if form else '' %}
+        <select id="subcategory" name="subcategory" data-current="{{ _cur_sub or '' }}">
+        </select>
+        <div class="hint">{{ t('subcategory_hint') }}</div>
       </div>
     </div>
 
@@ -101,6 +113,12 @@
         <div data-location-map class="location-map"></div>
         <div class="hint">Click anywhere on the map or use the buttons above to set coordinates.</div>
       </div>
+    </div>
+
+    <div>
+      <label for="success_criteria">{{ t('success_title') }}</label>
+      <textarea id="success_criteria" name="success_criteria" rows="3">{{ challenge.success_criteria if editing and challenge.success_criteria else '' }}</textarea>
+      <div class="hint">{{ t('success_hint') }}</div>
     </div>
 
     <div class="field-row" style="margin-top:4px;">
@@ -155,6 +173,39 @@
 
 <script>
 (function () {
+  /* ---------- Focus area -> subcategory options (Phase-1 pilot) ---------- */
+  var SUBS = {{ PILOT_SUBCATEGORIES|tojson }};
+  var catSel = document.getElementById('category');
+  var subSel = document.getElementById('subcategory');
+  function refreshSubs() {
+    if (!catSel || !subSel) return;
+    var cur = subSel.getAttribute('data-current') || '';
+    var opts = SUBS[catSel.value] || [];
+    subSel.innerHTML = '';
+    var empty = document.createElement('option');
+    empty.value = ''; empty.textContent = '—';
+    subSel.appendChild(empty);
+    opts.forEach(function (s) {
+      var o = document.createElement('option');
+      o.value = s; o.textContent = s;
+      if (s === cur) o.selected = true;
+      subSel.appendChild(o);
+    });
+    if (cur && opts.indexOf(cur) === -1) {
+      var legacy = document.createElement('option');
+      legacy.value = cur; legacy.textContent = cur;
+      legacy.selected = true;
+      subSel.appendChild(legacy);
+    }
+  }
+  if (catSel && subSel) {
+    catSel.addEventListener('change', function () {
+      subSel.setAttribute('data-current', '');
+      refreshSubs();
+    });
+    refreshSubs();
+  }
+
   var accept = document.querySelector('[data-accept-ai]');
   if (!accept) return;
   var score = {{ ai.score if ai else 0 }};

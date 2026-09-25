@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} — {{ t('app_name') }}{% endblock %}
+{% block body %}
+<div class="page page-narrow" style="text-align:center; padding-top:48px;">
+  <div style="font-size:3rem; font-weight:800; color:var(--forest);">{{ code }}</div>
+  <p style="font-size:1rem; color:var(--ink-soft);">{{ message }}</p>
+  <div style="margin-top:20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+    <a class="btn btn-forest" href="{{ url_for('landing') }}">{{ t('nav_home') }}</a>
+    <a class="btn btn-ghost" href="{{ url_for('track_lookup') }}">{{ t('nav_track') }}</a>
+  </div>
+</div>
+{% endblock %}

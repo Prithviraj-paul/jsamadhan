@@ -82,6 +82,24 @@
   </div>
 
   <div>
+    {% if proposal_ai and proposal_ai.data %}
+    {% set _pd = proposal_ai.data %}
+    <div class="card" style="border-top:4px solid var(--teal);">
+      <h2 style="font-size:1rem; margin-top:0;">{{ t('prop_ai_title') }}</h2>
+      <p class="hint" style="margin:2px 0 8px;">{{ t('prop_ai_disclaimer') }}</p>
+      {% if _pd.executive_summary %}<p style="font-size:.9rem;">{{ _pd.executive_summary }}</p>{% endif %}
+      <div class="pub-kv"><span>{{ t('prop_ai_alignment') }}</span><strong>{{ _pd.problem_alignment|capitalize }}</strong></div>
+      {% for _label, _items in ((t('prop_ai_strengths'), _pd.strengths), (t('prop_ai_risks'), _pd.risks), (t('prop_ai_missing'), _pd.missing_information), (t('prop_ai_pilot'), _pd.pilot_considerations), (t('prop_ai_metrics'), _pd.measurable_metrics_found), (t('prop_ai_questions'), _pd.clarification_questions)) %}
+      {% if _items %}
+      <h3 style="font-size:.86rem; margin:12px 0 4px;">{{ _label }}</h3>
+      <ul style="margin:0; padding-left:18px; font-size:.86rem; color:var(--ink-soft);">
+        {% for _it in _items %}<li>{{ _it }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- Proposal timeline -->
     {% if proposal.logs %}
     <div class="card">

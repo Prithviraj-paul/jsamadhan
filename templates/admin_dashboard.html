@@ -31,7 +31,7 @@
     <tbody>
       {% for c in escalated %}
       <tr class="row-link" onclick="location.href='{{ url_for('admin_complaint', complaint_id=c.id) }}'">
-        <td>{{ c.code }}</td>
+        <td><a href="{{ url_for('admin_complaint', complaint_id=c.id) }}">{{ c.code }}</a></td>
         <td>{{ c.title }}</td>
         <td>{{ dist_label(c.district) }}</td>
         <td>{{ cat_label(c.category) }}</td>
@@ -62,7 +62,7 @@
   <tbody>
     {% for c in complaints %}
     <tr class="row-link" onclick="location.href='{{ url_for('admin_complaint', complaint_id=c.id) }}'">
-      <td>{{ c.code }}</td>
+      <td><a href="{{ url_for('admin_complaint', complaint_id=c.id) }}">{{ c.code }}</a></td>
       <td>{{ c.title }}</td>
       <td>{{ dist_label(c.district) }}</td>
       <td>{{ cat_label(c.category) }}</td>

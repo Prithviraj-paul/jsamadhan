@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}{{ t('imp_title') }} — {{ t('app_name') }}{% endblock %}
+{% block body %}
+<div class="page">
+  <div class="crumb"><a href="{{ url_for('landing') }}">{{ t('nav_home') }}</a> / {{ t('imp_title') }}</div>
+  <h1>{{ t('imp_title') }}</h1>
+  <p class="section-sub">{{ t('imp_sub') }}</p>
+  <div class="banner banner-warn" style="margin-bottom:16px;">
+    <strong>{{ t('imp_demo') }}</strong>
+  </div>
+
+  <div class="grid grid-3 kpi5">
+    <div class="kpi"><div class="n">{{ kpis.challenges }}</div><div class="l">{{ t('imp_kpi_challenges') }}</div></div>
+    <div class="kpi"><div class="n">{{ kpis.projects }}</div><div class="l">{{ t('imp_kpi_projects') }}</div></div>
+    <div class="kpi"><div class="n">{{ kpis.pilots }}</div><div class="l">{{ t('imp_kpi_pilots') }}</div></div>
+    <div class="kpi"><div class="n">{{ kpis.deployed }}</div><div class="l">{{ t('imp_kpi_deployed') }}</div></div>
+    <div class="kpi"><div class="n">{{ kpis.districts }}</div><div class="l">{{ t('imp_kpi_districts') }}</div></div>
+    <div class="kpi"><div class="n">{{ kpis.beneficiaries if kpis.beneficiaries is not none else '—' }}</div><div class="l">{{ t('imp_kpi_beneficiaries') }}</div></div>
+  </div>
+  {% if districts_covered %}
+  <p class="hint" style="margin-top:10px;">{{ t('imp_districts') }}: {{ districts_covered|join(', ') }}</p>
+  {% endif %}
+
+  <section class="section" style="margin-top:34px;">
+    <div class="section-title"><h2>{{ t('imp_area_title') }}</h2></div>
+    <div class="focus-grid">
+      {% for a in areas %}
+      <div class="focus-card">
+        <div class="body">
+          <h3>{{ cat_label(a.name) }}</h3>
+          {% if not a.resolved and not a.consolidated and not a.pilots and a.beneficiaries is none %}
+          <p class="hint">{{ t('imp_area_empty') }}</p>
+          {% else %}
+          <div class="pub-kv"><span>{{ t('imp_m_resolved') }}</span><strong>{{ a.resolved }}</strong></div>
+          <div class="pub-kv"><span>{{ t('imp_m_consolidated') }}</span><strong>{{ a.consolidated }}</strong></div>
+          <div class="pub-kv"><span>{{ t('imp_m_pilots') }}</span><strong>{{ a.pilots }}</strong></div>
+          <div class="pub-kv"><span>{{ t('imp_m_beneficiaries') }}</span><strong>{{ a.beneficiaries if a.beneficiaries is not none else '—' }}</strong></div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-title"><h2>{{ t('imp_pilots_title') }}</h2></div>
+    {% if pilots %}
+    <div class="focus-grid">
+      {% for p in pilots %}
+      <div class="focus-card">
+        <div class="body">
+          <span class="id">{{ p.challenge_code }}</span>
+          <h3>{{ p.challenge_title }}</h3>
+          <p class="tags">{{ t('imp_pilot_project') }}: {{ p.project_title }}</p>
+          <div class="pub-kv"><span>{{ t('imp_pilot_district') }}</span><strong>{{ p.district or '—' }}</strong></div>
+          <div class="pub-kv"><span>{{ t('imp_pilot_status') }}</span><strong>{{ p.status or '—' }}</strong></div>
+          <div class="pub-kv"><span>{{ t('imp_pilot_timeline') }}</span><strong>{{ (p.start_date or '?')[:10] }} → {{ (p.target_end_date or '?')[:10] }}</strong></div>
+          {% if p.objectives %}<p style="margin-top:8px;"><strong>{{ t('imp_pilot_goals') }}:</strong> {{ p.objectives[:220] }}{% if p.objectives|length > 220 %}…{% endif %}</p>{% endif %}
+          {% if p.progress_updates %}<p><strong>{{ t('imp_pilot_progress') }}:</strong> {{ p.progress_updates[:220] }}{% if p.progress_updates|length > 220 %}…{% endif %}</p>{% endif %}
+          <div class="pub-kv"><span>{{ t('imp_pilot_impact') }}</span><strong>{{ p.impact_status or '—' }}</strong></div>
+          <a class="all" href="{{ url_for('public_challenge_detail', challenge_id=p.challenge_id) }}">{{ t('pub_view') }} →</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="hint">{{ t('imp_pilots_empty') }}</p>
+    {% endif %}
+  </section>
+
+  <section class="section collab">
+    <div class="section-title"><h2>{{ t('imp_scale_title') }}</h2></div>
+    <p class="section-sub"><strong>{{ t('imp_scale_body') }}</strong></p>
+    <ol class="flow-grid">
+      <li class="flow-step"><span class="num" aria-hidden="true">1</span><h3>{{ t('imp_step1') }}</h3></li>
+      <li class="flow-step"><span class="num" aria-hidden="true">2</span><h3>{{ t('imp_step2') }}</h3></li>
+      <li class="flow-step"><span class="num" aria-hidden="true">3</span><h3>{{ t('imp_step3') }}</h3></li>
+      <li class="flow-step"><span class="num" aria-hidden="true">4</span><h3>{{ t('imp_step4') }}</h3></li>
+      <li class="flow-step"><span class="num" aria-hidden="true">5</span><h3>{{ t('imp_step5') }}</h3></li>
+      <li class="flow-step"><span class="num" aria-hidden="true">6</span><h3>{{ t('imp_step6') }}</h3></li>
+    </ol>
+    <div class="pub-kv" style="margin-top:14px;"><span>{{ t('imp_scale_approved') }}</span><strong>{{ scaling.approved }}{% if scaling.districts %} ({{ scaling.districts|join('; ') }}){% endif %}</strong></div>
+  </section>
+</div>
+
+<footer class="footer">
+  <span>{{ t('footer_note') }}</span>
+  <span class="credits">{{ t('privacy_note') }}</span>
+</footer>
+{% endblock %}

@@ -1,23 +1,12 @@
 {% extends "base.html" %}
 {% block title %}{{ (role|capitalize ~ ' ') if role else '' }}{{ t('login_title') }} — {{ t('app_name') }}{% endblock %}
 {% block body %}
-<header class="topnav">
-  <a class="govt-brand" href="{{ url_for('landing') }}" aria-label="Government of Jharkhand">
-    <span class="govt-mark" aria-hidden="true">झा</span>
-    <span class="brand"><strong>{{ t('app_name')|upper }}</strong><span>{{ t('govt_of_jharkhand') }}</span></span>
-  </a>
-  <nav>
-    {% include "lang_switcher.html" %}
-    <a href="{{ url_for('landing') }}">{{ t('nav_back_home') }}</a>
-  </nav>
-</header>
-
 <div class="page page-narrow {% if role is none %}role-pick-page{% endif %}">
   <div class="demo-notice" role="alert">
     <span>🥼</span>
     <span>{{ t('demo_notice') }}</span>
   </div>
-  <div class="section-title"><h2>{{ t('login_title') }}</h2></div>
+  <div class="section-title"><h1 style="font-size:1.4rem; margin:0;">{{ t('login_title') }}</h1></div>
   {% if role is none %}
   <p>{{ t('login_choose_role') }}</p>
   <div class="demo-creds" style="margin:10px 0 4px;">
@@ -65,13 +54,20 @@
   </div>
   {% else %}
   <div class="card">
+    {% if demo_email %}
+    <div class="demo-creds" style="margin:0 0 14px; padding:10px 12px; border:1px dashed var(--sal, #b34700); border-radius:8px; font-size:.88rem;">
+      <strong>Demo {{ role|capitalize }} login:</strong>
+      <code>{{ demo_email }} / {{ demo_password }}</code>
+      <button type="button" class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="document.getElementById('email').value={{ demo_email|tojson }}; document.getElementById('password').value={{ demo_password|tojson }};">Autofill demo</button>
+    </div>
+    {% endif %}
     <form method="POST">
       <input type="hidden" name="role" value="{{ role }}">
       <label for="email">{{ t('email') }}</label>
-      <input type="email" id="email" name="email" required autofocus>
+      <input type="email" id="email" name="email" required autofocus value="{{ demo_email or '' }}">
 
       <label for="password">{{ t('password') }}</label>
-      <input type="password" id="password" name="password" required>
+      <input type="password" id="password" name="password" required value="{{ demo_password or '' }}">
 
       <div style="margin-top:22px;">
         <button type="submit" class="btn btn-primary btn-block">{{ t('btn_login') }}</button>
@@ -84,6 +80,22 @@
   <p style="margin-top:16px; font-size:.88rem; text-align:center;">
     {{ t('new_here') }} <a href="{{ url_for('register') }}" style="color:var(--sal); font-weight:600;">{{ t('create_citizen_account') }}</a>
   </p>
+  {% endif %}
+
+  {% if role is none %}
+  <div class="card demo-access" style="margin-top:20px;">
+    <h2 style="font-size:1rem; margin-top:0;">{{ t('demo_access_title') }}</h2>
+    <p class="hint">{{ t('demo_access_sub') }}</p>
+    <div class="demo-creds" style="margin-top:10px;">
+      Citizen: <code>citizen@example.com / citizen123</code><br>
+      Officer: <code>officer1@jsamadhan.gov / officer123</code> ·
+      Admin: <code>admin@jsamadhan.gov / admin123</code><br>
+      University: <code>university1@jsamadhan.demo / university123</code><br>
+      Faculty: <code>faculty1@jsamadhan.demo / faculty123</code> ·
+      Student: <code>student1@jsamadhan.demo / student123</code><br>
+      Industry: <code>vidyut@jsamadhan.demo / industry123</code>
+    </div>
+  </div>
   {% endif %}
 </div>
 {% endblock %}

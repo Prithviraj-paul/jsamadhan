@@ -13,8 +13,9 @@
     <div class="crumb">#{{ complaint.code }} · {{ complaint.created_at.strftime('%d %b %Y') }}</div>
     <h1>{{ complaint.title }}</h1>
     <div class="meta" style="font-size:.86rem; color:var(--ink-soft);">
-      {{ dist_label(complaint.district) }} · {{ cat_label(complaint.category) }}
+      {{ dist_label(complaint.district) }} · {{ cat_label(complaint.category) }}{% if complaint.subcategory %} · {{ complaint.subcategory }}{% endif %}
       {% if complaint.location_text %} · {{ complaint.location_text }}{% endif %}
+      {% if complaint.landmark %} · 📍 {{ complaint.landmark }}{% endif %}
     </div>
   </div>
   {{ m.status_badge(complaint) }}
@@ -23,9 +24,9 @@
 {% if complaint.photo_filename %}
 <div class="evidence-box" style="margin-bottom:20px;">
   {% if complaint.is_photo_video %}
-  <video controls muted preload="metadata" style="max-height:320px;"><source src="{{ url_for('uploaded_file', filename=complaint.photo_filename) }}" type="video/mp4"></video>
+  <video controls muted preload="metadata" style="max-height:320px;"><source src="{{ url_for('protected_evidence', filename=complaint.photo_filename) }}" type="video/mp4"></video>
   {% else %}
-  <img src="{{ url_for('uploaded_file', filename=complaint.photo_filename) }}" alt="Evidence">
+  <img src="{{ url_for('protected_evidence', filename=complaint.photo_filename) }}" alt="Evidence">
   {% endif %}
   <div class="cap">{{ t('evidence_before') }}</div>
 </div>
@@ -76,6 +77,9 @@
     </div>
   </div>
   {% endif %}
+  {% if complaint.manual_review_requested %}
+  <div class="banner banner-warn" style="margin-bottom:16px;">{{ t('manual_review_badge') }}</div>
+  {% endif %}
   <div class="ai-meta-item">
     <div class="l">{{ t('th_district') }}</div>
     <div class="v">{{ dist_label(complaint.district) }}</div>
@@ -93,6 +97,8 @@
 </div>
 {% endif %}
 
+{{ m.ai_recommendation_box(ai_rec, complaint.category) }}
+
 <!-- AI-assisted duplicate detection -->
 <div class="card" style="margin-top:20px;" id="duplicate-match">
   <div class="cc-section-head">
@@ -102,6 +108,20 @@
     </div>
   </div>
   {% if duplicate_matches %}
+  {% if dup_cluster %}
+  <div class="banner banner-ai" style="margin-bottom:12px; display:block;">
+    <strong>{{ t('dup_cluster_title') }}</strong>
+    <div style="font-size:.85rem; margin-top:4px;">
+      {{ t('dup_cluster_reports', n=dup_cluster.count) }}
+      {% if dup_cluster.spread_m is not none %} · {{ t('dup_cluster_within', m=dup_cluster.spread_m) }}{% endif %}
+      {% if dup_cluster.span_days is not none %} · {{ t('dup_cluster_days', n=dup_cluster.span_days) }}{% endif %}
+    </div>
+    <div class="hint" style="margin:4px 0 8px;">{{ t('dup_cluster_advice') }}</div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn btn-sm btn-forest" href="{{ url_for('new_challenge', complaint_id=complaint.id) }}">{{ t('dup_cluster_create') }}</a>
+    </div>
+  </div>
+  {% endif %}
   <div class="dup-list">
     {% for m in duplicate_matches %}
     <div class="dup-item">
@@ -196,8 +216,8 @@
   {% elif complaint.status == 'Resolved' %}
   <div class="banner banner-ok" style="margin-bottom:0;">
     {{ t('case_resolved_on', date=complaint.resolved_at.strftime('%d %b %Y') if complaint.resolved_at else '?') }}
-    {% if complaint.resolution_confidence is not none %} · {{ t('change_score') }} {{ complaint.resolution_confidence }}/100{% endif %}
   </div>
+  {{ m.resolution_review(complaint) }}
 
   {% elif complaint.status == 'Escalated' %}
   <div class="banner banner-danger" style="margin-bottom:0;">{{ t('banner_escalated') }}</div>

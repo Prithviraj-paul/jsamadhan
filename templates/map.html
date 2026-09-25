@@ -4,6 +4,9 @@
 {% block head_extra %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="">
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
 {% endblock %}
 {% block content %}
 
@@ -74,10 +77,14 @@
     if (!data.length) {
       var el = document.createElement('div');
       el.className = 'map-empty';
-      el.textContent = lang === 'hi' ? '\u0915\u094b\u0908 \u0928\u093f\u0930\u094d\u0926\u0947\u0936\u093e\u0902\u0915 \u0935\u093e\u0932\u0940 \u0936\u093f\u0915\u093e\u092f\u0924 \u0928\u0939\u0940\u0902\u0964' : 'No geotagged complaints yet.';
+      el.textContent = lang === 'hi' ? 'कोई निर्देशांक वाली शिकायत नहीं।' : 'No geotagged complaints yet.';
       document.getElementById('complaint-map').appendChild(el);
       return;
     }
+    /* Geographic clusters group nearby reports so officials can spot
+       hotspots at a glance (same MarkerCluster tool as the public map). */
+    var cluster = null;
+    try { cluster = L.markerClusterGroup({ maxClusterRadius: 48, showCoverageOnHover: false }); } catch (e) { cluster = null; }
     var bounds = [];
     data.forEach(function (c) {
       var statusCol = statusColor(c.status);
@@ -88,7 +95,7 @@
         weight: 2.5,
         fillColor: statusCol,
         fillOpacity: 0.85
-      }).addTo(map);
+      });
       marker.bindPopup(
         '<strong>#' + c.code + '</strong> — ' + (c.title || '') + '<br>' +
         'District: ' + c.district + '<br>' +
@@ -96,8 +103,10 @@
         'Urgency: ' + c.urgency + (c.severity != null ? ' (AI ' + c.severity + '/100)' : '') +
         '&nbsp;&nbsp;<a href="/track/' + encodeURIComponent(c.code) + '">track &rarr;</a>'
       );
+      if (cluster) { cluster.addLayer(marker); } else { marker.addTo(map); }
       bounds.push([c.lat, c.lng]);
     });
+    if (cluster) map.addLayer(cluster);
     if (bounds.length > 1) map.fitBounds(bounds, { padding: [30, 30] });
   }).catch(function (e) { console.error(e); });
 

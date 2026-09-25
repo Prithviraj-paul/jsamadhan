@@ -1,42 +1,55 @@
 document.addEventListener("DOMContentLoaded", function () {
-  document.querySelectorAll("[data-erase-title]").forEach(function (title) {
-    var english = title.dataset.titleEn;
-    var hindi = title.dataset.titleHi;
-    var phase = "type-english";
-    var index = 0;
+  /* ---------- Global hamburger drawer ---------- */
+  var burger = document.querySelector("[data-gnav-toggle]");
+  var drawer = document.getElementById("global-drawer");
+  var overlay = document.querySelector("[data-gnav-overlay]");
+  var closeBtn = drawer ? drawer.querySelector("[data-gnav-close]") : null;
+  if (burger && drawer && overlay) {
+    var openLabel = burger.getAttribute("aria-label") || "Open navigation menu";
+    var closeLabel = (closeBtn && closeBtn.getAttribute("aria-label")) || "Close navigation menu";
+    var lastFocus = null;
 
-    function animateTitle() {
-      if (phase === "type-english" || phase === "type-hindi") {
-        var target = phase === "type-english" ? english : hindi;
-        if (index < target.length) {
-          title.textContent = target.slice(0, index + 1);
-          index += 1;
-          window.setTimeout(animateTitle, 105);
-          return;
-        }
-        phase = phase === "type-english" ? "erase-english" : "erase-hindi";
-        index = target.length;
-        window.setTimeout(animateTitle, 1700);
-        return;
-      }
-
-      if (phase === "erase-english" || phase === "erase-hindi") {
-        var target = phase === "erase-english" ? english : hindi;
-        if (index > 0) {
-          title.textContent = target.slice(0, index - 1);
-          index -= 1;
-          window.setTimeout(animateTitle, 65);
-          return;
-        }
-        phase = phase === "erase-english" ? "type-hindi" : "type-english";
-        index = 0;
-        window.setTimeout(animateTitle, 450);
-      }
+    function openDrawer() {
+      lastFocus = document.activeElement;
+      drawer.hidden = false;
+      overlay.hidden = false;
+      /* force reflow so the slide-in transition plays */
+      void drawer.offsetWidth;
+      drawer.classList.remove("gnav-closed");
+      document.body.classList.add("gnav-open");
+      burger.setAttribute("aria-expanded", "true");
+      burger.setAttribute("aria-label", closeLabel);
+      if (closeBtn) closeBtn.focus();
     }
-
-    title.textContent = "";
-    animateTitle();
-  });
+    function closeDrawer() {
+      drawer.classList.add("gnav-closed");
+      document.body.classList.remove("gnav-open");
+      burger.setAttribute("aria-expanded", "false");
+      burger.setAttribute("aria-label", openLabel);
+      window.setTimeout(function () {
+        drawer.hidden = true;
+        overlay.hidden = true;
+      }, 200);
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+      else burger.focus();
+    }
+    function isOpen() {
+      return burger.getAttribute("aria-expanded") === "true";
+    }
+    drawer.classList.add("gnav-closed");
+    burger.addEventListener("click", function () {
+      if (isOpen()) closeDrawer();
+      else openDrawer();
+    });
+    if (closeBtn) closeBtn.addEventListener("click", closeDrawer);
+    overlay.addEventListener("click", closeDrawer);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && isOpen()) closeDrawer();
+    });
+    drawer.querySelectorAll("a").forEach(function (link) {
+      link.addEventListener("click", closeDrawer);
+    });
+  }
 
   document.querySelectorAll("[data-evidence-controls]").forEach(function (controls) {
     var inputs = controls.querySelectorAll("[data-evidence-input]");
@@ -81,23 +94,30 @@ document.addEventListener("DOMContentLoaded", function () {
     var searchButton = picker.querySelector("[data-search-location]");
     var suggestionsEl = picker.querySelector("[data-location-suggestions]");
     var searchStatus = picker.querySelector("[data-location-search-status]");
-    var latitudeInput = picker.querySelector("[data-latitude]");
-    var longitudeInput = picker.querySelector("[data-longitude]");
-    var addressInput = picker.querySelector("[data-location-address]");
-    var cityInput = picker.querySelector("[data-location-city]");
-    var stateInput = picker.querySelector("[data-location-state]");
-    var pincodeInput = picker.querySelector("[data-location-pincode]");
+    function pick(sel) {
+      return picker.querySelector(sel) || document.querySelector(sel);
+    }
+    var latitudeInput = pick("[data-latitude]");
+    var longitudeInput = pick("[data-longitude]");
+    var addressInput = pick("[data-location-address]");
+    var cityInput = pick("[data-location-city]");
+    var stateInput = pick("[data-location-state]");
+    var pincodeInput = pick("[data-location-pincode]");
     var locationTextInput = document.querySelector("#location_text");
     var districtInput = document.querySelector("#district");
     if (!mapEl) return;
 
     var map = null;
     if (window.L) {
-      map = L.map(mapEl).setView([22.5, 79], 5);
+      /* Jharkhand-first default view (was all-India). */
+      map = L.map(mapEl).setView([23.6, 85.3], 7);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap contributors",
         maxZoom: 19
       }).addTo(map);
+      window.setTimeout(function () { map.invalidateSize(); }, 150);
+    } else if (statusEl) {
+      statusEl.textContent = "Map library could not load. You can still type the address and district manually.";
     }
     var marker;
 
@@ -144,10 +164,15 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function setLocation(latitude, longitude, message) {
-      latitudeInput.value = latitude.toFixed(6);
-      longitudeInput.value = longitude.toFixed(6);
+      if (latitudeInput) latitudeInput.value = latitude.toFixed(6);
+      if (longitudeInput) longitudeInput.value = longitude.toFixed(6);
       showMapLocation(latitude, longitude);
-      statusEl.textContent = message;
+      if (statusEl) statusEl.textContent = message;
+      var readout = picker.querySelector("[data-location-readout]");
+      if (readout) {
+        readout.textContent = "Selected Location: " + latitude.toFixed(6) +
+          ", " + longitude.toFixed(6);
+      }
       reverseGeocode(latitude, longitude);
     }
 
@@ -280,5 +305,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (useLocationButton) useLocationButton.addEventListener("click", requestLocation);
     if (map) window.setTimeout(function () { map.invalidateSize(); }, 100);
+
+    /* Auto-locate on page load where requested (report form): pin the
+       citizen immediately; they can still move the pin or search. */
+    if (picker.hasAttribute("data-auto-locate")) {
+      var alreadyPinned = latitudeInput && latitudeInput.value;
+      if (!alreadyPinned) {
+        window.setTimeout(function () { requestLocation(); }, 600);
+      }
+    }
   });
 });
