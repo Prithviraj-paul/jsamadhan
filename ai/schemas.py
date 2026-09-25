@@ -15,9 +15,12 @@ from .utils import (
 )
 
 PILOT_CATEGORIES = (
-    "Roads & Public Infrastructure",
-    "Water & Sanitation",
-    "Education Infrastructure",
+    "Roads & Infrastructure",
+    "Water Resources",
+    "Electricity",
+    "Sanitation",
+    "Healthcare",
+    "Education",
 )
 
 SEVERITIES = ("low", "normal", "high", "critical")

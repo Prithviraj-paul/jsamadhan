@@ -735,6 +735,86 @@ def _match_keywords(text, keywords):
     return list(dict.fromkeys(matched))
 
 
+# Keywords used only for the free-text category screen. Sweep words (problem,
+# broken, repair...) never score — they appear in every card and would bias
+# the match toward nothing in particular.
+_CATEGORY_SWEEP_WORDS = {
+    "problem", "issue", "broken", "damaged", "repair", "work", "need",
+    "needed", "not working", "bad", "poor", "unusable", "blocked",
+    "collapsed", "dilapidated", "critical", "urgent", "please", "fix",
+}
+
+
+def screen_category_match(title, description, selected_category):
+    """Deterministic, keyless screen: does the free text belong to the card
+    the citizen selected?
+
+    Scores title+description against each active category's domain
+    vocabulary (CATEGORY_DOMAIN_KEYWORDS). Generic sweep words are ignored.
+    Returns:
+
+    {
+        "match": bool,          # True when text best fits the selected card
+        "suggested": str,       # best-fitting active category
+        "score": int,           # 0-100 confidence in the suggestion
+        "selected": str,
+        "note": str,            # short explanation for the citizen/officer
+    }
+
+    Weak or ambiguous text never blocks: when no card gains a clear lead the
+    screen passes by default (AI sorts, humans decide; the citizen's chosen
+    card is never silently rewritten).
+    """
+    import db as _db
+
+    def _normalise(s):
+        low = (s or "").lower()
+        for token in sorted(_STOP_WORDS, key=len, reverse=True):
+            low = low.replace(" " + token + " ", " ")
+        return low.strip()
+
+    text = _normalise((title or "") + " " + (description or "")).strip()
+    if len(text) < 10:
+        return {
+            "match": True, "suggested": selected_category,
+            "score": 0, "selected": selected_category,
+            "note": "Description too short for reliable category screening.",
+        }
+
+    scores = {}
+    for cat in _db.PILOT_CATEGORIES:
+        kws = [k for k in CATEGORY_DOMAIN_KEYWORDS.get(cat, [])]
+        hits = _match_keywords(text, kws)
+        scores[cat] = len(hits)
+
+    if not any(scores.values()):
+        return {
+            "match": True, "suggested": selected_category,
+            "score": 0, "selected": selected_category,
+            "note": "No category vocabulary detected; the citizen's card stands.",
+        }
+
+    top = max(scores, key=lambda c: scores[c])
+    selected_score = scores.get(selected_category, 0)
+    top_score = scores[top]
+    # A clear lead requires >= 2 keyword hits and better than the selected
+    # card by a margin, so short/ambiguous text passes.
+    lead = top_score >= 2 and top_score >= selected_score + 1
+    match = (not lead) or (top == selected_category)
+    if match:
+        return {
+            "match": True, "suggested": top, "score": top_score,
+            "selected": selected_category,
+            "note": "Free text is consistent with the selected card.",
+        }
+    return {
+        "match": False, "suggested": top, "score": top_score,
+        "selected": selected_category,
+        "note": (f"The description fits '{top}' better than '{selected_category}' — "
+                "the citizen should switch cards or an officer reviews it."),
+    }
+
+
 def verify_image_against_problem(image_path, title, description, category):
     """Cross-check an uploaded photo against the citizen's stated problem.
 

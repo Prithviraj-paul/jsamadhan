@@ -171,6 +171,17 @@
       <span>{{ t('ev_manual_review') }}</span>
     </label>
 
+    {% if mismatch %}
+    <div class="banner banner-warn" data-mismatch-warn style="margin-top:12px;">
+      <strong>{{ t('mismatch_title') }}</strong>
+      <div class="hint" style="margin:4px 0 0;">{{ t('mismatch_desc').replace('{suggested}', cat_label(mismatch.suggested)).replace('{selected}', cat_label(mismatch.selected)) }}</div>
+      <label class="manual-review" style="display:flex; gap:8px; align-items:flex-start; margin-top:10px; font-size:.88rem;">
+        <input type="checkbox" name="mismatch_override" value="1" style="margin-top:3px;">
+        <span>{{ t('mismatch_override_label') }}</span>
+      </label>
+    </div>
+    {% endif %}
+
     <div style="margin-top:22px;">
       <button type="submit" class="btn btn-primary btn-block" data-submit-btn>{{ t('btn_submit_problem') }}</button>
     </div>

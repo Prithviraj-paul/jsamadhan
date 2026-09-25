@@ -22,35 +22,59 @@ DB_PATH = os.path.join(BASE_DIR, "jsamadhan.db")
 
 ROLES = ("citizen", "officer", "admin", "university", "faculty", "student",
          "industry")
-# Phase-1 pilot: new reports/challenges use ONLY these three focus areas.
-# Legacy values in CATEGORIES below must keep rendering (backwards compat).
+# Active reporting set: the six public problem areas citizens can report on.
+# New reports/challenges may use only these. "Public Safety" and "Other"
+# stay in CATEGORIES below purely so historical records keep rendering.
 PILOT_CATEGORIES = [
-    "Roads & Public Infrastructure",
-    "Water & Sanitation",
-    "Education Infrastructure",
+    "Roads & Infrastructure",
+    "Water Resources",
+    "Electricity",
+    "Sanitation",
+    "Healthcare",
+    "Education",
 ]
 
 PILOT_SUBCATEGORIES = {
-    "Roads & Public Infrastructure": [
+    "Roads & Infrastructure": [
         "Pothole",
         "Damaged Road",
         "Bridge / Culvert",
         "Streetlight",
         "Drainage",
         "Public Asset",
-        "Other Infrastructure",
+        "Other",
     ],
-    "Water & Sanitation": [
+    "Water Resources": [
         "Handpump",
         "Pipeline Leakage",
         "Drinking Water",
         "Waterlogging",
         "Drainage",
-        "Community Sanitation",
-        "Waste Accumulation",
         "Other",
     ],
-    "Education Infrastructure": [
+    "Electricity": [
+        "No Supply",
+        "Streetlight Out",
+        "Pole",
+        "Transformer",
+        "Power Cut",
+        "Other",
+    ],
+    "Sanitation": [
+        "Community Toilet",
+        "Garbage Accumulation",
+        "Open Drain",
+        "Waste Collection",
+        "Other",
+    ],
+    "Healthcare": [
+        "PHC / CHC Facility",
+        "Ambulance",
+        "Medicine Supply",
+        "Staff Unavailable",
+        "Other",
+    ],
+    "Education": [
         "Building Damage",
         "Classroom Infrastructure",
         "Toilet",
@@ -62,25 +86,21 @@ PILOT_SUBCATEGORIES = {
     ],
 }
 
-# Legacy categories from before the Phase-1 pilot. Never delete these —
-# historical records keep rendering via i18n.CATEGORY_KEYS, and dashboards
-# treat them as legacy/future-scope data.
+# Legacy categories no longer reportable but kept so historical records
+# keep rendering via i18n.CATEGORY_KEYS, and dashboards treat them as
+# legacy/out-of-scope data.
 LEGACY_CATEGORIES = [
-    "Roads & Infrastructure", "Water Resources", "Electricity",
-    "Sanitation", "Healthcare", "Education", "Public Safety", "Other",
+    "Public Safety", "Other",
 ]
 
-# Maps a legacy category to the closest pilot focus area for presentation
+# Maps a legacy category to the closest active focus area for presentation
 # (grouping only — the stored value is never rewritten).
 LEGACY_TO_PILOT = {
-    "Roads & Infrastructure": "Roads & Public Infrastructure",
-    "Electricity": "Roads & Public Infrastructure",
-    "Public Safety": "Roads & Public Infrastructure",
-    "Water Resources": "Water & Sanitation",
-    "Sanitation": "Water & Sanitation",
-    "Education": "Education Infrastructure",
-    "Healthcare": "Education Infrastructure",
-    "Other": "Water & Sanitation",
+    "Roads & Public Infrastructure": "Roads & Infrastructure",
+    "Public Safety": "Roads & Infrastructure",
+    "Water & Sanitation": "Water Resources",
+    "Education Infrastructure": "Education",
+    "Other": "Sanitation",
 }
 
 
@@ -858,6 +878,8 @@ def init_db():
         conn.execute("ALTER TABLE challenges ADD COLUMN ai_readiness TEXT")
     if "readiness_hash" not in challenge_columns:
         conn.execute("ALTER TABLE challenges ADD COLUMN readiness_hash TEXT")
+    if "success_criteria" not in challenge_columns:
+        conn.execute("ALTER TABLE challenges ADD COLUMN success_criteria TEXT")
     # P10: cached AI summaries for pilots and impact assessments.
     pilot_columns = {row[1] for row in conn.execute("PRAGMA table_info(pilot_deployments)")}
     if "ai_summary" not in pilot_columns:

@@ -670,9 +670,9 @@ def report_problem():
             errors.append("Please keep the description within 3000 characters.")
         category = form["category"].strip() or db.PILOT_CATEGORIES[0]
         if category not in db.PILOT_CATEGORIES:
-            # Phase-1 pilot: new reports use only the three focus areas.
-            # Legacy values are never rewritten on old records — they only
-            # render via backwards-compatible labels.
+            # New reports use only the six active focus areas. Legacy values
+            # are never rewritten on old records — they only render via
+            # backwards-compatible labels.
             errors.append("Please select a valid focus area.")
             category = db.PILOT_CATEGORIES[0]
         subcategory = form["subcategory"].strip() or None
@@ -740,6 +740,35 @@ def report_problem():
             for message in errors:
                 flash(message, "error")
             return render_template("report_problem.html", form=form)
+
+        # Free-text category screen: the description must belong to the card
+        # the citizen selected. Deterministic + keyless, so it always runs.
+        # The citizen can always override (routes the report to an officer
+        # instead of blocking) — AI sorts, humans decide.
+        mismatch_override = request.form.get("mismatch_override") == "1"
+        try:
+            from ai_engine import screen_category_match
+            _screen = screen_category_match(title, description, category)
+            if not _screen["match"] and not mismatch_override:
+                flash(
+                    i18n.t("mismatch_desc").replace(
+                        "{suggested}", i18n.cat_label(_screen["suggested"])
+                    ).replace(
+                        "{selected}", i18n.cat_label(category)
+                    ),
+                    "error")
+                return render_template("report_problem.html", form=form,
+                                       mismatch=dict(
+                                           suggested=_screen["suggested"],
+                                           selected=category,
+                                           note=_screen["note"]))
+            if not _screen["match"] and mismatch_override:
+                manual_review_requested = 1
+                _rlog.info("CATEGORY_MISMATCH_OVERRIDDEN id-pending user=%s "
+                           "selected=%s suggested=%s",
+                           session.get("user_id"), category, _screen["suggested"])
+        except Exception:
+            _rlog.exception("Category screen failed; proceeding without it")
 
         _rlog.info("VALIDATION_OK title_len=%d desc_len=%d category=%s",
                    len(title), len(description), category)
@@ -4327,8 +4356,6 @@ def gov_pilot_new():
                            districts=db.DISTRICTS)
 
 
-@app.route("/command-center/pilots/<int:pilot_id>")
-@login_required(role=GOVERNMENT)
 def _cached_ai_summary(conn, table, entity_id, hash_text, task,
                        system_prompt, user_text):
     """Generic cached AI summary for pilot/impact rows.
@@ -4439,6 +4466,8 @@ def _impact_ai_summary(conn, assessment):
         })), comparisons
 
 
+@app.route("/command-center/pilots/<int:pilot_id>")
+@login_required(role=GOVERNMENT)
 def gov_pilot_detail(pilot_id):
     conn = db.get_db()
     pilot = db.get_pilot(conn, pilot_id)

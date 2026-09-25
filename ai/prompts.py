@@ -14,9 +14,12 @@ BASE_SYSTEM = (
 )
 
 _ALLOWED_CATEGORIES = (
-    "Roads & Public Infrastructure",
-    "Water & Sanitation",
-    "Education Infrastructure",
+    "Roads & Infrastructure",
+    "Water Resources",
+    "Electricity",
+    "Sanitation",
+    "Healthcare",
+    "Education",
 )
 
 COMPLAINT_SYSTEM = (
@@ -24,7 +27,7 @@ COMPLAINT_SYSTEM = (
     + " You analyse one citizen problem report with an optional photo. "
     "Allowed categories are exactly: "
     + "; ".join(_ALLOWED_CATEGORIES)
-    + ". Never invent a fourth category. "
+    + ". Never invent a seventh category. "
     "Only describe what is reasonably inferable from the image "
     "(use 'appears', 'likely', 'consistent with', 'not enough evidence'). "
     "Prohibited: claiming GPS/location verification from pixels, "
@@ -85,15 +88,19 @@ BEFORE_AFTER_SYSTEM = (
     "similarity. If the scenes are completely unrelated, return "
     "POSSIBLE_DIFFERENT_LOCATION. If you cannot confidently compare the "
     "photos, return INSUFFICIENT_EVIDENCE. "
-    "Category guidance: Roads & Public Infrastructure — a paved surface, "
+    "Category guidance: Roads & Infrastructure — a paved surface, "
     "repaired patch or smoother road with potholes no longer visible may "
     "count as improvement when the site looks consistent; exact vehicles "
-    "or camera angle need not match. Water & Sanitation — removed water, "
-    "a cleared drain or a cleaned site may count, but be conservative: "
-    "temporarily dried water does not prove a permanent repair. Education "
-    "Infrastructure — a visibly repaired wall, toilet or facility may "
-    "count; do not infer a whole school problem was solved from one "
-    "unrelated room photo. "
+    "or camera angle need not match. Water Resources — removed water, "
+    "a cleared drain or a cleaned handpump site may count, but be "
+    "conservative: temporarily dried water does not prove a permanent "
+    "repair. Electricity — restored streetlights, poles or transformers "
+    "may count when the site looks consistent. Sanitation — a cleaned "
+    "waste site or restored community toilet may count. Healthcare — a "
+    "visibly repaired PHC/CHC facility, ambulance or water point may "
+    "count. Education — a visibly repaired wall, toilet or classroom in a "
+    "school may count; do not infer a whole school problem was solved "
+    "from one unrelated room photo. "
     "Use hedging language ('appears', 'likely'). Never declare a case "
     "permanently resolved — the officer's own confirmation decides that. "
     "resolution_status must be exactly one of: LIKELY_RESOLVED, "
@@ -305,7 +312,7 @@ REPORT_PARSE_SYSTEM = (
     "stated or clearly implied — leave everything else as an empty string. "
     "Allowed categories are exactly: "
     + "; ".join(_ALLOWED_CATEGORIES)
-    + ". Never invent a fourth category. Allowed durations: just_started, "
+    + ". Never invent a seventh category. Allowed durations: just_started, "
     "days, weeks, months, long. Allowed frequencies: one_time, recurring. "
     "District must be a Jharkhand district named in the text; otherwise "
     "empty. people_affected is a plain integer or null. Do not invent "

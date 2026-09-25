@@ -40,39 +40,57 @@
 </section>
 
 <div class="page">
-  {# ---------- Section 2 — Three Focus Areas ---------- #}
+  {# ---------- Section 2 — Six Problem Areas ---------- #}
   <section class="section" id="focus-areas">
-    <div class="section-title"><h2>{{ t('focus_title') }}</h2></div>
-    <p class="section-sub">{{ t('focus_sub') }}</p>
+    <div class="section-title"><h2>{{ t('sec_problems_title') }}</h2></div>
+    <p class="section-sub">{{ t('sec_problems_sub') }}</p>
     <div class="banner banner-ai" style="margin-bottom:14px;">
       <strong>{{ t('pilot_focus_title') }}</strong>
       <div class="hint" style="margin:4px 0 0;">{{ t('pilot_focus_desc') }}</div>
     </div>
-    <div class="focus-grid">
-      <div class="focus-card">
-        <img class="thumb" src="{{ url_for('static', filename='img/problems/road.jpg') }}" alt="{{ t('focus_road_title') }}" loading="lazy">
+    <div class="problem-grid">
+      <a class="problem-card" href="{{ url_for('register') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/road.jpg') }}" alt="{{ t('problem_road') }}">
         <div class="body">
-          <h3>{{ t('focus_road_title') }}</h3>
-          <p class="tags">{{ t('focus_road_tags') }}</p>
-          <p>{{ t('focus_road_desc') }}</p>
+          <h3>{{ t('problem_road') }}</h3>
+          <p>{{ t('problem_road_desc') }}</p>
         </div>
-      </div>
-      <div class="focus-card">
-        <img class="thumb" src="{{ url_for('static', filename='img/problems/water.jpg') }}" alt="{{ t('focus_water_title') }}" loading="lazy">
+      </a>
+      <a class="problem-card" href="{{ url_for('register') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/water.jpg') }}" alt="{{ t('problem_water') }}">
         <div class="body">
-          <h3>{{ t('focus_water_title') }}</h3>
-          <p class="tags">{{ t('focus_water_tags') }}</p>
-          <p>{{ t('focus_water_desc') }}</p>
+          <h3>{{ t('problem_water') }}</h3>
+          <p>{{ t('problem_water_desc') }}</p>
         </div>
-      </div>
-      <div class="focus-card">
-        <img class="thumb" src="{{ url_for('static', filename='img/problems/education.jpg') }}" alt="{{ t('focus_edu_title') }}" loading="lazy">
+      </a>
+      <a class="problem-card" href="{{ url_for('register') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/electric.jpg') }}" alt="{{ t('problem_electricity') }}">
         <div class="body">
-          <h3>{{ t('focus_edu_title') }}</h3>
-          <p class="tags">{{ t('focus_edu_tags') }}</p>
-          <p>{{ t('focus_edu_desc') }}</p>
+          <h3>{{ t('problem_electricity') }}</h3>
+          <p>{{ t('problem_electricity_desc') }}</p>
         </div>
-      </div>
+      </a>
+      <a class="problem-card" href="{{ url_for('register') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/sanitation.jpg') }}" alt="{{ t('problem_sanitation') }}">
+        <div class="body">
+          <h3>{{ t('problem_sanitation') }}</h3>
+          <p>{{ t('problem_sanitation_desc') }}</p>
+        </div>
+      </a>
+      <a class="problem-card" href="{{ url_for('register') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/health.jpg') }}" alt="{{ t('problem_health') }}">
+        <div class="body">
+          <h3>{{ t('problem_health') }}</h3>
+          <p>{{ t('problem_health_desc') }}</p>
+        </div>
+      </a>
+      <a class="problem-card" href="{{ url_for('register') }}">
+        <img class="thumb" src="{{ url_for('static', filename='img/problems/education.jpg') }}" alt="{{ t('problem_education') }}">
+        <div class="body">
+          <h3>{{ t('problem_education') }}</h3>
+          <p>{{ t('problem_education_desc') }}</p>
+        </div>
+      </a>
     </div>
   </section>
 
@@ -127,7 +145,10 @@
       <button type="button" class="btn btn-sm btn-forest" data-map-filter="all" aria-pressed="true">{{ t('filter_all') }}</button>
       <button type="button" class="btn btn-sm btn-ghost" data-map-filter="roads" aria-pressed="false">{{ t('filter_roads') }}</button>
       <button type="button" class="btn btn-sm btn-ghost" data-map-filter="water" aria-pressed="false">{{ t('filter_water') }}</button>
-      <button type="button" class="btn btn-sm btn-ghost" data-map-filter="edu" aria-pressed="false">{{ t('filter_edu') }}</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-map-filter="electricity" aria-pressed="false">{{ t('filter_electricity') }}</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-map-filter="sanitation" aria-pressed="false">{{ t('filter_sanitation') }}</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-map-filter="healthcare" aria-pressed="false">{{ t('filter_healthcare') }}</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-map-filter="education" aria-pressed="false">{{ t('filter_education') }}</button>
     </div>
     <div class="card lm-card">
       <div id="live-problems-map" class="lm-map"></div>
@@ -303,11 +324,14 @@
   var colors = { critical: '#e11d2e', high: '#f97316', normal: '#10b981', low: '#3b82f6', none: '#8a919c' };
   var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   /* api_live_problems carries pilot_area per record (legacy rows map to the
-     closest pilot area server-side) — filters never reload the page. */
+     closest active area server-side) — filters never reload the page. */
   var PILOT = {
-    roads: 'Roads & Public Infrastructure',
-    water: 'Water & Sanitation',
-    edu: 'Education Infrastructure'
+    roads: 'Roads & Infrastructure',
+    water: 'Water Resources',
+    electricity: 'Electricity',
+    sanitation: 'Sanitation',
+    healthcare: 'Healthcare',
+    education: 'Education'
   };
 
   function esc(s) {
