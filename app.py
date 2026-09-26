@@ -87,6 +87,10 @@ def _flask_secret():
 
 app.secret_key = _flask_secret()
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB
+# Persistent logins: session cookie survives browser restarts (30 days).
+# Without this Flask uses a browser-session cookie and everyone is
+# "logged out every time" they reopen the website.
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 
 # Rate limiting (P18): in-memory per-IP limits, tuned for demos (generous
 # on reads, stricter on auth/mutations). Responses use friendly errors.
@@ -574,6 +578,7 @@ def register():
         user_id = db.create_user(conn, name, email, phone, password, "citizen")
         session["user_id"] = user_id
         session["role"] = "citizen"
+        session.permanent = True
         return redirect(url_for("my_complaints"))
 
     role_param = request.args.get("role", "citizen")
@@ -608,6 +613,7 @@ def login():
 
         session["user_id"] = user.id
         session["role"] = user.role
+        session.permanent = True
         return redirect(user.role == "citizen" and url_for("my_complaints")
                         or user.role == "officer" and url_for("officer_dashboard")
                         or user.role == "university" and url_for("university_dashboard")
