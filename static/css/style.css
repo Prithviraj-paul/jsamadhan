@@ -715,7 +715,9 @@ section[id]{ scroll-margin-top:84px; }
 .gnav-links a{ font-size:.88rem; color:#E7EDE7; padding:6px 2px; border-radius:4px; }
 .gnav-links a:hover{ color:#fff; }
 .gnav-links a.active{ color:#F0C27A; font-weight:700; }
-.gnav-actions{ display:flex; gap:10px; align-items:center; margin-left:auto; flex:none; }
+.gnav-actions{ display:flex; gap:10px; align-items:center; flex:none; }
+.gnav-actions > a:not(.gnav-cta):not(.gnav-bell){ font-size:.88rem; color:#E7EDE7; padding:6px 2px; border-radius:4px; }
+.gnav-actions > a:not(.gnav-cta):not(.gnav-bell):hover{ color:#fff; }
 .gnav-actions .lang-switch select{ max-width:110px; padding:6px 8px; font-size:.78rem; }
 .gnav-cta{
   background:var(--amber); color:#fff !important; font-weight:700; font-size:.85rem;
