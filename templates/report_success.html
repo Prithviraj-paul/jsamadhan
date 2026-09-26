@@ -19,7 +19,7 @@
     {% endif %}
     <div style="margin-top:20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
       <a class="btn btn-forest" href="{{ url_for('track_complaint', code=complaint.code) }}">{{ t('track_btn') }}</a>
-      <a class="btn btn-ghost" href="{{ url_for('citizen_dashboard') }}">{{ t('nav_my_complaints') }}</a>
+      <a class="btn btn-ghost" href="{{ url_for('my_complaints') }}">{{ t('nav_my_complaints') }}</a>
     </div>
   </div>
 </div>

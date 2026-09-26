@@ -21,10 +21,12 @@
       <span class="hero-kicker">{{ t('hero_kicker') }}</span>
       <h1>{{ t('hero_title') }}</h1>
       <p class="hero-lead">{{ t('hero_body') }}</p>
-      {% if not current_user %}
+      {% if not current_user or current_user.role == 'citizen' %}
       <div class="hero-cta">
-        <a class="btn-report-hero" href="{{ url_for('register') }}">{{ t('btn_report_problem') }} ›</a>
+        <a class="btn-report-hero" href="{{ url_for('register') if not current_user else url_for('report_problem') }}">{{ t('btn_report_problem') }} ›</a>
+        {% if not current_user %}
         <a class="btn-hero-login" href="{{ url_for('login') }}">{{ t('foot_login') }}</a>
+        {% endif %}
       </div>
       {% endif %}
       <form id="track" class="hero-track" data-track-form>

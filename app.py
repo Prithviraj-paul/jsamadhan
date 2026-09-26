@@ -572,7 +572,7 @@ def register():
         user_id = db.create_user(conn, name, email, phone, password, "citizen")
         session["user_id"] = user_id
         session["role"] = "citizen"
-        return redirect(url_for("citizen_dashboard"))
+        return redirect(url_for("my_complaints"))
 
     role_param = request.args.get("role", "citizen")
     return render_template("register.html", role=role_param)
@@ -606,7 +606,7 @@ def login():
 
         session["user_id"] = user.id
         session["role"] = user.role
-        return redirect(user.role == "citizen" and url_for("citizen_dashboard")
+        return redirect(user.role == "citizen" and url_for("my_complaints")
                         or user.role == "officer" and url_for("officer_dashboard")
                         or user.role == "university" and url_for("university_dashboard")
                         or user.role == "faculty" and url_for("faculty_dashboard")
@@ -633,8 +633,9 @@ def logout():
 @app.route("/citizen")
 @login_required(role="citizen")
 def citizen_dashboard():
-    complaints = db.list_by_citizen(db.get_db(), g.user.id)
-    return render_template("citizen_dashboard.html", complaints=complaints)
+    """Citizen landing now lives entirely in My Complaints; kept as a
+    redirect for old links/bookmarks."""
+    return redirect(url_for("my_complaints"))
 
 
 @app.route("/citizen/complaints")
