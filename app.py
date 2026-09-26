@@ -296,16 +296,27 @@ app.jinja_env.globals.update({
 
 
 def _run_duplicate_detection(conn, complaint_id):
-    """AI-assisted duplicate scan for a complaint: compare it against every
-    other report and every Official Challenge, then persist PENDING matches.
-    Deterministic and fast (no external calls); called on citizen submission
-    and when government opens a complaint that has no pending matches yet."""
+    """Duplicate scan: HIGH-confidence complaint matches are merged straight
+    away (no officer question) and the group's emergency level is raised;
+    everything else persists as PENDING matches for government review.
+    Called on citizen submission and when government opens a complaint
+    that has no matches yet."""
     complaint_row = db.get_complaint_row(conn, complaint_id)
     if complaint_row is None:
         return []
     matches = detect_duplicates(complaint_row, conn, UPLOAD_DIR)
     stored = []
+    merged = False
     for match in matches[:6]:
+        if (not merged and match["candidate_type"] == "complaint"
+                and match.get("classification") == "HIGH"):
+            cand = db.get_complaint_row(conn, match["candidate_id"])
+            if cand is not None and cand["status"] in (
+                    "Submitted", "Pending Officer Review", "AI Verified",
+                    "Accepted by Officer", "Reopened", "Escalated"):
+                _auto_merge_duplicate(conn, complaint_id, cand["id"])
+                merged = True
+                continue
         if match["candidate_type"] == "complaint":
             mid = db.create_duplicate_match(
                 conn, complaint_id,
@@ -318,6 +329,47 @@ def _run_duplicate_detection(conn, complaint_id):
                 confidence=match["confidence"], signals=match["signals"])
         stored.append((mid, match))
     return stored
+
+
+def _auto_merge_duplicate(conn, complaint_id, candidate_id):
+    """Merge a HIGH-duplicate report into the candidate's group and raise
+    the group's emergency level. No officer question asked."""
+    cand = db.get_complaint_row(conn, candidate_id)
+    new = db.get_complaint_row(conn, complaint_id)
+    if cand is None or new is None:
+        return
+    group_id = cand["master_issue_id"] or cand["id"]
+    conn.execute("UPDATE complaints SET master_issue_id=? WHERE id IN (?,?)",
+                 (group_id, complaint_id, candidate_id))
+    if cand["master_issue_id"] is None:
+        conn.execute("UPDATE complaints SET master_issue_id=id WHERE id=?",
+                     (candidate_id,))
+    members = conn.execute(
+        "SELECT id, severity, urgency FROM complaints WHERE id=? OR master_issue_id=?",
+        (group_id, group_id)).fetchall()
+    n = len(members)
+    top_sev = max([(m["severity"] or 0) for m in members] + [0])
+    new_sev = min(100, top_sev + 5 * max(0, n - 1))
+    if n >= 5:
+        new_urg = "critical"
+    elif n >= 2:
+        new_urg = "high"
+    else:
+        new_urg = None
+    master = db.get_complaint_row(conn, group_id)
+    if master is not None:
+        if new_urg and master["urgency"] != "critical":
+            order = {"low": 0, "normal": 1, "high": 2, "critical": 3}
+            if order.get(new_urg, 0) > order.get(master["urgency"] or "normal", 1):
+                conn.execute("UPDATE complaints SET urgency=? WHERE id=?",
+                             (new_urg, group_id))
+        conn.execute("UPDATE complaints SET severity=? WHERE id=?",
+                     (new_sev, group_id))
+    conn.commit()
+    db.add_log(conn, complaint_id, "Submitted",
+               f"Auto-merged with {cand['code']} (HIGH duplicate, group of {n}).")
+    db.add_log(conn, group_id, "Submitted",
+               f"Group emergency level raised: {n} related reports, severity {new_sev}.")
 
 
 def _run_university_matching(conn, challenge_id):
@@ -1042,8 +1094,12 @@ def report_success(code):
         return redirect(url_for("citizen_dashboard"))
     related = [m for m in db.list_duplicates_for_complaint(
         conn, complaint.id, status="PENDING") if m.candidate_type == "complaint"]
+    group_id = complaint.master_issue_id or complaint.id
+    group_size = conn.execute(
+        "SELECT COUNT(*) c FROM complaints WHERE id=? OR master_issue_id=?",
+        (group_id, group_id)).fetchone()["c"]
     return render_template("report_success.html", complaint=complaint,
-                           related_count=len(related))
+                           related_count=max(len(related), group_size - 1))
 
 
 @app.route("/track", methods=["GET", "POST"])

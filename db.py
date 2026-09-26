@@ -1094,7 +1094,8 @@ def list_recent_resolved(conn, limit=6):
 
 def list_queue(conn):
     rows = conn.execute(
-        "SELECT * FROM complaints WHERE status IN ('Pending Officer Review','AI Verified') ORDER BY created_at ASC"
+        "SELECT * FROM complaints WHERE status IN ('Pending Officer Review','AI Verified') "
+        "AND (master_issue_id IS NULL OR master_issue_id = id) ORDER BY created_at ASC"
     ).fetchall()
     return [hydrate_complaint(conn, r, with_relations=True) for r in rows]
 

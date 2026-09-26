@@ -167,9 +167,10 @@ p{ margin:0 0 1em 0; max-width:62ch; }
 /* ---------- forms ---------- */
 label{ display:block; font-size:.82rem; font-weight:600; color:var(--forest-deep); margin:16px 0 6px; }
 label:first-child{ margin-top:0; }
-input[type=text], input[type=email], input[type=password], input[type=tel], select, textarea{
+input[type=text], input[type=email], input[type=password], input[type=tel], input[type=number], select, textarea{
   width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:var(--radius-s);
   font-family:var(--font-body); font-size:.92rem; background:#fff; color:var(--ink);
+  box-sizing:border-box;
 }
 textarea{ min-height:96px; resize:vertical; }
 input:focus, select:focus, textarea:focus{ border-color:var(--sal); }
@@ -331,7 +332,8 @@ tr.row-link:hover{ background:#FBF9F3; cursor:pointer; }
   transition:transform .15s ease, box-shadow .15s ease;
 }
 .hero-cta .btn-report-hero:hover{ transform:translateY(-2px); box-shadow:0 14px 30px rgba(0,0,0,.35); }
-.hero-cta .btn-hero-guest{
+.hero-cta .btn-hero-guest,
+.hero-cta .btn-hero-login{
   color:#F0C27A; font-weight:700; text-decoration:none;
   border-bottom:2px solid rgba(240,194,122,.5); padding-bottom:3px;
 }
@@ -457,9 +459,15 @@ tr.row-link:hover{ background:#FBF9F3; cursor:pointer; }
 
   /* Forms: stack side-by-side fields, avoid iOS auto-zoom on focus (needs >=16px font) */
   .field-row{ flex-direction:column; gap:0; }
-  input[type=text], input[type=email], input[type=password], input[type=tel], select, textarea{
+  input[type=text], input[type=email], input[type=password], input[type=tel], input[type=number], select, textarea{
     font-size:16px; padding:11px 12px;
   }
+  .sev-est{ display:inline-block; margin-top:8px; font-size:.8rem; font-weight:700; padding:4px 12px; border-radius:999px; }
+  .sev-est{ display:inline-block; margin-top:8px; font-size:.8rem; font-weight:700; padding:4px 12px; border-radius:999px; }
+  .sev-est-low{ background:#E7EFE7; color:var(--forest); }
+  .sev-est-normal{ background:#E3E9F7; color:var(--blue); }
+  .sev-est-high{ background:var(--amber-light); color:#8A5A11; }
+  .sev-est-critical{ background:var(--red-light); color:var(--red); }
 
   /* Complaint cards & topbar */
   .complaint-card{ padding:14px; flex-direction:column; align-items:flex-start; }
@@ -873,12 +881,12 @@ body.gnav-open{ overflow:hidden; }
   .gnav{ padding:10px 16px; gap:12px; }
   .gnav-links{ display:none; }
   .gnav-user{ display:none; }
+  .gnav-cta{ display:none; }
+  .gnav-actions{ margin-left:auto; }
 }
 @media (max-width:600px){
-  .gnav{ flex-wrap:wrap; row-gap:10px; }
-  .gnav-actions{ flex-wrap:wrap; }
-  .gnav-actions .lang-switch{ flex:1 1 140px; }
-  .gnav-actions .lang-switch select{ max-width:none; width:100%; }
+  .gnav{ flex-wrap:nowrap; }
+  .gnav-actions{ flex-wrap:nowrap; }
 }
 
 @media (max-width:900px){

@@ -43,7 +43,6 @@
   </nav>
 
   <div class="gnav-actions">
-    {% include "lang_switcher.html" %}
     {% if not _role %}
       <a class="gnav-cta" href="{{ url_for('register') }}">{{ t('nav_report') }}</a>
     {% elif _role == 'citizen' %}

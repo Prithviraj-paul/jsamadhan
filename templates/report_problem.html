@@ -113,6 +113,7 @@
       <div>
         <label for="people_affected">{{ t('people_affected') }}</label>
         <input type="number" id="people_affected" name="people_affected" min="0" max="1000000" placeholder="{{ t('people_affected_ph') }}" value="{{ form.people_affected if form else '' }}">
+        <div><span class="sev-est sev-est-normal" data-sev-est hidden></span></div>
       </div>
     </div>
 
@@ -301,6 +302,36 @@
     var el = document.getElementById(id);
     if (el) el.addEventListener('input', scheduleCatSuggest);
   });
+
+  /* ---------- Live severity estimate from impact fields ------------------
+     Deterministic on-device heuristic (people × duration × recurrence).
+     The server/AI triage on submit is authoritative; this is guidance. */
+  var sevEst = document.querySelector('[data-sev-est]');
+  var sevPeople = document.getElementById('people_affected');
+  var sevDur = document.getElementById('problem_duration');
+  var sevFreq = document.getElementById('issue_frequency');
+  function updateSevEst() {
+    if (!sevEst) return;
+    var people = parseInt(sevPeople && sevPeople.value, 10);
+    if (isNaN(people)) people = 0;
+    var durW = { just_started: 0, days: 1, weeks: 2, months: 3, long: 4 }[
+      sevDur ? sevDur.value : ''] || 0;
+    var freqW = (sevFreq && sevFreq.value === 'recurring') ? 2 : 0;
+    var score = Math.min(100, Math.round(
+      Math.min(60, people >= 500 ? 60 : people >= 100 ? 45 : people >= 20 ? 30 : people > 0 ? 15 : 0)
+      + durW * 6 + freqW * 8));
+    var level = score >= 75 ? 'critical' : score >= 50 ? 'high' : score >= 25 ? 'normal' : 'low';
+    var label = "{{ t('est_severity') }}: " + level.charAt(0).toUpperCase() + level.slice(1) +
+      ' (' + score + '/100)';
+    sevEst.textContent = label;
+    sevEst.className = 'sev-est sev-est-' + level;
+    sevEst.hidden = false;
+  }
+  [sevPeople, sevDur, sevFreq].forEach(function (el) {
+    if (el) el.addEventListener('input', updateSevEst);
+    if (el) el.addEventListener('change', updateSevEst);
+  });
+  updateSevEst();
 
   var desc = document.getElementById('description');
   var langSel = document.querySelector('[data-voice-lang]');
