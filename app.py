@@ -28,6 +28,13 @@ from PIL.ExifTags import TAGS
 
 import db
 import i18n
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except Exception:
+    pass
 from ai_engine import (
     satellite_screen, evidence_screen, compare_before_after, analyze_severity,
     verify_image_against_problem, detect_duplicates,
@@ -186,11 +193,6 @@ def parse_optional_float(value):
         return float(text)
     except (TypeError, ValueError):
         return "invalid"
-
-
-# Generous Jharkhand bounds (never block valid border locations).
-JHARKHAND_LAT = (21.5, 25.8)
-JHARKHAND_LNG = (82.8, 87.5)
 
 
 def _optimize_image(path, ext):
@@ -709,7 +711,7 @@ def report_problem():
         form = {k: request.form.get(k, "") for k in
                 ("title", "description", "category", "subcategory", "district",
                  "location", "landmark", "problem_duration", "people_affected",
-                 "issue_frequency")}
+                 "issue_frequency", "location_state", "pincode")}
         errors = []
         title = form["title"].strip()
         description = form["description"].strip()
@@ -732,10 +734,12 @@ def report_problem():
         if subcategory and subcategory not in db.PILOT_SUBCATEGORIES.get(category, []):
             errors.append("Please select a valid subcategory for the chosen focus area.")
             subcategory = None
-        district = form["district"].strip() or ""
-        if district not in db.DISTRICTS:
-            errors.append("Please select a valid district in Jharkhand.")
-            district = db.DISTRICTS[0]
+        district = form["district"].strip()
+        if not district:
+            errors.append(i18n.t("district_required"))
+        elif len(district) > 60:
+            errors.append(i18n.t("district_required"))
+            district = district[:60]
         location_text = form["location"].strip()
         landmark = form["landmark"].strip() or None
         if landmark and len(landmark) > 200:
@@ -745,8 +749,11 @@ def report_problem():
         # address parts are stored separately and never overwrite it.
         location_address = request.form.get("location_address", "").strip() or None
         location_city = request.form.get("location_city", "").strip() or None
-        location_state = request.form.get("location_state", "").strip() or None
+        location_state = request.form.get("location_state", "").strip()[:60] or None
         location_pincode = request.form.get("pincode", "").strip() or None
+        if location_pincode and not re.fullmatch(r"\d{6}", location_pincode):
+            errors.append(i18n.t("pincode_invalid"))
+            location_pincode = None
         problem_duration = form["problem_duration"].strip() or None
         if problem_duration not in ("just_started", "days", "weeks", "months", "long"):
             problem_duration = None
@@ -771,13 +778,6 @@ def report_problem():
         if lat == "invalid" or lng == "invalid":
             errors.append("The map location looks invalid. Please re-select it on the map or clear it.")
             lat = lng = None
-        if lat is not None and not (JHARKHAND_LAT[0] <= lat <= JHARKHAND_LAT[1]
-                                    and lng is not None and JHARKHAND_LNG[0] <= lng <= JHARKHAND_LNG[1]):
-            if lat is None or lng is None:
-                pass  # address-only report: allowed, no crash
-            else:
-                errors.append("Jharkhand Samadhan currently accepts Phase-1 reports located within Jharkhand.")
-                lat = lng = None
         if lat is not None and not (-90 <= lat <= 90):
             errors.append("Latitude must be between -90 and 90.")
             lat = None
@@ -1144,6 +1144,59 @@ def _parse_ai_json(raw):
     if not isinstance(rec, dict) or not isinstance(rec.get("data"), dict):
         return None
     return rec
+
+
+_NUMBER_WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+    "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11,
+    "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
+    "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19,
+    "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60,
+    "seventy": 70, "eighty": 80, "ninety": 90, "hundred": 100,
+    "ek": 1, "do": 2, "teen": 3, "char": 4, "paanch": 5, "cheh": 6,
+    "saat": 7, "aath": 8, "nau": 9, "das": 10, "bees": 20, "tees": 30,
+}
+
+
+def _supplement_parsed_fields(text, fields):
+    """Deterministic backup extractor for the voice-interview path: when
+    the model leaves people_affected/duration empty, pull obvious numbers
+    and duration words straight from the narration. Never overrides AI."""
+    low = " %s " % re.sub(r"[^a-z0-9\u0900-\u097f ]", " ", text.lower())
+    if fields.get("people_affected") in (None, ""):
+        found = None
+        m = re.search(r"(\d{1,6})\s*(?:people|persons?|famil|households?|logon|logo|vyakti|affected)",
+                      low)
+        if m:
+            try:
+                found = int(m.group(1))
+            except ValueError:
+                found = None
+        if found is None:
+            for word, val in _NUMBER_WORDS.items():
+                if re.search(r"\b%s\b.{0,30}\b(?:people|persons?|logon|logo|affected)\b" % word, low) or \
+                   re.search(r"\b(?:about|around|almost|nearly|lagbhag|almost)\s+%s\b" % word, low):
+                    found = val
+                    break
+        if found is not None and 0 <= found <= 1000000:
+            fields["people_affected"] = found
+    if not fields.get("duration"):
+        if re.search(r"\b\d+\s*(?:years?|saal|salon)\b", low):
+            fields["duration"] = "long"
+        elif re.search(r"\b\d+\s*(?:months?|mahin\w*|maheene)\b", low):
+            fields["duration"] = "months"
+        elif re.search(r"\b\d+\s*(?:weeks?|haft\w*|hapte)\b", low):
+            fields["duration"] = "weeks"
+        elif re.search(r"\b\d+\s*(?:days?|din|dino)\b", low):
+            fields["duration"] = "days"
+        elif re.search(r"\b(?:long time|years|kafi|lambe|purana)\b", low):
+            fields["duration"] = "long"
+    if not fields.get("frequency"):
+        if re.search(r"\b(?:again and again|again|every|daily|baar.?baar|roz|har|recurr)\w*\b", low):
+            fields["frequency"] = "recurring"
+        elif re.search(r"\b(?:once|one.?time|ek.?baar|single)\b", low):
+            fields["frequency"] = "one_time"
+    return fields
 
 
 def _duplicate_cluster(complaint, pending_matches):
@@ -1827,7 +1880,7 @@ def new_challenge():
         subcategory = request.form.get("subcategory", "").strip() or None
         if subcategory and subcategory not in db.PILOT_SUBCATEGORIES.get(category, []):
             subcategory = None
-        district = request.form.get("district", db.DISTRICTS[0])
+        district = request.form.get("district", "").strip()[:60]
         location_text = request.form.get("location", "").strip() or None
         success_criteria = request.form.get("success_criteria", "").strip()[:2000] or None
         lat = request.form.get("lat")
@@ -1835,6 +1888,9 @@ def new_challenge():
 
         if not (title and description):
             flash("Please provide a title and description for the challenge.", "error")
+            return redirect(url_for("new_challenge"))
+        if not district:
+            flash(i18n.t("district_required"), "error")
             return redirect(url_for("new_challenge"))
 
         complaint_ids = [int(x) for x in request.form.getlist("complaint_ids")
@@ -1889,8 +1945,8 @@ def new_challenge():
             district=district,
             location_text=location_text,
             success_criteria=success_criteria,
-            latitude=float(lat) if lat else None,
-            longitude=float(lng) if lng else None,
+            latitude=parse_optional_float(lat) if parse_optional_float(lat) != "invalid" else None,
+            longitude=parse_optional_float(lng) if parse_optional_float(lng) != "invalid" else None,
             priority_score=priority_score,
             priority_level=priority_level,
             ai_summary=rec["summary"],
@@ -1971,13 +2027,16 @@ def challenge_edit(challenge_id):
         if category not in db.PILOT_CATEGORIES + db.CATEGORIES:
             category = db.PILOT_CATEGORIES[0]
         subcategory = request.form.get("subcategory", "").strip() or None
-        district = request.form.get("district", db.DISTRICTS[0])
+        district = request.form.get("district", "").strip()[:60]
         location_text = request.form.get("location", "").strip() or None
         success_criteria = request.form.get("success_criteria", "").strip()[:2000] or None
         lat = request.form.get("lat")
         lng = request.form.get("lng")
         if not (title and description):
             flash("Please provide a title and description.", "error")
+            return redirect(url_for("challenge_edit", challenge_id=challenge_id))
+        if not district:
+            flash(i18n.t("district_required"), "error")
             return redirect(url_for("challenge_edit", challenge_id=challenge_id))
 
         picked = request.form.get("priority_level", "").strip()
@@ -1990,8 +2049,8 @@ def challenge_edit(challenge_id):
                             category=category, subcategory=subcategory,
                             district=district, location_text=location_text,
                             success_criteria=success_criteria,
-                            latitude=float(lat) if lat else None,
-                            longitude=float(lng) if lng else None,
+                            latitude=parse_optional_float(lat) if parse_optional_float(lat) != "invalid" else None,
+                            longitude=parse_optional_float(lng) if parse_optional_float(lng) != "invalid" else None,
                             priority_level=priority_level,
                             priority_score=priority_score)
         flash("Challenge updated.", "success")
@@ -3526,7 +3585,15 @@ def challenge_explorer():
         if q and q not in f"{ch.code} {ch.title} {ch.description or ''} {ch.category or ''} {ch.subcategory or ''}".lower():
             continue
         cards.append(ch)
+    try:
+        db_districts = [r[0] for r in conn.execute(
+            "SELECT DISTINCT district FROM challenges WHERE district IS NOT NULL "
+            "AND district != '' ORDER BY district").fetchall()]
+    except Exception:
+        db_districts = []
+    all_districts = list(dict.fromkeys(list(db.DISTRICTS) + db_districts))
     return render_template("challenges_explorer.html", challenges=cards,
+                           all_districts=all_districts,
                            filters={"focus": focus, "district": district,
                                      "priority": priority, "stage": stage, "q": request.args.get("q", "")})
 
@@ -3707,6 +3774,7 @@ def api_ai_parse_report():
     if not _fields:
         return jsonify({"success": False,
                         "error": "AI analysis temporarily unavailable."}), 200
+    _fields = _supplement_parsed_fields(text, _fields)
     return jsonify({"success": True, "fields": _fields,
                     "fallback_used": bool(meta.get("fallback_used"))})
 
@@ -4385,9 +4453,9 @@ def gov_pilot_new():
     conn = db.get_db()
     if request.method == "POST":
         project_id = request.form.get("project_id", "").strip()
-        district = request.form.get("district", "").strip()
-        if not (project_id.isdigit() and district in db.DISTRICTS):
-            flash("Choose a project and a district to open the pilot.",
+        district = request.form.get("district", "").strip()[:60]
+        if not (project_id.isdigit() and district):
+            flash("Choose a project and enter a district to open the pilot.",
                   "error")
             return redirect(url_for("gov_pilot_new"))
         try:

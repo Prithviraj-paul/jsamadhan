@@ -109,8 +109,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     var map = null;
     if (window.L) {
-      /* Jharkhand-first default view (was all-India). */
-      map = L.map(mapEl).setView([23.6, 85.3], 7);
+      /* India-wide default view (was Jharkhand-only). */
+      map = L.map(mapEl).setView([23.5, 80.5], 5);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap contributors",
         maxZoom: 19
@@ -130,12 +130,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function applyDistrict(value) {
       if (!districtInput || !value) return;
-      var normalized = value.toLowerCase().replace(/\s+district$/i, "").trim();
-      Array.prototype.forEach.call(districtInput.options, function (option) {
-        if (option.value.toLowerCase() === normalized || option.textContent.toLowerCase() === normalized) {
-          districtInput.value = option.value;
-        }
-      });
+      var normalized = value.replace(/\s+district$/i, "").trim();
+      if (!normalized) return;
+      if (districtInput.tagName === "SELECT") {
+        var low = normalized.toLowerCase();
+        Array.prototype.forEach.call(districtInput.options, function (option) {
+          if (option.value.toLowerCase() === low || option.textContent.toLowerCase() === low) {
+            districtInput.value = option.value;
+          }
+        });
+      } else {
+        /* Free-text district (all-India): take the reverse-geocoded
+           district as the current location's district. */
+        districtInput.value = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+        districtInput.dispatchEvent(new Event("input", { bubbles: true }));
+      }
     }
 
     function reverseGeocode(latitude, longitude) {
@@ -152,14 +161,59 @@ document.addEventListener("DOMContentLoaded", function () {
           var district = address.state_district || address.county || "";
           if (addressInput) addressInput.value = data.display_name || "";
           if (cityInput) cityInput.value = city;
-          if (stateInput) stateInput.value = address.state || "";
+          if (stateInput) {
+            stateInput.value = address.state || "";
+            stateInput.dispatchEvent(new Event("input", { bubbles: true }));
+          }
           if (pincodeInput) pincodeInput.value = address.postcode || "";
           if (locationTextInput && !locationTextInput.value) locationTextInput.value = data.display_name || "";
           applyDistrict(district);
           statusEl.textContent = "Location details filled. You can edit them if needed.";
+          /* Nominatim often omits the postcode — second provider fills it. */
+          if (!address.postcode) fillPincodeFallback(latitude, longitude);
         })
         .catch(function () {
-          statusEl.textContent = "Location selected. Please check or complete the address details.";
+          /* Nominatim down: try the fallback provider before giving up. */
+          fillPincodeFallback(latitude, longitude, true);
+        });
+    }
+
+    /* BigDataCloud free reverse-geocode (no key): supplies missing
+       pincode/city/state when Nominatim lacks them or is unreachable. */
+    function fillPincodeFallback(latitude, longitude, full) {
+      var url = "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=" +
+        encodeURIComponent(latitude) + "&longitude=" + encodeURIComponent(longitude) +
+        "&localityLanguage=en";
+      fetch(url, { headers: { Accept: "application/json" } })
+        .then(function (response) {
+          if (!response.ok) throw new Error("fallback geocode failed");
+          return response.json();
+        })
+        .then(function (data) {
+          data = data || {};
+          if (pincodeInput && !pincodeInput.value && data.postcode) {
+            pincodeInput.value = data.postcode;
+          }
+          if (stateInput && !stateInput.value && data.principalSubdivision) {
+            stateInput.value = data.principalSubdivision;
+            stateInput.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+          if (cityInput && !cityInput.value && (data.city || data.locality)) {
+            cityInput.value = data.city || data.locality;
+          }
+          if (full) {
+            if (locationTextInput && !locationTextInput.value && data.locality) {
+              locationTextInput.value = [data.locality, data.city,
+                data.principalSubdivision].filter(Boolean).join(", ");
+            }
+            applyDistrict(data.city || data.locality || "");
+            statusEl.textContent = "Location details filled. You can edit them if needed.";
+          }
+        })
+        .catch(function () {
+          if (full) {
+            statusEl.textContent = "Location selected. Please check or complete the address details.";
+          }
         });
     }
 
@@ -194,6 +248,13 @@ document.addEventListener("DOMContentLoaded", function () {
           encodeURIComponent(query),
         "https://photon.komoot.io/api/?limit=1&lang=en&q=" + encodeURIComponent(query)
       ];
+      /* Pure pincode queries go to the postal-code endpoint first, which
+         resolves far more pincodes than text search. */
+      if (/^\d{6}$/.test(query.replace(/\s+/g, ""))) {
+        endpoints.unshift(
+          "https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=in&limit=1&postalcode=" +
+          encodeURIComponent(query.replace(/\s+/g, "")));
+      }
 
       function requestSearch(index) {
         return fetch(endpoints[index], { headers: { Accept: "application/json" } })
@@ -306,6 +367,67 @@ document.addEventListener("DOMContentLoaded", function () {
     if (useLocationButton) useLocationButton.addEventListener("click", requestLocation);
     if (map) window.setTimeout(function () { map.invalidateSize(); }, 100);
 
+    /* Pincode -> district + state lookup (postal API, no key needed).
+       Typing a 6-digit pincode fills district and state automatically;
+       manual edits afterwards always win. */
+    var pinTimer = null;
+    function lookupPincode() {
+      if (!pincodeInput) return;
+      var pin = (pincodeInput.value || "").replace(/\D/g, "").slice(0, 6);
+      if (pin.length !== 6) return;
+      var url = "https://api.postalpincode.in/pincode/" + encodeURIComponent(pin);
+      fetch(url, { headers: { Accept: "application/json" } })
+        .then(function (response) {
+          if (!response.ok) throw new Error("pincode lookup failed");
+          return response.json();
+        })
+        .then(function (data) {
+          var row = data && data[0];
+          var offices = row && row.PostOffice;
+          if (!offices || !offices.length) return;
+          var first = offices[0];
+          if (districtInput && !districtInput.value.trim() && first.District) {
+            districtInput.value = first.District;
+            districtInput.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+          var stateEl = picker.querySelector("[data-state-for]") ||
+            document.querySelector("[data-location-state]");
+          if (stateEl && !stateEl.value.trim() && first.State) {
+            stateEl.value = first.State;
+            stateEl.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+          if (statusEl) {
+            statusEl.textContent = "Pincode matched: " + first.District +
+              (first.State ? ", " + first.State : "") + ". Adjust if needed.";
+          }
+          /* Zoom the map into the pincode area for any Indian pincode. */
+          if (map) {
+            var geoUrl = "https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1" +
+              "&countrycodes=in&limit=1&postalcode=" + encodeURIComponent(pin);
+            fetch(geoUrl, { headers: { Accept: "application/json" } })
+              .then(function (resp) {
+                if (!resp.ok) throw new Error("pincode geocode failed");
+                return resp.json();
+              })
+              .then(function (places) {
+                if (!places || !places.length) return;
+                var plat = Number(places[0].lat);
+                var plon = Number(places[0].lon);
+                if (!Number.isFinite(plat) || !Number.isFinite(plon)) return;
+                setLocation(plat, plon, "Map zoomed to pincode " + pin + ". Adjust the pin if needed.");
+              })
+              .catch(function () { /* district/state already filled; map stays */ });
+          }
+        })
+        .catch(function () { /* keep manual entry; never block */ });
+    }
+    if (pincodeInput) {
+      pincodeInput.addEventListener("input", function () {
+        window.clearTimeout(pinTimer);
+        pinTimer = window.setTimeout(lookupPincode, 700);
+      });
+    }
+
     /* Auto-locate on page load where requested (report form): pin the
        citizen immediately; they can still move the pin or search. */
     if (picker.hasAttribute("data-auto-locate")) {
@@ -315,4 +437,41 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
   });
+
+  /* State -> district suggestions (all-India dataset). A state input with
+     data-state-for="<district-datalist-id>" filters that datalist to the
+     chosen state's districts; unknown states restore the fallback list.
+     District stays free text — suggestions never block typing. */
+  (function initStateDistricts() {
+    var IN = window.INDIA_DISTRICTS || null;
+    document.querySelectorAll("datalist[data-state-list]").forEach(function (dl) {
+      if (!IN) return;
+      dl.innerHTML = "";
+      Object.keys(IN).sort().forEach(function (st) {
+        var o = document.createElement("option");
+        o.value = st;
+        dl.appendChild(o);
+      });
+    });
+    document.querySelectorAll("input[data-state-for]").forEach(function (stateEl) {
+      var dl = document.getElementById(stateEl.getAttribute("data-state-for"));
+      if (!dl || !IN) return;
+      var fallback = dl.innerHTML;
+      function refill() {
+        var v = (stateEl.value || "").trim().toLowerCase();
+        var key = Object.keys(IN).filter(function (k) {
+          return k.toLowerCase() === v;
+        })[0];
+        dl.innerHTML = "";
+        if (!key) { dl.innerHTML = fallback; return; }
+        IN[key].forEach(function (d) {
+          var o = document.createElement("option");
+          o.value = d;
+          dl.appendChild(o);
+        });
+      }
+      stateEl.addEventListener("input", refill);
+      refill();
+    });
+  })();
 });

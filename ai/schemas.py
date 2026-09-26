@@ -199,17 +199,7 @@ def _validate_report_parse(d):
     except Exception:
         if not cat:
             sub = ""
-    districts = ()
-    try:
-        import db as _db2
-
-        districts = tuple(_db2.DISTRICTS)
-    except Exception:
-        districts = ()
     dist = clean_text(d.get("district"), 60)
-    if dist:
-        match = next((x for x in districts if x.lower() == dist.lower()), "")
-        dist = match
     aff = d.get("people_affected")
     try:
         aff = int(aff) if aff not in (None, "") else None

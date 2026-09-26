@@ -4,6 +4,7 @@
 {% block head_extra %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="{{ url_for('static', filename='js/india-districts.js') }}"></script>
 {% endblock %}
 {% block content %}
 
@@ -77,12 +78,26 @@
 
     <div class="field-row">
       <div>
+        <label for="loc_state">{{ t('state_label') }}</label>
+        <input type="text" id="loc_state" name="location_state" data-location-state data-state-for="district-list" list="state-list" maxlength="60" placeholder="{{ t('state_ph') }}" value="{{ form.location_state if form else '' }}">
+        <datalist id="state-list" data-state-list></datalist>
+        <datalist id="state-list" data-state-list></datalist>
+      </div>
+      <div>
+        <label for="loc_pincode">{{ t('pincode_label') }}</label>
+        <input type="text" id="loc_pincode" name="pincode" data-location-pincode maxlength="6" inputmode="numeric" placeholder="{{ t('pincode_ph') }}" value="{{ form.pincode if form else '' }}">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div>
         <label for="district">{{ t('district') }}</label>
-        <select id="district" name="district">
+        <input type="text" id="district" name="district" list="district-list" maxlength="60" required placeholder="{{ t('district_ph') }}" value="{{ form.district if form else '' }}">
+        <datalist id="district-list">
           {% for dist in DISTRICTS %}
-          <option value="{{ dist }}" {{ 'selected' if form and form.district == dist }}>{{ dist_label(dist) }}</option>
+          <option value="{{ dist }}"></option>
           {% endfor %}
-        </select>
+        </datalist>
       </div>
       <div>
         <label for="landmark">{{ t('landmark') }}</label>
@@ -131,7 +146,7 @@
           <span data-location-status class="hint" style="margin-top:0;"></span>
         </div>
         <div class="location-search">
-          <input type="text" data-location-search placeholder="Search address or landmark in Jharkhand..." style="font-size:.86rem;">
+          <input type="text" data-location-search placeholder="Search address or landmark anywhere in India..." style="font-size:.86rem;">
           <button type="button" class="btn btn-sm btn-ghost" data-search-location>Search</button>
           <button type="button" class="btn btn-sm btn-forest" data-use-location>📍 Use my location</button>
         </div>
@@ -142,8 +157,6 @@
       </div>
       <input type="hidden" name="location_address" data-location-address>
       <input type="hidden" name="location_city" data-location-city>
-      <input type="hidden" name="location_state" data-location-state>
-      <input type="hidden" name="pincode" data-location-pincode>
     </div>
 
     <label>{{ t('evidence_label') }}</label>
@@ -367,6 +380,14 @@
     }
     return false;
   }
+  function fillDistrict(val) {
+    if (!val) return false;
+    var el = document.getElementById('district');
+    if (!el) return false;
+    if (el.tagName === 'SELECT') return setSelect('district', val);
+    if (!el.value.trim()) { el.value = val; return true; }
+    return false;
+  }
   function analyzeAndFill(narration) {
     var text = (narration || desc.value || '').trim();
     if (!text) return;
@@ -399,7 +420,8 @@
           refreshSubs();
           if (f.subcategory && setSelect('subcategory', f.subcategory)) filled++;
         }
-        ['district', 'problem_duration', 'issue_frequency'].forEach(function (id) {
+        if (fillDistrict(f.district)) filled++;
+        ['problem_duration', 'issue_frequency'].forEach(function (id) {
           var key = id === 'problem_duration' ? 'duration' : (id === 'issue_frequency' ? 'frequency' : id);
           if (f[key] && setSelect(id, f[key])) filled++;
         });
@@ -652,10 +674,11 @@
             n++; refreshSubs();
             if (f.subcategory && setSelect('subcategory', f.subcategory)) n++;
           }
-          ['district', 'problem_duration', 'issue_frequency'].forEach(function (id) {
-            var key = id === 'problem_duration' ? 'duration' : (id === 'issue_frequency' ? 'frequency' : id);
+          ['problem_duration', 'issue_frequency'].forEach(function (id) {
+            var key = id === 'problem_duration' ? 'duration' : 'frequency';
             if (f[key] && setSelect(id, f[key])) n++;
           });
+          if (fillDistrict(f.district)) n++;
           var _pa = f.people_affected;
           if (_pa !== null && _pa !== undefined && String(_pa).trim() !== '') {
             var pa = document.getElementById('people_affected');

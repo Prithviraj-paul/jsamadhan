@@ -21,7 +21,7 @@
         <label for="f-district">{{ t('pub_f_district') }}</label>
         <select id="f-district" name="district">
           <option value="all">{{ t('filter_all') }}</option>
-          {% for dist in DISTRICTS %}
+          {% for dist in all_districts or DISTRICTS %}
           <option value="{{ dist }}" {{ 'selected' if filters.district == dist }}>{{ dist_label(dist) }}</option>
           {% endfor %}
         </select>

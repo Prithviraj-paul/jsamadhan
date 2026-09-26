@@ -2,22 +2,40 @@
 {% block title %}{{ t('success_title') }} — {{ t('app_name') }}{% endblock %}
 {% block body %}
 <div class="page page-narrow">
-  <div class="card" style="text-align:center; padding-top:28px;">
-    <div style="font-size:2.4rem;" aria-hidden="true">✅</div>
-    <h1 style="font-size:1.4rem; margin:8px 0 4px;">{{ t('success_title') }}</h1>
+  <div class="card success-card">
+    <div class="success-check" aria-hidden="true">✓</div>
+    <h1>{{ t('success_title') }}</h1>
     <p class="hint">{{ t('success_sub') }}</p>
-    <div class="pub-kv"><span>{{ t('success_code') }}</span><strong>{{ complaint.code }}</strong></div>
-    <div class="pub-kv"><span>{{ t('focus_area') }}</span><strong>{{ cat_label(complaint.category) }}{% if complaint.subcategory %} · {{ complaint.subcategory }}{% endif %}</strong></div>
-    <div class="pub-kv"><span>{{ t('location_details') }}</span><strong>{{ dist_label(complaint.district) }}{% if complaint.location_text %} · {{ complaint.location_text }}{% endif %}</strong></div>
-    <div class="pub-kv"><span>{{ t('th_status') }}</span><strong>{{ complaint.status }}</strong></div>
+    <dl class="success-rows">
+      <div>
+        <dt>{{ t('success_code') }}</dt>
+        <dd><code>{{ complaint.code }}</code></dd>
+      </div>
+      <div>
+        <dt>{{ t('focus_area') }}</dt>
+        <dd>{{ cat_label(complaint.category) }}{% if complaint.subcategory %} · {{ complaint.subcategory }}{% endif %}</dd>
+      </div>
+      <div>
+        <dt>{{ t('location_details') }}</dt>
+        <dd>
+          {% if complaint.landmark %}{{ complaint.landmark }}<br>{% endif %}
+          {{ dist_label(complaint.district) }}{% if complaint.location_state %} · {{ complaint.location_state }}{% endif %}{% if complaint.pincode %} · {{ complaint.pincode }}{% endif %}
+          {% if not complaint.landmark and complaint.location_text %}<br><span class="hint">{{ complaint.location_text[:90] }}{% if complaint.location_text|length > 90 %}…{% endif %}</span>{% endif %}
+        </dd>
+      </div>
+      <div>
+        <dt>{{ t('th_status') }}</dt>
+        <dd>{{ complaint.status }}</dd>
+      </div>
+    </dl>
     {% if related_count %}
-    <div class="banner banner-ai" style="margin:14px 0 0; display:block; text-align:left;">
+    <div class="banner banner-ai" style="display:block; text-align:left;">
       {{ t('success_linked', n=related_count) }}
     </div>
     {% else %}
-    <p class="hint" style="margin:14px 0 0;">{{ t('success_new') }}</p>
+    <p class="hint">{{ t('success_new') }}</p>
     {% endif %}
-    <div style="margin-top:20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+    <div class="success-actions">
       <a class="btn btn-forest" href="{{ url_for('track_complaint', code=complaint.code) }}">{{ t('track_btn') }}</a>
       <a class="btn btn-ghost" href="{{ url_for('my_complaints') }}">{{ t('nav_my_complaints') }}</a>
     </div>

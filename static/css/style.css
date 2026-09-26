@@ -843,6 +843,43 @@ body.gnav-open{ overflow:hidden; }
 .iv-call .btn{ margin-top:10px; }
 
 /* =====================================================
+   REPORT SUCCESS PAGE
+   ===================================================== */
+
+.success-card{ text-align:center; padding-top:28px; }
+.success-check{
+  width:56px; height:56px; margin:0 auto; border-radius:16px;
+  background:var(--sal-light); color:var(--sal);
+  font-size:1.8rem; font-weight:800; line-height:56px;
+}
+.success-card h1{ font-size:1.35rem; margin:12px 0 4px; }
+.success-rows{ margin:18px 0 0; padding:0; text-align:left; }
+.success-rows > div{
+  display:flex; gap:12px; padding:10px 2px;
+  border-top:1px solid var(--line); align-items:flex-start;
+}
+.success-rows dt{
+  flex:none; width:110px; font-size:.78rem; font-weight:600;
+  color:var(--ink-soft); padding-top:2px;
+}
+.success-rows dd{
+  flex:1; min-width:0; margin:0; font-size:.9rem; font-weight:600;
+  overflow-wrap:anywhere;
+}
+.success-rows dd code{
+  background:#EFEAD9; padding:2px 8px; border-radius:4px;
+  font-size:.95rem;
+}
+.success-actions{
+  margin-top:20px; display:flex; gap:10px;
+  justify-content:center; flex-wrap:wrap;
+}
+@media (max-width:600px){
+  .success-rows dt{ width:92px; }
+  .success-actions .btn{ flex:1 1 140px; }
+}
+
+/* =====================================================
    CITIZEN JOURNEY TRACKER (Part 5)
    ===================================================== */
 
@@ -884,7 +921,9 @@ body.gnav-open{ overflow:hidden; }
   .gnav-links{ display:none; }
   .gnav-user{ display:none; }
   .gnav-cta{ display:none; }
+  .gnav-bell{ display:none; }
   .gnav-actions{ margin-left:auto; }
+  .gnav-actions > a{ display:none; }
 }
 @media (max-width:600px){
   .gnav{ flex-wrap:nowrap; }

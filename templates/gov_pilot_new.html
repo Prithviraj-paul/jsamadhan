@@ -24,11 +24,12 @@
     <div class="grid grid-2" style="margin-top:12px;">
       <div>
         <label for="district">{{ t('p6_pilot_district') }}</label>
-        <select id="district" name="district" required>
+        <input type="text" id="district" name="district" list="district-list" maxlength="60" required>
+        <datalist id="district-list">
           {% for d in districts %}
-          <option value="{{ d }}">{{ dist_label(d) }}</option>
+          <option value="{{ d }}"></option>
           {% endfor %}
-        </select>
+        </datalist>
       </div>
       <div>
         <label for="start_date">{{ t('p6_pilot_start') }}</label>

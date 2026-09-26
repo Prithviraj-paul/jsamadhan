@@ -89,11 +89,12 @@
       </div>
       <div>
         <label for="district">{{ t('ind_field_district') }}</label>
-        <select id="district" name="district">
+        <input type="text" id="district" name="district" list="district-list" maxlength="60" value="{{ org.district or '' }}">
+        <datalist id="district-list">
           {% for d in districts %}
-          <option value="{{ d }}" {% if d == org.district %}selected{% endif %}>{{ dist_label(d) }}</option>
+          <option value="{{ d }}"></option>
           {% endfor %}
-        </select>
+        </datalist>
       </div>
     </div>
 

@@ -8,6 +8,7 @@
 {% block head_extra %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="{{ url_for('static', filename='js/india-districts.js') }}"></script>
 {% endblock %}
 {% block content %}
 
@@ -81,12 +82,19 @@
 
     <div class="field-row">
       <div>
+        <label for="ch_state">{{ t('state_label') }}</label>
+        <input type="text" id="ch_state" data-state-for="district-list" list="state-list" maxlength="60" placeholder="{{ t('state_ph') }}">
+        <datalist id="state-list" data-state-list></datalist>
+      </div>
+      <div>
         <label for="district">{{ t('district') }}</label>
-        <select id="district" name="district">
+        <input type="text" id="district" name="district" list="district-list" maxlength="60" required placeholder="{{ t('district_ph') }}"
+               value="{{ challenge.district if editing else form.district if form else seed.district if seed else '' }}">
+        <datalist id="district-list">
           {% for dist in DISTRICTS %}
-          <option value="{{ dist }}" {{ 'selected' if (challenge and challenge.district == dist) or (not editing and form and form.district == dist) or (not editing and not form and seed and seed.district == dist) }}>{{ dist_label(dist) }}</option>
+          <option value="{{ dist }}"></option>
           {% endfor %}
-        </select>
+        </datalist>
       </div>
       <div>
         <label for="location_text">{{ t('location_details') }}</label>
@@ -105,7 +113,7 @@
           <span data-location-status class="hint" style="margin-top:0;"></span>
         </div>
         <div class="location-search">
-          <input type="text" data-location-search placeholder="Search address or landmark in Jharkhand..." style="font-size:.86rem;">
+          <input type="text" data-location-search placeholder="Search address or landmark anywhere in India..." style="font-size:.86rem;">
           <button type="button" class="btn btn-sm btn-ghost" data-search-location>Search</button>
           <button type="button" class="btn btn-sm btn-forest" data-use-location>📍 Use my location</button>
         </div>
@@ -116,7 +124,7 @@
     </div>
 
     <div>
-      <label for="success_criteria">{{ t('success_title') }}</label>
+      <label for="success_criteria">{{ t('success_criteria_title') }}</label>
       <textarea id="success_criteria" name="success_criteria" rows="3">{{ challenge.success_criteria if editing and challenge.success_criteria else '' }}</textarea>
       <div class="hint">{{ t('success_hint') }}</div>
     </div>
